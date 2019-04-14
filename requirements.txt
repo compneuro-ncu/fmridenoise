@@ -1,0 +1,7 @@
+nibabel>=2.0
+seaborn>=0.7.1
+numpy>=1.11
+nilearn>=0.4.0
+pandas>=0.19
+nipype>=1.1.6
+pybids>=0.8.0
