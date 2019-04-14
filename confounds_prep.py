@@ -18,28 +18,27 @@ def get_confounds_deriv(dataframe, temp_deriv = False, quad_terms = False):
 
     """
 
-    regressors = dataframe.copy()
+    regressors: pd.DataFrame = dataframe.copy()
 
-    if temp_deriv == True:
-        for col in regressors.columns:
-            temp = np.diff(regressors[col], 1, axis=0)
-            temp = np.insert(temp, 0, 0)
-            regressors[col + '_td'] = pd.DataFrame(temp)
+    if temp_deriv:
+        for name, col in regressors.iteritems():
+            temp = np.ediff1d(col, to_begin=0)
+            regressors[name + '_td'] = pd.DataFrame(temp)
 
-    if quad_terms == True:
-        for col in regressors.columns:
-            regressors[col + '_quad'] = regressors[col] ** 2
+    if quad_terms:
+        for name, col in regressors.iteritems():
+            regressors[name + '_quad'] = col ** 2
 
     return regressors
 
 
-def get_outliers(column, th):
+def get_outliers(column: pd.Series, th):
 
     """Function that calculates outliers above specified threshold.
 
     Parameters
     ----------
-    dataframe: single column dataframe
+    column: single column dataframe
     th: threshold
 
     Returns
@@ -47,15 +46,12 @@ def get_outliers(column, th):
     outliers:  boolean array with True in outier data points
 
     """
+    if not issubclass(type(th), (int, float)): # TODO: Better check for numeric types
+        raise TypeError("treshold should be float, but is {}".format(type(th)))
+    variable = column.fillna(value=0, inplace=False)
+    outliers = np.array(np.absolute(variable.astype(float)) > th)
 
-    if th == None:
-        return np.zeros(column.size, dtype=bool)
-    else:
-        variable = column.copy()
-        variable.fillna(value=0, inplace=True)
-        outliers = np.absolute(variable.astype(float)) > th
-
-        return outliers.iloc[:,0].values
+    return outliers
 
 
 def get_spikes_regressors(outliers):
@@ -75,11 +71,11 @@ def get_spikes_regressors(outliers):
 
     count = 1
     for i, val in enumerate(outliers):
-        if val == True:
+        if val:
             zeros_vec = np.zeros(outliers.size)
             zeros_vec[i] = 1
             spikes[f'spike_{count:03}'] = zeros_vec
-            count+=1
+            count += 1
 
     return spikes
 
@@ -101,12 +97,11 @@ def get_confounds_table(confounds_table_raw, pipeline):
 
     """
 
-    pipeline_sel = pipeline.copy()
     confounds_raw = confounds_table_raw.copy()
     confounds_prep = pd.DataFrame()
 
     confounds = [key for key in pipeline['confounds']]
-    spikes = [key for key in pipeline['spikes']]
+    # spikes = [key for key in pipeline['spikes']]
 
     confounds_colnames = {
         'wm': ['WhiteMatter'],
@@ -132,9 +127,8 @@ def get_confounds_table(confounds_table_raw, pipeline):
 
     if pipeline['spikes']:
         fd_col = pd.DataFrame(confounds_raw, columns = list(['FramewiseDisplacement']))
-        dvars_col = pd.DataFrame(confounds_raw, columns = list(['stdDVARS']))
-
         fd_out = get_outliers(fd_col, pipeline['spikes']['fd_th'])
+        dvars_col = pd.DataFrame(confounds_raw, columns = list(['stdDVARS']))
         dvars_out = get_outliers(dvars_col, pipeline['spikes']['dvars_th'])
         outliers = (fd_out== True) | (dvars_out == True)
         spike_regressors = get_spikes_regressors(outliers)
