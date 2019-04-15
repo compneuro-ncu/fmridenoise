@@ -1,29 +1,29 @@
 {
   "name": "36_parameters_spikes",
   "description": "",
-  "confounds": [
+  "confounds":
   {
-    "aroma": False,
     "wm":
-      {"temp_deriv": True,
-       "quad_terms": True},
+      {"temp_deriv": "True",
+       "quad_terms": "True"},
     "csf":
-      {"temp_deriv": True,
-       "quad_terms": True},
+      {"temp_deriv": "True",
+       "quad_terms": "True"},
     "gs":
-      {"temp_deriv": True,
-       "quad_terms": True},
+      {"temp_deriv": "True",
+       "quad_terms": "True"},
     "motion":
-      {"temp_deriv": True,
-       "quad_terms": True},
-    "acompcor": False,
-  }],
+      {"temp_deriv": "True",
+       "quad_terms": "True"},
+    "acompcor": "False"
+  },
+  "aroma": "False",
   "spikes":
     {"fd_th": 0.2,
-     "dvars_th": None},
+     "dvars_th": 0},
   "filter":
-    {"low_pass": True,
-     "high_pass": True},
-  "detrend": True,
-  "stadardize": True
+    {"low_pass": "True",
+     "high_pass": "True"},
+  "detrend": "True",
+  "stadardize": "True"
 }
