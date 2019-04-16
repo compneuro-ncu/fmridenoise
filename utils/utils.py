@@ -1,43 +1,71 @@
 import json
 import jsonschema
-
+import copy
 _pipeline_valid_keys = ["name", "descrtiption", "confounds"]
 type_checker = jsonschema.Draft4Validator.VALIDATORS
 
 
 def load_pipeline_from_json(json_path: str) -> dict:
+    """
+    Loads json file and prepares it for further use (e.g. assures proper types interpretation)
+    :param json_path: path to json file
+    :return: jsonlike dictionary
+    """
     with open(json_path, 'r') as json_file:
-        js = json.load(json_file)  # ValueError if json_file is not a proper json file
+        js = json.load(json_file)
     js = swap_booleans(js, inplace=True)
     return js
 
 
-def is_boollike(string: str) -> bool:
-    if isinstance(string, bool):
+def is_booleanlike(value) -> bool:
+    """
+    Checks if argument is bool or string with 'true' or 'false' value.
+    :param value: argument to check
+    :return: True if argument is booleanlike, false if not
+    """
+    if isinstance(value, bool):
         return True
-    if not isinstance(string, str):
+    if not isinstance(value, str):
         return False
-    if string.lower() == "true" or string.lower() == "false":
+    if value.lower() == "true" or value.lower() == "false":
         return True
 
 
 def cast_bool(value) -> bool:
+    """
+    Tries to cast value to bool.
+    Raises ValueError if value is ambiguous.
+    Raises TypeError for unsupported types.
+    :param value: value to cast
+    :return: bool
+    """
     if isinstance(value, bool):
         return value
     if isinstance(value, str):
-        return True if value.lower() == 'true' else False
+        if value.lower() == 'true':
+            return True
+        elif value.lower() == 'false':
+            return False
+        else:
+            raise ValueError("Ambiguous value of " + value)
     else:
         raise TypeError("Unsupported type of {} with value {}"
                         .format(type(value), value))
 
 
-def swap_booleans(dictionary: dict, inplace: bool=True) -> dict:
+def swap_booleans(dictionary: dict, inplace: bool=True) -> dict:  # TODO: Extend functionality to lists too
+    """
+    Recursively iterates on dictionary and swaps booleanlike values with proper booleans.
+    :param dictionary: input dictionary
+    :param inplace: if True modifies inplace, if False creates deepcopy before changes
+    :return: dictionary with swaped values
+    """
     if not inplace:
-        dictionary = dictionary.copy()
+        dictionary = copy.deepcopy(dictionary)
     for key in dictionary.keys():
         if isinstance(dictionary[key], dict):
             dictionary[key] = swap_booleans(dictionary[key], inplace=inplace)
-        elif is_boollike(dictionary[key]):
+        elif is_booleanlike(dictionary[key]):
             dictionary[key] = cast_bool(dictionary[key])
     return dictionary
 
