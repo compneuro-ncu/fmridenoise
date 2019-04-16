@@ -25,5 +25,5 @@
     {"low_pass": "True",
      "high_pass": "True"},
   "detrend": "True",
-  "stadardize": "True"
+  "standardize": "True"
 }
