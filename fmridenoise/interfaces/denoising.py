@@ -1,6 +1,8 @@
-from nipype.interfaces.base import BaseInterface, \
-    BaseInterfaceInputSpec, traits, File, TraitedSpec
-from nipype.utils.filemanip import split_filename
+from nipype.interfaces.base import (
+    BaseInterfaceInputSpec, TraitedSpec, SimpleInterface,
+    InputMultiPath, OutputMultiPath, File, Directory,
+    traits, isdefined
+    )
 
 import nibabel as nb
 import numpy as np
@@ -14,7 +16,7 @@ class DenoiseInputSpec(BaseInterfaceInputSpec):
 class DenoiseOutputSpec(TraitedSpec):
     fmri_denoised = File(exists=True, desc='denoised fMRI file', mandatory=True)
 
-class Denoise(BaseInterface):
+class Denoise(SimpleInterface):
     input_spec = DenoiseInputSpec
     output_spec = DenoiseOutputSpec
 
@@ -29,12 +31,6 @@ class Denoise(BaseInterface):
 
         _, base, _ = split_filename(fname)
         nb.save(denoised_img, base + '_denoised.nii')
+        self._results['fmri_denoised'] = os.path.abspath(base + '_denoised.nii')
 
         return runtime
-
-    def _list_outputs(self):
-        outputs = self._outputs().get()
-        fname = self.inputs.fmri_preprocessed
-        _, base, _ = split_filename(fname)
-        #outputs["denoised_fmri"] = os.path.abspath(base + '_denoised.nii')
-        return outputs
