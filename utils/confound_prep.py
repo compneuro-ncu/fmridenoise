@@ -2,15 +2,37 @@ import numpy as np
 import pandas as pd
 
 def calc_temp_deriv(signal):
-    ''''''
+    '''Calculates discrete version of temporal derivative of a timecourse.
+
+    Args:
+        signal (pd.Series): Timecourse of interest.
+
+    Returns:
+        np.array: Vector of differences between subsequent values in signal.
+    '''
     return np.ediff1d(signal, to_begin=0)
 
 def calc_quad_term(signal):
-    ''''''
+    '''Calculates squared values for a timecourse.
+
+    Args:
+        signal (pd.Series): Timecourse of interest.
+
+    Returns:
+        np.array: Vector of squared signal values.
+    '''
     return np.power(signal, 2)
 
 def calc_outliers(conf_df_raw, pipeline):
-    ''''''
+    '''Calculate outlier scans given the method specified in pipeline.
+
+    Args:
+        conf_df_raw (pd.DataFrame): Contains unprocessed confounds.
+        pipeline (dict): Denoising pipeline specification.
+
+    Returns:
+        np.array: True for scans identified as outliers, False otherwise.
+    '''
     if not pipeline['spikes']: raise Exception('spike options not defined.')
 
     spikes_colnames = {
@@ -33,7 +55,16 @@ def calc_outliers(conf_df_raw, pipeline):
     return np.logical_or(fd_out, dvars_out)
 
 def get_spikes_regressors(conf_df_raw, pipeline):
-    ''''''
+    '''Prepare spike regressors given the method specified in pipeline.
+
+    Args:
+        conf_df_raw (pd.DataFrame): Contains unprocessed confounds.
+        pipeline (dict): Denoising pipeline specification.
+
+    Returns:
+        pd.DataFrame: Contains one spike regressor for each outlier scan. Shape
+            is n_scans x n_outliers.
+    '''
     if not pipeline['spikes']: raise Exception('spike options not defined.')
 
     outliers = calc_outliers(conf_df_raw, pipeline)
@@ -46,7 +77,16 @@ def get_spikes_regressors(conf_df_raw, pipeline):
     return spikes_df
 
 def get_confounds_regressors(conf_df_raw, pipeline):
-    ''''''
+    '''Prepare confound regressors given the method specified in pipeline.
+
+    Args:
+        conf_df_raw (pd.DataFrame): Contains unprocessed confounds.
+        pipeline (dict): Denoising pipeline specification.
+
+    Returns:
+        pd.DataFrame: Contains all relevant nuissance regressors and (if
+            specified) their temporal derivatives and quadratic terms.
+    '''
     confounds_df = pd.DataFrame(index=conf_df_raw.index)
     conf_colnames = {
         'wm': ['WhiteMatter'],
@@ -78,7 +118,16 @@ def get_confounds_regressors(conf_df_raw, pipeline):
     return confounds_df
 
 def prep_conf_df(conf_df_raw, pipeline):
-    ''''''
+    '''Prepare final confound table given the methods specified in pipeline.
+
+    Args:
+        conf_df_raw (pd.DataFrame): Contains unprocessed confounds.
+        pipeline (dict): Denoising pipeline specification.
+
+    Returns:
+        pd.DataFrame: Final confound regressors containing both spikes and
+            nuissance regressors.
+    '''
     conf_df_prep = pd.DataFrame(index=conf_df_raw.index)
 
     # Confound signals with temporal derivaties and quadratic terms
