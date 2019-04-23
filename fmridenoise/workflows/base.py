@@ -1,4 +1,3 @@
-from nipype import Workflow, Node, MapNode
 from ..interfaces.denoising import Denoise
 from..interfaces.pipeline_selector import PipelineSelector
 import fmridenoise
@@ -18,8 +17,11 @@ def init_fmridenoise_wf(bids_dir, derivatives, entities,
                         ):
     wf = Workflow(name='fmridenoise', base_dir=None)
 
+    # Inputs: fulfilled
     pipelineselector = Node(PipelineSelector(), name="PipelineSelector")
     pipelineselector.iterables = ('pipeline_path', pipelines_paths)
+    # Outputs: dictionary with pipeline
+
     loading_bids = Node(
         BIDSSelect(
             bids_dir=bids_dir,
@@ -37,5 +39,4 @@ def init_fmridenoise_wf(bids_dir, derivatives, entities,
                                           ('confound', 'confound_files')]])
 
 #prepconfounds = Node()
-denoise = Node(Denoise(), name="Denoising")
-wf = Workflow(name="fMRIDenoiser")
+
