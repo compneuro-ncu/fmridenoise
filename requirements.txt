@@ -5,3 +5,4 @@ nilearn>=0.4.0
 pandas>=0.19
 nipype>=1.1.6
 pybids>=0.8.0
+jsonschema>=3.0.1
