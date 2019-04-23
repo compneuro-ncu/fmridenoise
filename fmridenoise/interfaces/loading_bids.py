@@ -1,9 +1,6 @@
 # Interface for loading preprocessed fMRI data and confounds table
 # Modified code from poldracklab/fitlins/fitlins/interfaces/bids.py
 
-# Interface for loading preprocessed fMRI data and confounds table
-# Modified code from poldracklab/fitlins/fitlins/interfaces/bids.py
-
 import numpy as np
 
 from nipype.interfaces.base import (
@@ -22,16 +19,16 @@ class BIDSLoadInputSpec(BaseInterfaceInputSpec):
 
 class BIDSLoadOutputSpec(TraitedSpec):
     entities = OutputMultiPath(traits.Dict)
-    
+
 class BIDSLoad(SimpleInterface):
     input_spec = BIDSLoadInputSpec
     output_spec = BIDSLoadOutputSpec
-    
+
     def _run_interface(self, runtime):
         from bids.layout import BIDSLayout
-        
+
         layout = BIDSLayout(self.inputs.bids_dir, derivatives=True)
-        
+
         entities = []
         extensions = ['Asym_preproc.nii.gz']
 
@@ -44,13 +41,10 @@ class BIDSLoad(SimpleInterface):
                     entity = {'subject': subject, 'session': session}
                     entities.append(entity)
                     self._results['entities'] = entities
-                    
+
         return runtime
 
-    
-    
-    
-    
+
 class BIDSSelectInputSpec(BaseInterfaceInputSpec):
     bids_dir = Directory(exists=True,
                          mandatory=True,
@@ -59,35 +53,35 @@ class BIDSSelectInputSpec(BaseInterfaceInputSpec):
                                 desc='Derivative folders')
     entities = InputMultiPath(traits.Dict(), mandatory=True)
     selectors = traits.Dict(desc='Additional selectors to be applied',
-                            usedefault=True) 
+                            usedefault=True)
 
 class BIDSSelectOutputSpec(TraitedSpec):
-    bold_files = OutputMultiPath(File)
-    confounds_files = OutputMultiPath(File)
+    fmri_preprocessed = OutputMultiPath(File)
+    confounds_raw = OutputMultiPath(File)
     entities = OutputMultiPath(traits.Dict)
-    
+
 class BIDSSelect(SimpleInterface):
     input_spec = BIDSSelectInputSpec
     output_spec = BIDSSelectOutputSpec
-    
+
     def _run_interface(self, runtime):
         from bids.layout import BIDSLayout
 
         derivatives = self.inputs.derivatives
         layout = BIDSLayout(self.inputs.bids_dir, derivatives=derivatives)
 
-        bold_files = []
-        confounds_files = []
+        fmri_preprocessed = []
+        confounds_raw = []
         entities = []
-        
+
         for ents in self.inputs.entities:
             selectors = {**self.inputs.selectors, **ents}
-            bold_file = layout.get(extensions=['Asym_preproc.nii.gz'], **selectors)
-            if len(bold_file) == 0:
+            fmri_file = layout.get(extensions=['Asym_preproc.nii.gz'], **selectors)
+            if len(fmri_file) == 0:
                 raise FileNotFoundError(
                     "Could not find BOLD file in {} with entities {}"
                     "".format(self.inputs.bids_dir, selectors))
-            elif len(bold_file) > 1:
+            elif len(fmri_file) > 1:
                 raise ValueError(
                     "Non-unique BOLD file in {} with entities {}.\n"
                     "Matches:\n\t{}"
@@ -96,15 +90,15 @@ class BIDSSelect(SimpleInterface):
                                   '{} ({})'.format(
                                       f.path,
                                       layout.files[f.path].entities)
-                                  for f in bold_file)))
-                
-            confounds_file = layout.get(extensions=['confounds.tsv'], **selectors)
+                                  for f in fmri_file)))
 
-            bold_files.append(bold_file[0].path)
-            confounds_files.append(confounds_file[0].path)
-        
-        self._results['bold_files'] = bold_files
-        self._results['confounds_files'] = confounds_files
+            confounds = layout.get(extensions=['confounds.tsv'], **selectors)
+
+            fmri_preprocessed.append(fmri_file[0].path)
+            confounds_raw.append(confounds[0].path)
+
+        self._results['fmri_preprocessed'] = fmri_preprocessed
+        self._results['confounds_raw'] = confounds_raw
         self._results['entities'] = self.inputs.entities #entities
 
         return runtime
