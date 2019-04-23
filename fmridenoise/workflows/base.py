@@ -1,32 +1,41 @@
-from nipype.pipeline import engine as pe
-from ..interfaces.loading_bids import (
-    PipelineSpecLoader, LoadPipeline, BIDSSelect, BIDSDataSink)
-from ..interfaces.denoising import Denoising
-from ..interfaces.loading_bids import BIDSSelect
+from nipype import Workflow, Node, MapNode
+from ..interfaces.denoising import Denoise
+from..interfaces.pipeline_selector import PipelineSelector
+import fmridenoise
+import os
+import glob
+from nipype import Node, Workflow
+from ..interfaces.bids import BIDSSelect
+
 
 def init_fmridenoise_wf(bids_dir, derivatives, entities,
-                        #out_dir, 
-                        #pipelines_dir, desc=None,
-                        #ignore=None, force_index=None,
-                        #model=None, participants=None,
+                        # out_dir,
+                        pipelines_paths = glob.glob(os.path.dirname(fmridenoise.__file__) + "/pipelines/*"),
+                        #, desc=None,
+                        # ignore=None, force_index=None,
+                        # model=None, participants=None,
                         base_dir=None, name='fmridenoise_wf'
-                       ):
-    
-    wf = pe.Workflow(name='fmridenoise', base_dir=None)
+                        ):
+    wf = Workflow(name='fmridenoise', base_dir=None)
 
-    loading_bids = pe.Node(
-                BIDSSelect(
-                    bids_dir=bids_dir, 
-                    derivatives=True, 
-                    entities = entities),
-                name='loading_bids')
-                # Outputs: bold_files, confounds_files, entities 
+    pipelineselector = Node(PipelineSelector(), name="PipelineSelector")
+    pipelineselector.iterables = ('pipeline_path', pipelines_paths)
+    loading_bids = Node(
+        BIDSSelect(
+            bids_dir=bids_dir,
+            derivatives=True,
+            entities=entities),
+        name='loading_bids')
+    # Outputs: bold_files, confounds_files, entities
 
-    denoising = pe.Node(
-            Denoise(),
-            name='denoising')
+    denoising = Node(
+        Denoise(),
+        name='denoising')
 
-
-        # General connections
-    wf.connect([loading_bids, denoising, [('bold','bold_files'), 
+    # General connections
+    wf.connect([loading_bids, denoising, [('bold', 'bold_files'),
                                           ('confound', 'confound_files')]])
+
+#prepconfounds = Node()
+denoise = Node(Denoise(), name="Denoising")
+wf = Workflow(name="fMRIDenoiser")
