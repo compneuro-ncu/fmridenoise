@@ -36,8 +36,8 @@ def calc_outliers(conf_df_raw, pipeline):
     if not pipeline['spikes']: raise Exception('spike options not defined.')
 
     spikes_colnames = {
-        'fd': 'FramewiseDisplacement',
-        'dvars': 'stdDVARS'}
+        'fd': 'framewise_displacement',
+        'dvars': 'std_dvars'}
 
     fd_th = pipeline['spikes']['fd_th']       # Could be numeric or False
     dvars_th = pipeline['spikes']['dvars_th'] # Could be numeric or False
@@ -89,12 +89,12 @@ def get_confounds_regressors(conf_df_raw, pipeline):
     '''
     confounds_df = pd.DataFrame(index=conf_df_raw.index)
     conf_colnames = {
-        'wm': ['WhiteMatter'],
-        'csf': ['CSF'],
-        'gs': ['GlobalSignal'],
-        'motion': ['X', 'Y', 'Z', 'RotX', 'RotY', 'RotZ'],
-        'acompcor': ['aCompCor01', 'aCompCor02',
-                     'aCompCor03', 'aCompCor04', 'aCompCor05']}
+        'wm': ['white_matter'],
+        'csf': ['csf'],
+        'gs': ['global_signal'],
+        'motion': ['trans_x', 'trans_y', 'trans_z', 'rot_x', 'rot_y', 'rot_z'],
+        'acompcor': ['a_comp_cor_00', 'a_comp_cor_01', 'a_comp_cor_02'
+                     'a_comp_cor_03', 'a_comp_cor_04', 'a_comp_cor_05']}
 
     for conf_name in pipeline['confounds']:
 
