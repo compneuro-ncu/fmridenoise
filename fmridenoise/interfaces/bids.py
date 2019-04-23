@@ -1,6 +1,11 @@
 # Interface for loading preprocessed fMRI data and confounds table
 # Modified code from poldracklab/fitlins/fitlins/interfaces/bids.py
 
+# Interface for loading preprocessed fMRI data and confounds table
+# Modified code from poldracklab/fitlins/fitlins/interfaces/bids.py
+
+import numpy as np
+
 from nipype.interfaces.base import (
     BaseInterfaceInputSpec, TraitedSpec, SimpleInterface,
     InputMultiPath, OutputMultiPath, File, Directory,
@@ -8,6 +13,44 @@ from nipype.interfaces.base import (
     )
 
 
+class BIDSLoadInputSpec(BaseInterfaceInputSpec):
+    bids_dir = Directory(exists=True,
+                         mandatory=True,
+                         desc='BIDS dataset root directories')
+    derivatives = traits.Either(True, InputMultiPath(Directory(exists=True)),
+                                desc='Derivative folders')
+
+class BIDSLoadOutputSpec(TraitedSpec):
+    entities = OutputMultiPath(traits.Dict)
+    
+class BIDSLoad(SimpleInterface):
+    input_spec = BIDSLoadInputSpec
+    output_spec = BIDSLoadOutputSpec
+    
+    def _run_interface(self, runtime):
+        from bids.layout import BIDSLayout
+        
+        layout = BIDSLayout(self.inputs.bids_dir, derivatives=True)
+        
+        entities = []
+        extensions = ['Asym_preproc.nii.gz']
+
+        for subject in np.sort(layout.get_subjects()):
+            for session in np.sort(layout.get_sessions()):
+                file = layout.get(subject=subject, session=session, task='rest', extensions=extensions)
+                if file == []:
+                    pass
+                else:
+                    entity = {'subject': subject, 'session': session}
+                    entities.append(entity)
+                    self._results['entities'] = entities
+                    
+        return runtime
+
+    
+    
+    
+    
 class BIDSSelectInputSpec(BaseInterfaceInputSpec):
     bids_dir = Directory(exists=True,
                          mandatory=True,
