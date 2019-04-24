@@ -25,6 +25,7 @@ class Denoise(SimpleInterface):
         img = nb.load(fname)
         cname = self.inputs.confounds
         conf = pd.read_csv(cname, delimiter = '\t')
+        conf = conf.iloc[:,:3].values
 
         denoised_img = clean_img(img, confounds=conf)
 
