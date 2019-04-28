@@ -3,7 +3,7 @@
 from nipype.pipeline import engine as pe
 from niworkflows.interfaces.bids import DerivativesDataSink as BIDSDerivatives
 
-from fmridenoise.interfaces.loading_bids import BIDSSelect, BIDSLoad, BIDSDataSink
+from fmridenoise.interfaces.loading_bids import BIDSSelect, BIDSLoad 
 from fmridenoise.interfaces.confounds import Confounds
 from fmridenoise.interfaces.pipeline_selector import PipelineSelector
 
