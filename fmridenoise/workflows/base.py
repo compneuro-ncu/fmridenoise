@@ -3,7 +3,7 @@
 from nipype.pipeline import engine as pe
 from niworkflows.interfaces.bids import DerivativesDataSink as BIDSDerivatives
 
-from fmridenoise.interfaces.loading_bids import BIDSSelect, BIDSLoad 
+from fmridenoise.interfaces.loading_bids import BIDSSelect, BIDSLoad
 from fmridenoise.interfaces.confounds import Confounds
 from fmridenoise.interfaces.pipeline_selector import PipelineSelector
 
@@ -92,7 +92,7 @@ def init_fmridenoise_wf(bids_dir,
         (loading_bids, selecting_bids, [('entities', 'entities')]),
         #(pipelineselector, prep_conf), [('pipeline', 'conf_prep')],
         (selecting_bids, prep_conf, [('conf_raw', 'conf_raw')]),
-        #(prep_conf, saving_derivatives[('conf_prep', 'in_file')]) # --- still not working with this line
+        (prep_conf, ds_confounds[('conf_prep', 'in_file')]) # --- still not working with this line
     ])
 
     return wf
