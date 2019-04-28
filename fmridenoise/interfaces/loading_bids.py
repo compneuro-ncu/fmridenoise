@@ -17,8 +17,10 @@ class BIDSLoadInputSpec(BaseInterfaceInputSpec):
     derivatives = traits.Either(True, InputMultiPath(Directory(exists=True)),
                                 desc='Derivative folders')
 
+
 class BIDSLoadOutputSpec(TraitedSpec):
     entities = OutputMultiPath(traits.Dict)
+
 
 class BIDSLoad(SimpleInterface):
     input_spec = BIDSLoadInputSpec
@@ -54,10 +56,12 @@ class BIDSSelectInputSpec(BaseInterfaceInputSpec):
     selectors = traits.Dict(desc='Additional selectors to be applied',
                             usedefault=True)
 
+
 class BIDSSelectOutputSpec(TraitedSpec):
-    fmri_preprocessed = OutputMultiPath(File)
-    confounds_raw = OutputMultiPath(File)
+    fmri_prep = OutputMultiPath(File)
+    conf_raw = OutputMultiPath(File)
     entities = OutputMultiPath(traits.Dict)
+
 
 class BIDSSelect(SimpleInterface):
     input_spec = BIDSSelectInputSpec
@@ -69,8 +73,8 @@ class BIDSSelect(SimpleInterface):
         derivatives = self.inputs.derivatives
         layout = BIDSLayout(self.inputs.bids_dir, derivatives=derivatives)
 
-        fmri_preprocessed = []
-        confounds_raw = []
+        fmri_prep = []
+        conf_raw = []
         entities = []
 
         for ents in self.inputs.entities:
@@ -93,11 +97,24 @@ class BIDSSelect(SimpleInterface):
 
             confounds = layout.get(extensions=['confounds_regressors.tsv'], **selectors)
 
-            fmri_preprocessed.append(fmri_file[0].path)
-            confounds_raw.append(confounds[0].path)
+            fmri_prep.append(fmri_file[0].path)
+            conf_raw.append(confounds[0].path)
 
-        self._results['fmri_preprocessed'] = fmri_preprocessed
-        self._results['confounds_raw'] = confounds_raw
+        self._results['fmri_prep'] = fmri_prep
+        self._results['conf_raw'] = conf_raw
         self._results['entities'] = self.inputs.entities #entities
 
         return runtime
+
+
+# --- TESTS
+
+if __name__ == '__main__':
+    from nipype import Node
+    selector = Node(BIDSSelect(), name="pipeline_selector")
+    selector.inputs.bids_dir = '/home/finc/Dropbox/Projects/fitlins/BIDS/'
+    selector.inputs.derivatives = True
+    selector.inputs.entities = [{'subject': '01'}]
+    results = selector.run()
+    print(results.outputs)
+
