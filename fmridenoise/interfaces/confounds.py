@@ -25,8 +25,9 @@ class ConfoundsInputSpec(BaseInterfaceInputSpec):
 
 class ConfoundsOutputSpec(TraitedSpec):
     conf_prep = File(
-        exists=True,
-        desc="preprocessed confounds table")
+    #    exists=True,
+    #    desc="preprocessed confounds table"
+    )
 
 
 class Confounds(SimpleInterface):
@@ -49,34 +50,6 @@ class Confounds(SimpleInterface):
         self._results['conf_prep'] = fname_prep
 
         return runtime
-
-    # def _list_outputs(self):
-    #
-    #     outputs = self._outputs().get()
-    #     fname = self.inputs.conf_raw
-    #     path, base, _ = split_filename(fname)
-    #     fname_prep = f"{path}/{base}_{self.inputs.pipeline['name']}_prep.tsv"
-    #     self.outputs["conf_prep"] = fname_prep
-    #
-    #     return outputs
-
-# if __name__ == "__main__":
-#     import utils as ut
-#
-#     # jdicto = ut.load_pipeline_from_json("/home/kmb/Desktop/Neuroscience/" + \
-#     #    "Projects/confound_removal/nbraingroup/fmridenoise/pipelines/36_parameters_spikes.json")
-#
-#     jdicto = ut.load_pipeline_from_json("../pipelines/36_parameters_spikes.json")
-#     confpath = "/home/finc/Dropbox/Projects/fitlins/BIDS/derivatives/fmriprep/sub-09/func/" + \
-#                "sub-09_task-rhymejudgment_desc-confounds_regressors.tsv"
-#
-#     cf = Confounds()
-#     cf.inputs.pipeline = jdicto
-#     cf.inputs.conf_raw = confpath
-#     cf.run()
-#
-#     print(cf._results['conf_prep'])
-
 
 if __name__ == '__main__':
     from nipype import Node
