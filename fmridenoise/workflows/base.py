@@ -3,7 +3,7 @@
 from nipype.pipeline import engine as pe
 from niworkflows.interfaces.bids import DerivativesDataSink as BIDSDerivatives
 
-from fmridenoise.interfaces.loading_bids import BIDSSelect, BIDSLoad
+from fmridenoise.interfaces.loading_bids import BIDSSelect, BIDSLoad, BIDSDataSink
 from fmridenoise.interfaces.confounds import Confounds
 from fmridenoise.interfaces.pipeline_selector import PipelineSelector
 
@@ -11,9 +11,7 @@ import fmridenoise
 import os
 import glob
 
-# from nipype import Node, Workflow, Function, MapNode
 # from nipype import config
-
 # config.enable_debug_mode()
 
 
@@ -21,8 +19,9 @@ class DerivativesDataSink(BIDSDerivatives):
     out_path_base = '/home/finc/Dropbox/Projects/fitlins/BIDS/fmridenoise'
 
 
-def init_fmridenoise_wf(bids_dir, derivatives=True,
-                        # out_dir,
+def init_fmridenoise_wf(bids_dir,
+                        output_dir,
+                        derivatives=True,
                         pipelines_paths = glob.glob(os.path.dirname(fmridenoise.__file__) + "/pipelines/*"),
                         #, desc=None,
                         # ignore=None, force_index=None,
@@ -38,16 +37,14 @@ def init_fmridenoise_wf(bids_dir, derivatives=True,
     #pipelineselector = pe.Node(
     #    PipelineSelector(),
     #    name="PipelineSelector")
-
-    reader = pe.Node(PipelineSelector(), name="pipeline_selector")
-    for path in glob.glob("../pipelines/*"):
-        path = os.path.abspath(path)
-        print(path)
-        reader.inputs.pipeline_path = path
-        pipeline = reader.run()
-
     # pipelineselector.iterables = ('pipeline_path', pipelines_paths)
     # Outputs: pipeline
+
+    reader = pe.Node(PipelineSelector(), name="pipeline_selector") # --- this is temporary solution
+    for path in glob.glob("../pipelines/*"):
+        path = os.path.abspath(path)
+        reader.inputs.pipeline_path = path
+        pipeline = reader.run()
 
     # 2) --- Loading BIDS structure
 
@@ -57,50 +54,56 @@ def init_fmridenoise_wf(bids_dir, derivatives=True,
             bids_dir=bids_dir, derivatives=derivatives
         ),
         name="BidsLoader")
-    # loading_bids.inputs.bids_dir = bids_dir
-    # loading_bids.inputs.derivatives = derivatives
     # Outputs: entities
 
     # 3) --- Selecting BIDS files
 
     # Inputs: entities
-    selecting_bids = pe.Node(
+    selecting_bids = pe.MapNode(
         BIDSSelect(
-            bids_dir=bids_dir, derivatives=derivatives
+            bids_dir=bids_dir,
+            derivatives=derivatives
         ),
+        iterfield=['entities'],
         name='BidsSelector')
-    # selecting_bids.inputs.bids_dir = bids_dir
-    # selecting_bids.inputs.derivatives = derivatives
-    # selecting_bids.inputs.selectors = None
     # Outputs: fmri_prep, conf_raw, entities
 
-    # 4) Confounds preprocessing
+    # 4) --- Confounds preprocessing
 
+    # Inputs: pipeline, conf_raw
     prep_conf = pe.MapNode(
         Confounds(pipeline=pipeline.outputs.pipeline),
         iterfield=['conf_raw'],
         name="ConfPrep")
+    # Outputs: conf_prep
 
+    # 5) --- Save derivatives
 
-    # denoising = Node(
-    #     Denoise(),
-    #     name='denoising')
+    # Inputs: conf_prep
+    ds_confounds = pe.Node(DerivativesDataSink(
+        suffix='prep',
+    ),
+        name='conf_prep',
+        run_without_submitting=True)
 
-
-    # General connections
+# --- Connecting nodes
 
     wf.connect([
         (loading_bids, selecting_bids, [('entities', 'entities')]),
         #(pipelineselector, prep_conf), [('pipeline', 'conf_prep')],
-        (selecting_bids, prep_conf, [('conf_raw', 'conf_raw')])
+        (selecting_bids, prep_conf, [('conf_raw', 'conf_raw')]),
+        #(prep_conf, saving_derivatives[('conf_prep', 'in_file')]) # --- still not working with this line
     ])
 
     return wf
 
-
+# --- TESTING
 
 if __name__ == '__main__':
     bids_dir = '/home/finc/Dropbox/Projects/fitlins/BIDS/'
-    wf = init_fmridenoise_wf(bids_dir, derivatives=True)
+    output_dir = bids_dir
+    wf = init_fmridenoise_wf(bids_dir,
+                             output_dir,
+                             derivatives=True)
     wf.run()
     wf.write_graph("workflow_graph.dot")
