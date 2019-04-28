@@ -36,6 +36,6 @@ if __name__ == '__main__':
         path = os.path.abspath(path)
         print(path)
         reader.inputs.pipeline_path = path
-        results = reader.run()
+        pipeline = reader.run()
 
-    print(results.outputs)
+    print(pipeline.outputs.pipeline)
