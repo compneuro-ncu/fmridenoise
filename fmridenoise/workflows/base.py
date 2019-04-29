@@ -4,6 +4,7 @@ from niworkflows.interfaces.bids import DerivativesDataSink
 from fmridenoise.interfaces.loading_bids import BIDSSelect, BIDSLoad
 from fmridenoise.interfaces.confounds import Confounds
 from fmridenoise.interfaces.denoising import Denoise
+from fmridenoise.interfaces.connectivity import Connectivity
 from fmridenoise.interfaces.pipeline_selector import PipelineSelector
 from nipype.interfaces import fsl, utility as niu, io as nio
 
@@ -32,7 +33,7 @@ def init_fmridenoise_wf(bids_dir,
                         base_dir=None, name='fmridenoise_wf'
                         ):
 
-    wf = pe.Workflow(name='fmridenoise', base_dir=None)
+    workflow = pe.Workflow(name='fmridenoise', base_dir=None)
 
     # datasource = pe.Node(niu.Function(function=_dict_ds, output_names=DATA_ITEMS),
     #                      name='datasource')
@@ -96,10 +97,22 @@ def init_fmridenoise_wf(bids_dir,
         Denoise(output_dir=output_dir,
                 ),
         iterfield=['fmri_prep', 'conf_prep'],
-        name="Denoise")
+        name="Denoiser")
     # Outputs: fmri_denoised
 
-    # 6) --- Save derivatives
+    # 6) --- Connectivity estimation
+
+    # Inputs: fmri_denoised
+
+    parcellation_path = os.path.abspath(glob.glob("../parcellation/*")[0])
+
+    connectivity = pe.MapNode(
+        Connectivity(output_dir=output_dir, parcellation=parcellation_path),
+        iterfield=['fmri_denoised'],
+        name='ConnCalc')
+    # Outputs: conn_mat
+
+    # 7) --- Save derivatives
 
     # Inputs: conf_prep
     ds_confounds = pe.Node(
@@ -114,21 +127,18 @@ def init_fmridenoise_wf(bids_dir,
 
 # --- Connecting nodes
 
-    wf.connect([
+    workflow.connect([
         (loading_bids, selecting_bids, [('entities', 'entities')]),
         (selecting_bids, prep_conf, [('conf_raw', 'conf_raw')]),
         #(prep_conf, ds_confounds, [('conf_source', 'source_file')]),
         (pipelineselector, prep_conf, [('pipeline', 'pipeline')]),
         (selecting_bids, denoise, [('fmri_prep', 'fmri_prep')]),
         (prep_conf, denoise, [('conf_prep', 'conf_prep')]),
+        (denoise, connectivity, [('fmri_denoised', 'fmri_denoised')]),
         #(prep_conf, ds_confounds, [('conf_prep', 'in_file')]),  # --- still not working with this line
     ])
 
-    return wf
-
-
-#def _dict_ds(in_dict, sub, order=['bold', 'regressors']):
-#    return tuple([in_dict[sub][k] for k in order])
+    return workflow
 
 
 # --- TESTING
