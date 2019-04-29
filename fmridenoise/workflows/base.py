@@ -16,7 +16,7 @@ import glob
 
 
 #class DerivativesDataSink(BIDSDerivatives):
-#    out_path_base = '/home/finc/Dropbox/Projects/fitlins/BIDS/fmridenoise'
+#    out_path_base = '/home/finc/Dropbox/Projects/fitlins/BIDS/derivatives/fmridenoise'
 
 
 def init_fmridenoise_wf(bids_dir,
@@ -72,7 +72,9 @@ def init_fmridenoise_wf(bids_dir,
 
     # Inputs: pipeline, conf_raw
     prep_conf = pe.MapNode(
-        Confounds(pipeline=pipeline.outputs.pipeline),
+        Confounds(pipeline=pipeline.outputs.pipeline,
+                  output_dir=output_dir,
+                  ),
         iterfield=['conf_raw'],
         name="ConfPrep")
     # Outputs: conf_prep
@@ -92,7 +94,7 @@ def init_fmridenoise_wf(bids_dir,
         (loading_bids, selecting_bids, [('entities', 'entities')]),
         #(pipelineselector, prep_conf), [('pipeline', 'conf_prep')],
         (selecting_bids, prep_conf, [('conf_raw', 'conf_raw')]),
-       # (prep_conf, ds_confounds[('conf_prep', 'in_file')]) # --- still not working with this line
+        #(prep_conf, ds_confounds[('conf_prep', 'in_file')]) # --- still not working with this line
     ])
 
     return wf
@@ -101,7 +103,7 @@ def init_fmridenoise_wf(bids_dir,
 
 if __name__ == '__main__':
     bids_dir = '/home/finc/Dropbox/Projects/fitlins/BIDS/'
-    output_dir = bids_dir
+    output_dir = '/home/finc/Dropbox/Projects/fitlins/BIDS/derivatives/fmridenoise'
     wf = init_fmridenoise_wf(bids_dir,
                              output_dir,
                              derivatives=True)
