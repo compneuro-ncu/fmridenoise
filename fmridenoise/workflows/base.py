@@ -1,10 +1,9 @@
-# from ..interfaces.denoising import Denoise
-
 from nipype.pipeline import engine as pe
 from niworkflows.interfaces.bids import DerivativesDataSink
 
 from fmridenoise.interfaces.loading_bids import BIDSSelect, BIDSLoad
 from fmridenoise.interfaces.confounds import Confounds
+from fmridenoise.interfaces.denoising import Denoise
 from fmridenoise.interfaces.pipeline_selector import PipelineSelector
 
 import fmridenoise
@@ -81,12 +80,22 @@ def init_fmridenoise_wf(bids_dir,
         name="ConfPrep")
     # Outputs: conf_prep
 
+    # 4) --- Confounds preprocessing
+
+    # Inputs: conf_prep
+    denoise = pe.MapNode(
+        Denoise(output_dir=output_dir,
+                ),
+        iterfield=['fmri_prep', 'conf_prep'],
+        name="Denoise")
+    # Outputs: fmri_denoised
+
     # 5) --- Save derivatives
 
     # Inputs: conf_prep
-    ds_confounds = pe.Node(DerivativesDataSink(
-        suffix='prep',
-    ),
+    ds_confounds = pe.Node(
+        DerivativesDataSink(suffix='prep',
+                            ),
         name='conf_prep',
         run_without_submitting=True)
 
@@ -96,7 +105,9 @@ def init_fmridenoise_wf(bids_dir,
         (loading_bids, selecting_bids, [('entities', 'entities')]),
         #(pipelineselector, prep_conf), [('pipeline', 'conf_prep')],
         (selecting_bids, prep_conf, [('conf_raw', 'conf_raw')]),
-        (pipelineselector, prep_conf, [('pipeline', 'pipeline')])
+        (pipelineselector, prep_conf, [('pipeline', 'pipeline')]),
+        #(selecting_bids, denoise, [('fmri_prep', 'fmri_prep')]),
+        #(prep_conf, denoise, [('conf_prep', 'conf_prep')]),
         #(prep_conf, ds_confounds[('conf_prep', 'in_file')]) # --- still not working with this line
     ])
 
