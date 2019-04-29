@@ -96,6 +96,7 @@ def init_fmridenoise_wf(bids_dir,
     ds_confounds = pe.Node(
         DerivativesDataSink(suffix='prep',
                             ),
+        #iterfield=['conf_prep'],
         name='conf_prep',
         run_without_submitting=True)
 
@@ -108,7 +109,7 @@ def init_fmridenoise_wf(bids_dir,
         (pipelineselector, prep_conf, [('pipeline', 'pipeline')]),
         #(selecting_bids, denoise, [('fmri_prep', 'fmri_prep')]),
         #(prep_conf, denoise, [('conf_prep', 'conf_prep')]),
-        #(prep_conf, ds_confounds[('conf_prep', 'in_file')]) # --- still not working with this line
+        #(prep_conf, ds_confounds, [('conf_prep', 'in_file')]),  # --- still not working with this line
     ])
 
     return wf
