@@ -34,17 +34,19 @@ def init_fmridenoise_wf(bids_dir,
     # 1) --- Selecting pipeline
 
     # Inputs: fulfilled
-    #pipelineselector = pe.Node(
-    #    PipelineSelector(),
-    #    name="PipelineSelector")
-    # pipelineselector.iterables = ('pipeline_path', pipelines_paths)
+    pipelineselector = pe.Node(
+       PipelineSelector(),
+       name="PipelineSelector")
+    pipelineselector.iterables = ('pipeline_path', pipelines_paths)
     # Outputs: pipeline
 
-    reader = pe.Node(PipelineSelector(), name="pipeline_selector") # --- this is temporary solution
-    for path in glob.glob("../pipelines/*"):
-        path = os.path.abspath(path)
-        reader.inputs.pipeline_path = path
-        pipeline = reader.run()
+    # --- Tests
+
+    # reader = pe.Node(PipelineSelector(), name="pipeline_selector") # --- this is temporary solution
+    # for path in glob.glob("../pipelines/*"):
+    #     path = os.path.abspath(path)
+    #     reader.inputs.pipeline_path = path
+    #     pipeline = reader.run()
 
     # 2) --- Loading BIDS structure
 
@@ -72,7 +74,7 @@ def init_fmridenoise_wf(bids_dir,
 
     # Inputs: pipeline, conf_raw
     prep_conf = pe.MapNode(
-        Confounds(pipeline=pipeline.outputs.pipeline,
+        Confounds(#pipeline=pipeline.outputs.pipeline,
                   output_dir=output_dir,
                   ),
         iterfield=['conf_raw'],
@@ -94,6 +96,7 @@ def init_fmridenoise_wf(bids_dir,
         (loading_bids, selecting_bids, [('entities', 'entities')]),
         #(pipelineselector, prep_conf), [('pipeline', 'conf_prep')],
         (selecting_bids, prep_conf, [('conf_raw', 'conf_raw')]),
+        (pipelineselector, prep_conf, [('pipeline', 'pipeline')])
         #(prep_conf, ds_confounds[('conf_prep', 'in_file')]) # --- still not working with this line
     ])
 
