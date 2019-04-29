@@ -80,7 +80,7 @@ def init_fmridenoise_wf(bids_dir,
         name="ConfPrep")
     # Outputs: conf_prep
 
-    # 4) --- Confounds preprocessing
+    # 5) --- Denoising
 
     # Inputs: conf_prep
     denoise = pe.MapNode(
@@ -90,7 +90,7 @@ def init_fmridenoise_wf(bids_dir,
         name="Denoise")
     # Outputs: fmri_denoised
 
-    # 5) --- Save derivatives
+    # 6) --- Save derivatives
 
     # Inputs: conf_prep
     ds_confounds = pe.Node(
