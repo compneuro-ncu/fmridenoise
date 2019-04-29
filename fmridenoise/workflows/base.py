@@ -1,7 +1,7 @@
 # from ..interfaces.denoising import Denoise
 
 from nipype.pipeline import engine as pe
-from niworkflows.interfaces.bids import DerivativesDataSink as BIDSDerivatives
+from niworkflows.interfaces.bids import DerivativesDataSink
 
 from fmridenoise.interfaces.loading_bids import BIDSSelect, BIDSLoad
 from fmridenoise.interfaces.confounds import Confounds
@@ -15,8 +15,8 @@ import glob
 # config.enable_debug_mode()
 
 
-class DerivativesDataSink(BIDSDerivatives):
-    out_path_base = '/home/finc/Dropbox/Projects/fitlins/BIDS/fmridenoise'
+#class DerivativesDataSink(BIDSDerivatives):
+#    out_path_base = '/home/finc/Dropbox/Projects/fitlins/BIDS/fmridenoise'
 
 
 def init_fmridenoise_wf(bids_dir,
@@ -92,7 +92,7 @@ def init_fmridenoise_wf(bids_dir,
         (loading_bids, selecting_bids, [('entities', 'entities')]),
         #(pipelineselector, prep_conf), [('pipeline', 'conf_prep')],
         (selecting_bids, prep_conf, [('conf_raw', 'conf_raw')]),
-        (prep_conf, ds_confounds[('conf_prep', 'in_file')]) # --- still not working with this line
+       # (prep_conf, ds_confounds[('conf_prep', 'in_file')]) # --- still not working with this line
     ])
 
     return wf
