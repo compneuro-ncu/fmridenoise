@@ -5,6 +5,8 @@ from fmridenoise.interfaces.loading_bids import BIDSSelect, BIDSLoad
 from fmridenoise.interfaces.confounds import Confounds
 from fmridenoise.interfaces.denoising import Denoise
 from fmridenoise.interfaces.pipeline_selector import PipelineSelector
+from nipype.interfaces import fsl, utility as niu, io as nio
+
 
 import fmridenoise
 import os
@@ -14,14 +16,16 @@ import glob
 # config.enable_debug_mode()
 
 
+#DATA_ITEMS = ['bold', 'regressors']
+
 #class DerivativesDataSink(BIDSDerivatives):
-#    out_path_base = '/home/finc/Dropbox/Projects/fitlins/BIDS/derivatives/fmridenoise'
+#    out_path_base = 'fmridenoise'
 
 
 def init_fmridenoise_wf(bids_dir,
                         output_dir,
                         derivatives=True,
-                        pipelines_paths = glob.glob(os.path.dirname(fmridenoise.__file__) + "/pipelines/*"),
+                        pipelines_paths=glob.glob(os.path.dirname(fmridenoise.__file__) + "/pipelines/*"),
                         #, desc=None,
                         # ignore=None, force_index=None,
                         # model=None, participants=None,
@@ -29,6 +33,11 @@ def init_fmridenoise_wf(bids_dir,
                         ):
 
     wf = pe.Workflow(name='fmridenoise', base_dir=None)
+
+    # datasource = pe.Node(niu.Function(function=_dict_ds, output_names=DATA_ITEMS),
+    #                      name='datasource')
+    # datasource.inputs.in_dict = in_files
+    # datasource.iterables = ('sub', sorted(in_files.keys()))
 
     # 1) --- Selecting pipeline
 
@@ -94,8 +103,11 @@ def init_fmridenoise_wf(bids_dir,
 
     # Inputs: conf_prep
     ds_confounds = pe.Node(
-        DerivativesDataSink(suffix='prep',
-                            ),
+        DerivativesDataSink(
+            base_directory=str(output_dir),
+            keep_dtype=False,
+            suffix='prep'
+        ),
         #iterfield=['conf_prep'],
         name='conf_prep',
         run_without_submitting=True)
@@ -104,21 +116,26 @@ def init_fmridenoise_wf(bids_dir,
 
     wf.connect([
         (loading_bids, selecting_bids, [('entities', 'entities')]),
-        #(pipelineselector, prep_conf), [('pipeline', 'conf_prep')],
         (selecting_bids, prep_conf, [('conf_raw', 'conf_raw')]),
+        #(prep_conf, ds_confounds, [('conf_source', 'source_file')]),
         (pipelineselector, prep_conf, [('pipeline', 'pipeline')]),
-        #(selecting_bids, denoise, [('fmri_prep', 'fmri_prep')]),
-        #(prep_conf, denoise, [('conf_prep', 'conf_prep')]),
+        (selecting_bids, denoise, [('fmri_prep', 'fmri_prep')]),
+        (prep_conf, denoise, [('conf_prep', 'conf_prep')]),
         #(prep_conf, ds_confounds, [('conf_prep', 'in_file')]),  # --- still not working with this line
     ])
 
     return wf
 
+
+#def _dict_ds(in_dict, sub, order=['bold', 'regressors']):
+#    return tuple([in_dict[sub][k] for k in order])
+
+
 # --- TESTING
 
 if __name__ == '__main__':
     bids_dir = '/home/finc/Dropbox/Projects/fitlins/BIDS/'
-    output_dir = '/home/finc/Dropbox/Projects/fitlins/BIDS/derivatives/fmridenoise'
+    output_dir = '/media/finc/Elements/fmridenoise/derivatives/fmridenoise/'
     wf = init_fmridenoise_wf(bids_dir,
                              output_dir,
                              derivatives=True)
