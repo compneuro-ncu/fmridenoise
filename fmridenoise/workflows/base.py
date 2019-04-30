@@ -1,7 +1,6 @@
 from nipype.pipeline import engine as pe
-from niworkflows.interfaces.bids import DerivativesDataSink
 
-from fmridenoise.interfaces.loading_bids import BIDSSelect, BIDSLoad
+from fmridenoise.interfaces.bids import BIDSSelect, BIDSLoad, BIDSDataSink
 from fmridenoise.interfaces.confounds import Confounds
 from fmridenoise.interfaces.denoising import Denoise
 from fmridenoise.interfaces.connectivity import Connectivity
@@ -12,16 +11,6 @@ from nipype.interfaces import fsl, utility as niu, io as nio
 import fmridenoise
 import os
 import glob
-
-# from nipype import config
-# config.enable_debug_mode()
-
-
-#DATA_ITEMS = ['bold', 'regressors']
-
-#class DerivativesDataSink(BIDSDerivatives):
-#    out_path_base = 'fmridenoise'
-
 
 def init_fmridenoise_wf(bids_dir,
                         output_dir,
@@ -35,11 +24,6 @@ def init_fmridenoise_wf(bids_dir,
 
     workflow = pe.Workflow(name='fmridenoise', base_dir=None)
 
-    # datasource = pe.Node(niu.Function(function=_dict_ds, output_names=DATA_ITEMS),
-    #                      name='datasource')
-    # datasource.inputs.in_dict = in_files
-    # datasource.iterables = ('sub', sorted(in_files.keys()))
-
     # 1) --- Selecting pipeline
 
     # Inputs: fulfilled
@@ -48,14 +32,6 @@ def init_fmridenoise_wf(bids_dir,
        name="PipelineSelector")
     pipelineselector.iterables = ('pipeline_path', pipelines_paths)
     # Outputs: pipeline
-
-    # --- Tests
-
-    # reader = pe.Node(PipelineSelector(), name="pipeline_selector") # --- this is temporary solution
-    # for path in glob.glob("../pipelines/*"):
-    #     path = os.path.abspath(path)
-    #     reader.inputs.pipeline_path = path
-    #     pipeline = reader.run()
 
     # 2) --- Loading BIDS structure
 
@@ -83,9 +59,9 @@ def init_fmridenoise_wf(bids_dir,
 
     # Inputs: pipeline, conf_raw
     prep_conf = pe.MapNode(
-        Confounds(#pipeline=pipeline.outputs.pipeline,
-                  output_dir=output_dir,
-                  ),
+        Confounds(
+            output_dir=output_dir
+        ),
         iterfield=['conf_raw'],
         name="ConfPrep")
     # Outputs: conf_prep
@@ -94,8 +70,9 @@ def init_fmridenoise_wf(bids_dir,
 
     # Inputs: conf_prep
     denoise = pe.MapNode(
-        Denoise(output_dir=output_dir,
-                ),
+        Denoise(
+            output_dir=output_dir,
+        ),
         iterfield=['fmri_prep', 'conf_prep'],
         name="Denoiser")
     # Outputs: fmri_denoised
@@ -103,8 +80,8 @@ def init_fmridenoise_wf(bids_dir,
     # 6) --- Connectivity estimation
 
     # Inputs: fmri_denoised
-
-    parcellation_path = os.path.abspath(glob.glob("../parcellation/*")[0])
+    parcellation_path = os.path.abspath(os.path.join(fmridenoise.__path__[0], "parcellation"))
+    parcellation_path = glob.glob(parcellation_path + "/*")[0]
 
     connectivity = pe.MapNode(
         Connectivity(output_dir=output_dir, parcellation=parcellation_path),
@@ -113,29 +90,32 @@ def init_fmridenoise_wf(bids_dir,
     # Outputs: conn_mat
 
     # 7) --- Save derivatives
-
-    # Inputs: conf_prep
-    ds_confounds = pe.Node(
-        DerivativesDataSink(
-            base_directory=str(output_dir),
-            keep_dtype=False,
-            suffix='prep'
-        ),
-        #iterfield=['conf_prep'],
-        name='conf_prep',
-        run_without_submitting=True)
+    # TODO: Fill missing in/out
+    ds_confounds = pe.MapNode(BIDSDataSink(base_directory=output_dir, suffix='suff'),
+                    iterfield=['in_file', 'entities'],
+                    name="ds_confounds")
+    ds_denoise = pe.MapNode(BIDSDataSink(base_directory=output_dir, suffix="denoise"),
+                    iterfield=['in_file', 'entities'],
+                    name="ds_denoise")
+    ds_connectivity = pe.MapNode(BIDSDataSink(base_directory=output_dir, suffix="connect"),
+                    iterfield=['in_file', 'entities'],
+                    name="ds_connectivity")
 
 # --- Connecting nodes
 
     workflow.connect([
         (loading_bids, selecting_bids, [('entities', 'entities')]),
         (selecting_bids, prep_conf, [('conf_raw', 'conf_raw')]),
-        #(prep_conf, ds_confounds, [('conf_source', 'source_file')]),
         (pipelineselector, prep_conf, [('pipeline', 'pipeline')]),
         (selecting_bids, denoise, [('fmri_prep', 'fmri_prep')]),
         (prep_conf, denoise, [('conf_prep', 'conf_prep')]),
         (denoise, connectivity, [('fmri_denoised', 'fmri_denoised')]),
-        #(prep_conf, ds_confounds, [('conf_prep', 'in_file')]),  # --- still not working with this line
+        (prep_conf, ds_confounds, [('conf_prep', 'in_file')]),
+        (loading_bids, ds_confounds, [('entities', 'entities')]), 
+        (denoise, ds_denoise, [('fmri_denoised', 'in_file')]),
+        (loading_bids, ds_denoise, [('entities', 'entities')]),
+        (connectivity, ds_connectivity, [('corr_mat', 'in_file')]),
+        (loading_bids, ds_connectivity, [('entities', 'entities')])
     ])
 
     return workflow
@@ -143,9 +123,19 @@ def init_fmridenoise_wf(bids_dir,
 
 # --- TESTING
 
-if __name__ == '__main__':
+if __name__ == '__main__':  # TODO Move parser to module __main__
+    import argparse
+    import os
+    parser = argparse.ArgumentParser("Base workflow")
+    parser.add_argument("--bids_dir")
+    parser.add_argument("--output_dir")
+    args = parser.parse_args()
     bids_dir = '/home/finc/Dropbox/Projects/fitlins/BIDS/'
     output_dir = '/media/finc/Elements/fmridenoise/derivatives/fmridenoise/'
+    if args.bids_dir is not None:
+        bids_dir = args.bids_dir
+    if args.output_dir is not None:
+        output_dir = args.output_dir
     wf = init_fmridenoise_wf(bids_dir,
                              output_dir,
                              derivatives=True)
