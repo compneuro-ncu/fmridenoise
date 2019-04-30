@@ -10,7 +10,7 @@ import os
 from nipype.interfaces.base import BaseInterface, \
     BaseInterfaceInputSpec, traits, File, TraitedSpec, SimpleInterface
 from nipype.utils.filemanip import split_filename
-from confound_prep import prep_conf_df
+from fmridenoise.utils.confound_prep import prep_conf_df
 
 
 class ConfoundsInputSpec(BaseInterfaceInputSpec):

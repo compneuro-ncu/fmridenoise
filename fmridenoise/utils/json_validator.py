@@ -1,4 +1,4 @@
-import utils as ut
+import fmridenoise.utils as ut
 import jsonschema
 import copy
 pipeline_schema = {
