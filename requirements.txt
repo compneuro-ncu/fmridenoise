@@ -7,3 +7,4 @@ nipype>=1.1.6
 pybids>=0.8.0
 jsonschema>=3.0.1
 traits>=5.0.0
+niworkflows>=0.8.2
