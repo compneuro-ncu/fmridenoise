@@ -1,10 +1,4 @@
 from fmridenoise.utils import confound_prep
-### temporary solution #########################################################
-# import sys
-# sys.path.insert(0, '/home/kmb/Desktop/Neuroscience/Projects/' + \
-#                    'confound_removal/nbraingroup/fmridenoise/utils')
-# from confound_prep import prep_conf_df
-################################################################################
 import pandas as pd
 import os
 from nipype.interfaces.base import BaseInterface, \
@@ -22,7 +16,7 @@ class ConfoundsInputSpec(BaseInterfaceInputSpec):
         desc='Confounds table',
         mandatory=True)
     output_dir = File(          # needed to save data in other directory
-        desc='Output path')
+        desc='Output path')     # TODO: Implement temp dir
 
 
 class ConfoundsOutputSpec(TraitedSpec):

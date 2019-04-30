@@ -16,7 +16,7 @@
             "type": "python",
             "request": "launch",
             "module": "fmridenoise.workflows.base",
-            "args": ["--bids_dir", "./bids_data"],
+            "args": ["--bids_dir", "/home/siegfriedwagner/Documents/git/fmridenoise/bids_data", "--output_dir", "/home/siegfriedwagner/Documents/git/fmridenoise/outputs"],
             "cwd": "${workspaceFolder}",
             "console": "integratedTerminal"
         },
