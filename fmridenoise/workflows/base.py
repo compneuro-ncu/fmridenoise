@@ -126,6 +126,12 @@ def init_fmridenoise_wf(bids_dir,
 if __name__ == '__main__':  # TODO Move parser to module __main__
     import argparse
     import os
+    import logging
+    logging.critical("Please invoke fmridenoise at module level by using: \n \
+python -m fmridenoise \n \
+python fmridenoise \n \
+python ${path_to_directory}/fmridenoise/__main__.py \n \
+This __main__ will be removed soon." )
     parser = argparse.ArgumentParser("Base workflow")
     parser.add_argument("--bids_dir")
     parser.add_argument("--output_dir")
