@@ -35,8 +35,8 @@ pipeline_schema = {
             "required": ["low_pass", "high_pass"],
             "additionalProperties": False,
             "properties": {
-                "low_pass": {"type": "boolean"},
-                "high_pass": {"type": "boolean"}
+                "low_pass": {"type": "number"},  # TODO: allow None type
+                "high_pass": {"type": "number"}  # TODO: allow None type
             }
         },
         "detrend": {"type":"boolean"},
