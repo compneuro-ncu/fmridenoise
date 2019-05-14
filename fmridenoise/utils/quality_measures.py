@@ -4,7 +4,7 @@ import nibabel as nib
 
 
 def create_carpetplot(time_series: np.ndarray, out_fname: str,
-                      dpi=300, figsize=(8, 2), format='png'):
+                      dpi=300, figsize=(8, 3), format='png'):
     """Generates and saves carpet plot for rois timecourses.
 
     Args:
