@@ -1,6 +1,7 @@
 import fmridenoise.utils as ut
 import jsonschema
 import copy
+import numbers
 pipeline_schema = {
     "type": "object",
     "required": ["name", "description", "confounds", "aroma", "spikes", "filter", "detrend", "standardize"],
@@ -21,15 +22,7 @@ pipeline_schema = {
                 }
             },
         "aroma": {"type": "boolean"},
-        "spikes": {
-            "type": "object",
-            "required": ["fd_th", "dvars_th"],
-            "additionalProperties": False,
-            "properties": {
-                "fd_th": {"type": "number"},
-                "dvars_th": {"type": "number"}
-            }
-        },
+        "spikes": {"type": "spike"},
         "filter": {
             "type": "object",
             "required": ["low_pass", "high_pass"],
@@ -59,10 +52,25 @@ def __is_confound(checker, instance) -> bool:
     else:
         return False
 
+def __is_spike(checker, instance) -> bool:
+    if instance is False:
+        return True
+    elif isinstance(instance, dict):
+        if tuple(instance.keys()) == ('fd_th', 'dvars_th'):
+            if isinstance(instance['fd_th'], numbers.Real) and isinstance(instance['dvars_th'], numbers.Real):
+                return True
+            else:
+                return False
+        else:
+            return False
+    else:
+        return False
 
-__new_types = jsonschema.Draft7Validator.TYPE_CHECKER.redefine("confound", __is_confound)
+__new_types = jsonschema.Draft7Validator.TYPE_CHECKER.redefine("confound", __is_confound)  # TODO: Fix adding extra types
+__new_types = __new_types.redefine("spike", __is_spike)  # TODO: Fix adding extra types
 __new_meta_schema = copy.deepcopy(jsonschema.Draft7Validator.META_SCHEMA)
-__new_meta_schema['definitions']['simpleTypes']['enum'].append('confound')
+__new_meta_schema['definitions']['simpleTypes']['enum'].append("confound")
+__new_meta_schema['definitions']['simpleTypes']['enum'].append('spike')
 __new_validator = jsonschema.Draft7Validator.VALIDATORS
 PipelineValidator = jsonschema.validators.create(meta_schema=__new_meta_schema,
                                                  validators=__new_validator,
