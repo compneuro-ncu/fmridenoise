@@ -9,6 +9,9 @@ import os
 import pandas as pd
 from nilearn.image import clean_img
 import numpy as np
+from fmridenoise.utils.confound_prep import prep_conf_df
+
+
 
 
 class DenoiseInputSpec(BaseInterfaceInputSpec):
@@ -18,8 +21,6 @@ class DenoiseInputSpec(BaseInterfaceInputSpec):
     conf_prep = File(exists=True,
                      desc='Confound file',
                      mandatory=True)
-    low_pass = traits.Float(desc='Low-pass filter')
-    high_pass = traits.Float(desc='High-pass filter')
     output_dir = File(desc='Output path')
 
 
@@ -41,9 +42,9 @@ class Denoise(SimpleInterface):
 
         denoised_img = clean_img(img,
                                  confounds=conf,
-                                 low_pass=self.inputs.low_pass,
-                                 high_pass=self.inputs.high_pass,
-                                 t_r=2,
+                                 low_pass=0.08,  # TODO: load filter from file
+                                 high_pass=0.008,  # TODO: load filter from file
+                                 t_r=2,  # TODO: load TR from pieline description
                         )
 
         _, base, _ = split_filename(fname)
