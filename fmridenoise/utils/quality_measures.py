@@ -4,7 +4,7 @@ import nibabel as nib
 
 
 def create_carpetplot(time_series: np.ndarray, out_fname: str,
-                      dpi=300, figsize=(8, 3), format='png'):
+                      dpi=300, figsize=(8, 2), format='png'):
     """Generates and saves carpet plot for rois timecourses.
 
     Args:
@@ -33,6 +33,8 @@ def create_carpetplot(time_series: np.ndarray, out_fname: str,
                     transparent=True, bbox_inches='tight')
     except FileNotFoundError:
         print(f'{out_fname} directory not found')
+
+
 
 if __name__ == '__main__':
 
