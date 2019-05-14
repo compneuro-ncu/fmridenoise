@@ -1,0 +1,25 @@
+{
+  "name": "acomp_cor",
+  "description": "",
+  "confounds":
+  {
+    "wm": "False",
+    "csf": "False",
+    "gs":
+      {"temp_deriv": "True",
+       "quad_terms": "True"},
+    "motion":
+      {"temp_deriv": "True",
+       "quad_terms": "True"},
+    "acompcor": "True"
+  },
+  "aroma": "False",
+  "spikes":
+    {"fd_th": 0.2,
+     "dvars_th": 0},
+  "filter":
+    {"low_pass": 0.08,
+     "high_pass": 0.008},
+  "detrend": "True",
+  "standardize": "True"
+}
