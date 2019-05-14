@@ -54,7 +54,7 @@ class Connectivity(SimpleInterface):
         matrix_plot_file = f'{self.inputs.output_dir}/{base}_matrix_plot.png'
 
         create_carpetplot(time_series, carpet_plot_file)
-        mplot = plot_matrix(corr_mat)
+        mplot = plot_matrix(corr_mat,  vmin=-1, vmax=1)
         mplot.figure.savefig(matrix_plot_file)
 
         np.save(conn_file, corr_mat)
