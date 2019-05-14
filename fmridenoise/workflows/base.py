@@ -103,7 +103,12 @@ def init_fmridenoise_wf(bids_dir,
 
     ds_carpet_plot = pe.MapNode(BIDSDataSink(base_directory=output_dir),
                                  iterfield=['in_file', 'entities'],
-                                 name="ds_carpet")
+                                 name="ds_carpet_plot")
+
+    ds_matrix_plot = pe.MapNode(BIDSDataSink(base_directory=output_dir),
+                                 iterfield=['in_file', 'entities'],
+                                 name="ds_matrix_plot")
+
 
 # --- Connecting nodes
 
@@ -115,6 +120,7 @@ def init_fmridenoise_wf(bids_dir,
         (pipelineselector, ds_connectivity, [('pipeline_name', 'pipeline_name')]),
         (pipelineselector, ds_confounds, [('pipeline_name','pipeline_name')]),
         (pipelineselector, ds_carpet_plot, [('pipeline_name', 'pipeline_name')]),
+        (pipelineselector, ds_matrix_plot, [('pipeline_name', 'pipeline_name')]),
         (selecting_bids, denoise, [('fmri_prep', 'fmri_prep')]),
         (prep_conf, denoise, [('conf_prep', 'conf_prep')]),
         (denoise, connectivity, [('fmri_denoised', 'fmri_denoised')]),
@@ -125,7 +131,9 @@ def init_fmridenoise_wf(bids_dir,
         (connectivity, ds_connectivity, [('corr_mat', 'in_file')]),
         (loading_bids, ds_connectivity, [('entities', 'entities')]),
         (connectivity, ds_carpet_plot, [('carpet_plot', 'in_file')]),
-        (loading_bids, ds_carpet_plot, [('entities', 'entities')])
+        (loading_bids, ds_carpet_plot, [('entities', 'entities')]),
+        (connectivity, ds_matrix_plot, [('matrix_plot', 'in_file')]),
+        (loading_bids, ds_matrix_plot, [('entities', 'entities')])
     ])
 
     return workflow
