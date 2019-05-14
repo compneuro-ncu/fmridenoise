@@ -23,8 +23,6 @@ class ConfoundsOutputSpec(TraitedSpec):
     conf_prep = File(
         exists=True,
         desc="Preprocessed confounds table")
-    high_pass = traits.Float(desc='High-pass filter')
-    low_pass = traits.Float(desc='Low-pass filter')
     pname = traits.String(desc='Name of denoising strategy')
 
 class Confounds(SimpleInterface):
@@ -44,11 +42,11 @@ class Confounds(SimpleInterface):
         fname_prep = f"{self.inputs.output_dir}/{base}_{self.inputs.pipeline['name']}_prep.tsv"  # use output path
         conf_df_prep.to_csv(fname_prep, sep='\t', index=False)
         self._results['conf_prep'] = fname_prep
-        self._results['high_pass'] = self.inputs.pipeline['filter']['high_pass']
-        self._results['low_pass'] = self.inputs.pipeline['filter']['low_pass']
         self._results['pname'] = self.inputs.pipeline['name']
 
         return runtime
+
+
 
 
 
