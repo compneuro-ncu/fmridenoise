@@ -97,13 +97,13 @@ def init_fmridenoise_wf(bids_dir,
 
     # 7) --- Save derivatives
     # TODO: Fill missing in/out
-    ds_confounds = pe.MapNode(BIDSDataSink(base_directory=output_dir, suffix='suff'),
+    ds_confounds = pe.MapNode(BIDSDataSink(base_directory=output_dir),
                     iterfield=['in_file', 'entities'],
                     name="ds_confounds")
-    ds_denoise = pe.MapNode(BIDSDataSink(base_directory=output_dir, suffix="denoise"),
+    ds_denoise = pe.MapNode(BIDSDataSink(base_directory=output_dir),
                     iterfield=['in_file', 'entities'],
                     name="ds_denoise")
-    ds_connectivity = pe.MapNode(BIDSDataSink(base_directory=output_dir, suffix="connect"),
+    ds_connectivity = pe.MapNode(BIDSDataSink(base_directory=output_dir),
                     iterfield=['in_file', 'entities'],
                     name="ds_connectivity")
 
@@ -112,8 +112,10 @@ def init_fmridenoise_wf(bids_dir,
     workflow.connect([
         (loading_bids, selecting_bids, [('entities', 'entities')]),
         (selecting_bids, prep_conf, [('conf_raw', 'conf_raw')]),
-        #(pipelineselector, pipeline_setup, [('pipeline', 'pipeline')]),
         (pipelineselector, prep_conf, [('pipeline', 'pipeline')]),
+        (pipelineselector, ds_denoise, [('pipeline_name', 'pipeline_name')]),
+        (pipelineselector, ds_connectivity, [('pipeline_name', 'pipeline_name')]),
+        (pipelineselector, ds_confounds, [('pipeline_name','pipeline_name')]),
         (selecting_bids, denoise, [('fmri_prep', 'fmri_prep')]),
         (prep_conf, denoise, [('conf_prep', 'conf_prep')]),
         (denoise, connectivity, [('fmri_denoised', 'fmri_denoised')]),
