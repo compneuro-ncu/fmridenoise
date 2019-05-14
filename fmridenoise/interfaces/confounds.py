@@ -38,7 +38,7 @@ class Confounds(SimpleInterface):
 
         # Create new filename and save
         path, base, _ = split_filename(fname)  # Path can be removed later
-        fname_prep = f"{self.inputs.output_dir}/{base}_{self.inputs.pipeline['name']}_prep.tsv"  # use output path
+        fname_prep = f"{self.inputs.output_dir}/{base}.tsv"  # use output path
         conf_df_prep.to_csv(fname_prep, sep='\t', index=False)
         self._results['conf_prep'] = fname_prep
 
