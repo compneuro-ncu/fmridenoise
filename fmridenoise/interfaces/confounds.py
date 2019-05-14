@@ -38,7 +38,7 @@ class Confounds(SimpleInterface):
 
         # Create new filename and save
         path, base, _ = split_filename(fname)  # Path can be removed later
-        fname_prep = f"{self.inputs.output_dir}/{base}.tsv"  # use output path
+        fname_prep = f"{self.inputs.output_dir}/{base}_prep.tsv"  # use output path
         conf_df_prep.to_csv(fname_prep, sep='\t', index=False)
         self._results['conf_prep'] = fname_prep
 
@@ -54,7 +54,7 @@ if __name__ == '__main__':
     prep_conf = Node(Confounds(), name="ConfPrep")
 
     #jdicto = ut.load_pipeline_from_json("../pipelines/36_parameters_spikes.json")
-    jdicto = ut.load_pipeline_from_json("../pipelines/pipeline-null.json")
+    jdicto = ut.load_pipeline_from_json("../pipelines/pipeline-acomp_cor.json")
     confpath = "/media/finc/Elements/BIDS_pseudowords/BIDS/derivatives/fmriprep/sub-01/func/" + \
                "sub-01_task-rhymejudgment_desc-confounds_regressors.tsv"
 
