@@ -33,7 +33,7 @@ def init_fmridenoise_wf(bids_dir,
     pipelineselector.iterables = ('pipeline_path', pipelines_paths)
     # Outputs: pipeline
 
-    # 2) --- Loading BIDS structure
+    # # 2) --- Loading BIDS structure
 
     # Inputs: directory
     loading_bids = pe.Node(
@@ -64,16 +64,16 @@ def init_fmridenoise_wf(bids_dir,
         ),
         iterfield=['conf_raw'],
         name="ConfPrep")
-    # Outputs: conf_prep
+    # Outputs: conf_prep, low_pass, high_pass
 
     # 5) --- Denoising
 
-    # Inputs: conf_prep
+    # Inputs: conf_prep, low_pass, high_pass
     denoise = pe.MapNode(
         Denoise(
             output_dir=output_dir,
         ),
-        iterfield=['fmri_prep', 'conf_prep'],
+        iterfield=['fmri_prep', 'conf_prep'], #, 'low_pass', 'high_pass'],
         name="Denoiser")
     # Outputs: fmri_denoised
 
@@ -87,19 +87,28 @@ def init_fmridenoise_wf(bids_dir,
         Connectivity(output_dir=output_dir, parcellation=parcellation_path),
         iterfield=['fmri_denoised'],
         name='ConnCalc')
-    # Outputs: conn_mat
+    # Outputs: conn_mat, carpet_plot
 
     # 7) --- Save derivatives
     # TODO: Fill missing in/out
-    ds_confounds = pe.MapNode(BIDSDataSink(base_directory=output_dir, suffix='suff'),
+    ds_confounds = pe.MapNode(BIDSDataSink(base_directory=output_dir),
                     iterfield=['in_file', 'entities'],
                     name="ds_confounds")
-    ds_denoise = pe.MapNode(BIDSDataSink(base_directory=output_dir, suffix="denoise"),
+    ds_denoise = pe.MapNode(BIDSDataSink(base_directory=output_dir),
                     iterfield=['in_file', 'entities'],
                     name="ds_denoise")
-    ds_connectivity = pe.MapNode(BIDSDataSink(base_directory=output_dir, suffix="connect"),
+    ds_connectivity = pe.MapNode(BIDSDataSink(base_directory=output_dir),
                     iterfield=['in_file', 'entities'],
                     name="ds_connectivity")
+
+    ds_carpet_plot = pe.MapNode(BIDSDataSink(base_directory=output_dir),
+                                 iterfield=['in_file', 'entities'],
+                                 name="ds_carpet_plot")
+
+    ds_matrix_plot = pe.MapNode(BIDSDataSink(base_directory=output_dir),
+                                 iterfield=['in_file', 'entities'],
+                                 name="ds_matrix_plot")
+
 
 # --- Connecting nodes
 
@@ -107,6 +116,11 @@ def init_fmridenoise_wf(bids_dir,
         (loading_bids, selecting_bids, [('entities', 'entities')]),
         (selecting_bids, prep_conf, [('conf_raw', 'conf_raw')]),
         (pipelineselector, prep_conf, [('pipeline', 'pipeline')]),
+        (pipelineselector, ds_denoise, [('pipeline_name', 'pipeline_name')]),
+        (pipelineselector, ds_connectivity, [('pipeline_name', 'pipeline_name')]),
+        (pipelineselector, ds_confounds, [('pipeline_name','pipeline_name')]),
+        (pipelineselector, ds_carpet_plot, [('pipeline_name', 'pipeline_name')]),
+        (pipelineselector, ds_matrix_plot, [('pipeline_name', 'pipeline_name')]),
         (selecting_bids, denoise, [('fmri_prep', 'fmri_prep')]),
         (prep_conf, denoise, [('conf_prep', 'conf_prep')]),
         (denoise, connectivity, [('fmri_denoised', 'fmri_denoised')]),
@@ -115,7 +129,11 @@ def init_fmridenoise_wf(bids_dir,
         (denoise, ds_denoise, [('fmri_denoised', 'in_file')]),
         (loading_bids, ds_denoise, [('entities', 'entities')]),
         (connectivity, ds_connectivity, [('corr_mat', 'in_file')]),
-        (loading_bids, ds_connectivity, [('entities', 'entities')])
+        (loading_bids, ds_connectivity, [('entities', 'entities')]),
+        (connectivity, ds_carpet_plot, [('carpet_plot', 'in_file')]),
+        (loading_bids, ds_carpet_plot, [('entities', 'entities')]),
+        (connectivity, ds_matrix_plot, [('matrix_plot', 'in_file')]),
+        (loading_bids, ds_matrix_plot, [('entities', 'entities')])
     ])
 
     return workflow
@@ -136,8 +154,8 @@ This __main__ will be removed soon." )
     parser.add_argument("--bids_dir")
     parser.add_argument("--output_dir")
     args = parser.parse_args()
-    bids_dir = '/home/finc/Dropbox/Projects/fitlins/BIDS/'
-    output_dir = '/media/finc/Elements/fmridenoise/derivatives/fmridenoise/'
+    bids_dir = '/media/finc/Elements/BIDS_pseudowords_short/BIDS/'
+    output_dir = '/media/finc/Elements/BIDS_pseudowords_short/BIDS/'
     if args.bids_dir is not None:
         bids_dir = args.bids_dir
     if args.output_dir is not None:

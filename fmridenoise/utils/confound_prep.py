@@ -99,7 +99,7 @@ def get_confounds_regressors(conf_df_raw, pipeline):
         'csf': ['csf'],
         'gs': ['global_signal'],
         'motion': ['trans_x', 'trans_y', 'trans_z', 'rot_x', 'rot_y', 'rot_z'],
-        'acompcor': ['a_comp_cor_00', 'a_comp_cor_01', 'a_comp_cor_02'
+        'acompcor': ['a_comp_cor_00', 'a_comp_cor_01', 'a_comp_cor_02',
                      'a_comp_cor_03', 'a_comp_cor_04', 'a_comp_cor_05']}
 
     for conf_name in pipeline['confounds']:

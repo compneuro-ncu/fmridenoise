@@ -1,5 +1,5 @@
 from nipype.interfaces.base import SimpleInterface, BaseInterfaceInputSpec, TraitedSpec
-from traits.trait_types import List, Dict, File
+from traits.trait_types import List, Dict, File, Str
 from fmridenoise.utils.utils import load_pipeline_from_json
 from fmridenoise.utils.json_validator import is_valid
 import os
@@ -11,6 +11,7 @@ class PipelineSelectorInputSpecification(BaseInterfaceInputSpec):
 
 class PipelineSelectorOutPutSpecification(TraitedSpec):
     pipeline = Dict(items=True)
+    pipeline_name = Str(desc="Name of denoising strategy")
 
 
 class PipelineSelector(SimpleInterface):
@@ -25,6 +26,7 @@ class PipelineSelector(SimpleInterface):
             check schema at fmridenoise.utils.json_validator.py
             """.format(os.path.basename(self.inputs.pipeline_path)))
         self._results['pipeline'] = js
+        self._results['pipeline_name'] = js['name']
         return runtime
 
 # rudimentary test # TODO: Move to this to proper unittests

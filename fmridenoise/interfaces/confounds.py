@@ -24,7 +24,6 @@ class ConfoundsOutputSpec(TraitedSpec):
         exists=True,
         desc="Preprocessed confounds table")
 
-
 class Confounds(SimpleInterface):
     input_spec = ConfoundsInputSpec
     output_spec = ConfoundsOutputSpec
@@ -39,12 +38,11 @@ class Confounds(SimpleInterface):
 
         # Create new filename and save
         path, base, _ = split_filename(fname)  # Path can be removed later
-        fname_prep = f"{self.inputs.output_dir}/{base}_{self.inputs.pipeline['name']}_prep.tsv"  # use output path
+        fname_prep = f"{self.inputs.output_dir}/{base}_prep.tsv"  # use output path
         conf_df_prep.to_csv(fname_prep, sep='\t', index=False)
         self._results['conf_prep'] = fname_prep
 
         return runtime
-
 
 
 # --- TESTS
@@ -55,14 +53,15 @@ if __name__ == '__main__':
 
     prep_conf = Node(Confounds(), name="ConfPrep")
 
-    jdicto = ut.load_pipeline_from_json("../pipelines/36_parameters_spikes.json")
-    confpath = "/home/finc/Dropbox/Projects/fitlins/BIDS/derivatives/fmriprep/sub-09/func/" + \
-               "sub-09_task-rhymejudgment_desc-confounds_regressors.tsv"
+    #jdicto = ut.load_pipeline_from_json("../pipelines/36_parameters_spikes.json")
+    jdicto = ut.load_pipeline_from_json("../pipelines/pipeline-acomp_cor.json")
+    confpath = "/media/finc/Elements/BIDS_pseudowords/BIDS/derivatives/fmriprep/sub-01/func/" + \
+               "sub-01_task-rhymejudgment_desc-confounds_regressors.tsv"
 
     cf = Confounds()
     cf.inputs.pipeline = jdicto
     cf.inputs.conf_raw = confpath
-    cf.inputs.output_dir = '/home/finc/Dropbox/Projects/fitlins/BIDS/derivatives/fmridenoise'
+    cf.inputs.output_dir = '/media/finc/Elements/fmridenoise/derivatives/fmridenoise/'
     results = cf.run()
 
     print(results.outputs)

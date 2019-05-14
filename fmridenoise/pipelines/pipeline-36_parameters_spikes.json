@@ -22,8 +22,8 @@
     {"fd_th": 0.2,
      "dvars_th": 0},
   "filter":
-    {"low_pass": "True",
-     "high_pass": "True"},
+    {"low_pass": 0.08,
+     "high_pass": 0.008},
   "detrend": "True",
   "standardize": "True"
 }

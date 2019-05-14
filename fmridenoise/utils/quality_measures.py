@@ -34,6 +34,8 @@ def create_carpetplot(time_series: np.ndarray, out_fname: str,
     except FileNotFoundError:
         print(f'{out_fname} directory not found')
 
+
+
 if __name__ == '__main__':
 
     from nilearn.input_data import NiftiLabelsMasker
