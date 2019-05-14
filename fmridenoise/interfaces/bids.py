@@ -113,7 +113,7 @@ class BIDSDataSinkInputSpec(BaseInterfaceInputSpec):
         mandatory=True,
         desc='Path to BIDS (or derivatives) root directory')
     in_file = InputMultiPath(File(exists=True), mandatory=True)
-    suffix = traits.Str(mandatory=True)
+    pipeline_name = traits.Str(mandatory=True)
     entities = InputMultiPath(traits.Dict, usedefault=True,
                               desc='Per-file entities to include in filename')
 
@@ -134,11 +134,11 @@ class BIDSDataSink(IOBase):
         
         out_files = []
         for entity, in_file in zip(self.inputs.entities, self.inputs.in_file):
-            sub_num = entity['subject']
+            sub_num = entity['subject'] # TODO: Add support for sessions
             basedir, basename, ext = split_filename(in_file)
             path = f"{base_dir}/derivatives/fmridenoise/sub-{sub_num}"
             os.makedirs(path, exist_ok=True)
-            out_fname = f"{path}/{basename}_{self.inputs.suffix}{ext}" # TODO: Fix lonely dot if no extension
+            out_fname = f"{path}/{basename}_pipeline-{self.inputs.pipeline_name}{ext}"
             copyfile(in_file, out_fname, copy=True)
             out_files.append(out_fname)
         return {'out_file': out_files}
