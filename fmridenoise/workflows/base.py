@@ -32,8 +32,14 @@ def init_fmridenoise_wf(bids_dir,
        name="PipelineSelector")
     pipelineselector.iterables = ('pipeline_path', pipelines_paths)
     # Outputs: pipeline
-
-    # 2) --- Loading BIDS structure
+    #
+    # # X) --- Getting pipeline details
+    # pipeline_setup = pe.Node(
+    #     PipelineSetup(),
+    #     name="PipelineSetup")
+    # #pipelineselector.iterables = ('pipeline')
+    #
+    # # 2) --- Loading BIDS structure
 
     # Inputs: directory
     loading_bids = pe.Node(
@@ -64,16 +70,16 @@ def init_fmridenoise_wf(bids_dir,
         ),
         iterfield=['conf_raw'],
         name="ConfPrep")
-    # Outputs: conf_prep
+    # Outputs: conf_prep, low_pass, high_pass
 
     # 5) --- Denoising
 
-    # Inputs: conf_prep
+    # Inputs: conf_prep, low_pass, high_pass
     denoise = pe.MapNode(
         Denoise(
             output_dir=output_dir,
         ),
-        iterfield=['fmri_prep', 'conf_prep'],
+        iterfield=['fmri_prep', 'conf_prep'], #, 'low_pass', 'high_pass'],
         name="Denoiser")
     # Outputs: fmri_denoised
 
@@ -106,6 +112,7 @@ def init_fmridenoise_wf(bids_dir,
     workflow.connect([
         (loading_bids, selecting_bids, [('entities', 'entities')]),
         (selecting_bids, prep_conf, [('conf_raw', 'conf_raw')]),
+        #(pipelineselector, pipeline_setup, [('pipeline', 'pipeline')]),
         (pipelineselector, prep_conf, [('pipeline', 'pipeline')]),
         (selecting_bids, denoise, [('fmri_prep', 'fmri_prep')]),
         (prep_conf, denoise, [('conf_prep', 'conf_prep')]),
@@ -136,8 +143,8 @@ This __main__ will be removed soon." )
     parser.add_argument("--bids_dir")
     parser.add_argument("--output_dir")
     args = parser.parse_args()
-    bids_dir = '/home/finc/Dropbox/Projects/fitlins/BIDS/'
-    output_dir = '/media/finc/Elements/fmridenoise/derivatives/fmridenoise/'
+    bids_dir = '/media/finc/Elements/BIDS_pseudowords_short/BIDS/'
+    output_dir = '/media/finc/Elements/BIDS_pseudowords_short/BIDS/'
     if args.bids_dir is not None:
         bids_dir = args.bids_dir
     if args.output_dir is not None:
