@@ -23,7 +23,6 @@ class ConfoundsOutputSpec(TraitedSpec):
     conf_prep = File(
         exists=True,
         desc="Preprocessed confounds table")
-    pname = traits.String(desc='Name of denoising strategy')
 
 class Confounds(SimpleInterface):
     input_spec = ConfoundsInputSpec
@@ -42,12 +41,8 @@ class Confounds(SimpleInterface):
         fname_prep = f"{self.inputs.output_dir}/{base}_{self.inputs.pipeline['name']}_prep.tsv"  # use output path
         conf_df_prep.to_csv(fname_prep, sep='\t', index=False)
         self._results['conf_prep'] = fname_prep
-        self._results['pname'] = self.inputs.pipeline['name']
 
         return runtime
-
-
-
 
 
 # --- TESTS
@@ -58,7 +53,8 @@ if __name__ == '__main__':
 
     prep_conf = Node(Confounds(), name="ConfPrep")
 
-    jdicto = ut.load_pipeline_from_json("../pipelines/36_parameters_spikes.json")
+    #jdicto = ut.load_pipeline_from_json("../pipelines/36_parameters_spikes.json")
+    jdicto = ut.load_pipeline_from_json("../pipelines/pipeline-null.json")
     confpath = "/media/finc/Elements/BIDS_pseudowords/BIDS/derivatives/fmriprep/sub-01/func/" + \
                "sub-01_task-rhymejudgment_desc-confounds_regressors.tsv"
 

@@ -9,9 +9,6 @@ import os
 import pandas as pd
 from nilearn.image import clean_img
 import numpy as np
-from fmridenoise.utils.confound_prep import prep_conf_df
-
-
 
 
 class DenoiseInputSpec(BaseInterfaceInputSpec):
@@ -37,8 +34,16 @@ class Denoise(SimpleInterface):
         fname = self.inputs.fmri_prep
         img = nb.load(fname)
         cname = self.inputs.conf_prep
-        conf = pd.read_csv(cname, delimiter='\t')
-        conf = conf.values
+
+        try:
+            conf = pd.read_csv(cname, delimiter='\t')
+            conf = conf.values
+        except pd.errors.EmptyDataError:  # In case of null pipeline
+            conf = None
+
+        #conf = pd.read_csv(cname, delimiter='\t')
+
+
 
         denoised_img = clean_img(img,
                                  confounds=conf,
@@ -64,15 +69,21 @@ if __name__ == '__main__':
 
     prep_conf = Node(Denoise(), name="Denoise")
 
-    conf= ut.load_pipeline_from_json("../pipelines/36_parameters_spikes.json")
+    #conf= ut.load_pipeline_from_json("../pipelines/36_parameters_spikes.json")
     confpath = "/home/finc/Dropbox/Projects/fitlins/BIDS/derivatives/fmriprep/sub-09/func/" + \
                "sub-09_task-rhymejudgment_desc-confounds_regressors.tsv"
 
     dn = Denoise()
     dn.inputs.fmri_prep = '/media/finc/Elements/BIDS_pseudowords/BIDS/derivatives/fmriprep/sub-01/func/sub-01_task-rhymejudgment_space-MNI152NLin2009cAsym_desc-preproc_bold.nii.gz'
-    dn.inputs.low_pass = 0.08
-    dn.inputs.high_pass = 0.008
-    dn.inputs.conf_prep = '/media/finc/Elements/fmridenoise/derivatives/fmridenoise/sub-01_task-rhymejudgment_desc-confounds_regressors_36_parameters_spikes_prep.tsv'
+    #dn.inputs.low_pass = 0.08
+    #dn.inputs.high_pass = 0.008
+    #dn.inputs.conf_prep = '/media/finc/Elements/fmridenoise/derivatives/fmridenoise/sub-01_task-rhymejudgment_desc-confounds_regressors_36_parameters_spikes_prep.tsv'
+    #dn.inputs.conf_prep = '/media/finc/Elements/BIDS_pseudowords_short/BIDS/derivatives/fmridenoise/sub-01/sub-01_task-rhymejudgment_desc-confounds_regressors_36_parameters_spikes_prep_suff.tsv'
+                          #'sub-01_task-rhymejudgment_desc-confounds_regressors_null_prep_suff.tsv'
+
+    dn.inputs.conf_prep = '/media/finc/Elements/BIDS_pseudowords_short/BIDS/derivatives/fmridenoise/sub-01/sub-01_task-rhymejudgment_desc-confounds_regressors_null_prep_suff.tsv'
+
+
     dn.inputs.output_dir = '/media/finc/Elements/fmridenoise/derivatives/fmridenoise/'
     results = dn.run()
 
