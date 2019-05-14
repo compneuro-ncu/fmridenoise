@@ -32,13 +32,7 @@ def init_fmridenoise_wf(bids_dir,
        name="PipelineSelector")
     pipelineselector.iterables = ('pipeline_path', pipelines_paths)
     # Outputs: pipeline
-    #
-    # # X) --- Getting pipeline details
-    # pipeline_setup = pe.Node(
-    #     PipelineSetup(),
-    #     name="PipelineSetup")
-    # #pipelineselector.iterables = ('pipeline')
-    #
+
     # # 2) --- Loading BIDS structure
 
     # Inputs: directory
@@ -93,7 +87,7 @@ def init_fmridenoise_wf(bids_dir,
         Connectivity(output_dir=output_dir, parcellation=parcellation_path),
         iterfield=['fmri_denoised'],
         name='ConnCalc')
-    # Outputs: conn_mat
+    # Outputs: conn_mat, carpet_plot
 
     # 7) --- Save derivatives
     # TODO: Fill missing in/out
@@ -107,6 +101,10 @@ def init_fmridenoise_wf(bids_dir,
                     iterfield=['in_file', 'entities'],
                     name="ds_connectivity")
 
+    ds_carpet_plot = pe.MapNode(BIDSDataSink(base_directory=output_dir),
+                                 iterfield=['in_file', 'entities'],
+                                 name="ds_carpet")
+
 # --- Connecting nodes
 
     workflow.connect([
@@ -116,6 +114,7 @@ def init_fmridenoise_wf(bids_dir,
         (pipelineselector, ds_denoise, [('pipeline_name', 'pipeline_name')]),
         (pipelineselector, ds_connectivity, [('pipeline_name', 'pipeline_name')]),
         (pipelineselector, ds_confounds, [('pipeline_name','pipeline_name')]),
+        (pipelineselector, ds_carpet_plot, [('pipeline_name', 'pipeline_name')]),
         (selecting_bids, denoise, [('fmri_prep', 'fmri_prep')]),
         (prep_conf, denoise, [('conf_prep', 'conf_prep')]),
         (denoise, connectivity, [('fmri_denoised', 'fmri_denoised')]),
@@ -124,7 +123,9 @@ def init_fmridenoise_wf(bids_dir,
         (denoise, ds_denoise, [('fmri_denoised', 'in_file')]),
         (loading_bids, ds_denoise, [('entities', 'entities')]),
         (connectivity, ds_connectivity, [('corr_mat', 'in_file')]),
-        (loading_bids, ds_connectivity, [('entities', 'entities')])
+        (loading_bids, ds_connectivity, [('entities', 'entities')]),
+        (connectivity, ds_carpet_plot, [('carpet_plot', 'in_file')]),
+        (loading_bids, ds_carpet_plot, [('entities', 'entities')])
     ])
 
     return workflow
