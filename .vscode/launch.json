@@ -16,7 +16,16 @@
             "type": "python",
             "request": "launch",
             "module": "fmridenoise.workflows.base",
-            "args": ["--bids_dir", "/home/siegfriedwagner/Documents/git/fmridenoise/bids_data", "--output_dir", "/home/siegfriedwagner/Documents/git/fmridenoise/outputs"],
+            "args": ["--bids_dir", "${workspaceFolder}/bids_data", "--output_dir", "${workspaceFolder}/outputs"],
+            "cwd": "${workspaceFolder}",
+            "console": "integratedTerminal"
+        },
+        {
+            "name": "RunTests",
+            "type": "python",
+            "request": "launch",
+            "module": "unittest",
+            "args": ["discover", "-s", "${workspaceFolder}/tests"],
             "cwd": "${workspaceFolder}",
             "console": "integratedTerminal"
         },

@@ -1,0 +1,44 @@
+{
+  "Name": "ds003_model001",
+  "Description": "",
+  "Input": {
+    "task": "rhymejudgment"
+  },
+  "Steps": [
+    {
+      "Level": "run",
+      "Transformations": [
+        {
+          "Name": "Factor",
+          "Input": [
+            "trial_type"
+          ]
+        },
+        {
+          "Name": "Or",
+          "Input": ["trial_type.word", "trial_type.pseudoword"],
+          "Output": ["intask"]
+        },
+        {
+          "Name": "Convolve",
+	  "Model": "spm",
+          "Input": ["intask"]
+        }
+      ],
+      "Model": {
+        "X": [
+          "intask",
+          "framewise_displacement",
+          "trans_x", "trans_y", "trans_z", "rot_x", "rot_y", "rot_z",
+          "a_comp_cor_00", "a_comp_cor_01", "a_comp_cor_02",
+          "a_comp_cor_03", "a_comp_cor_04", "a_comp_cor_05"
+        ]
+      },
+      "AutoContrasts": ["intask"]
+    },  
+    { 
+      "Level": "dataset",
+      "AutoContrasts": ["intask"]
+    }       
+  ]       
+}
