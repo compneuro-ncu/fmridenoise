@@ -7,7 +7,6 @@ from fmridenoise.interfaces.connectivity import Connectivity
 from fmridenoise.interfaces.pipeline_selector import PipelineSelector
 from nipype.interfaces import fsl, utility as niu, io as nio
 
-
 import fmridenoise
 import os
 import glob
@@ -154,8 +153,8 @@ This __main__ will be removed soon." )
     parser.add_argument("--bids_dir")
     parser.add_argument("--output_dir")
     args = parser.parse_args()
-    bids_dir = '/media/finc/Elements/BIDS_pseudowords_short/BIDS/'
-    output_dir = '/media/finc/Elements/BIDS_pseudowords_short/BIDS/'
+    bids_dir = '/home/kmb/Desktop/Neuroscience/Projects/NBRAINGROUP_fmridenoise/data/BIDS'
+    output_dir = '/home/kmb/Desktop/Neuroscience/Projects/NBRAINGROUP_fmridenoise/data/BIDS'
     if args.bids_dir is not None:
         bids_dir = args.bids_dir
     if args.output_dir is not None:

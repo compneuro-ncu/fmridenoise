@@ -2,7 +2,6 @@
 # Modified code from poldracklab/fitlins/fitlins/interfaces/bids.py
 
 import numpy as np
-import os
 from nipype.interfaces.base import (
     BaseInterfaceInputSpec, TraitedSpec, SimpleInterface,
     InputMultiPath, OutputMultiPath, File, Directory,
@@ -10,6 +9,8 @@ from nipype.interfaces.base import (
     )
 from nipype.interfaces.io import IOBase
 from nipype.utils.filemanip import split_filename, copyfile
+
+print('bids module is imported.')
 
 class BIDSLoadInputSpec(BaseInterfaceInputSpec):
     bids_dir = Directory(exists=True,
@@ -146,17 +147,15 @@ class BIDSDataSink(IOBase):
 # --- TESTS
 
 if __name__ == '__main__':
-    from nipype import Node
-    # selector = Node(BIDSSelect(), name="pipeline_selector")
-    # selector.inputs.bids_dir = '/home/finc/Dropbox/Projects/fitlins/BIDS/'
-    # selector.inputs.derivatives = True
-    # selector.inputs.entities = [{'subject': '01'}]
-    # results = selector.run()
-    # print(results.outputs)
-    ds = Node(BIDSDataSink(base_directory='/home/siegfriedwagner/Documents/git/fmridenoise/dummy_bids', 
-                            in_file='/home/siegfriedwagner/Documents/git/fmridenoise/dummy_bids/derivatives/sub-1/test',
-                            entities=[{'subject': '1'}],
-                            suffix='d'), name='ds')
-    ds.run()
-    #print(ds.result)
+
+    pass
+    # import os
+    #
+    # path = '/home/kmb/Desktop/Neuroscience/Projects/NBRAINGROUP_fmridenoise/test_data'
+    # datasets = os.listdir(path)
+    # bids_path = os.path.join(path, datasets[1])
+    #
+    # loader = BIDSLoad(bids_dir=bids_path, derivatives=True)
+    # result = loader.run()
+
 
