@@ -10,11 +10,20 @@ class BIDSGrabInputSpec(BaseInterfaceInputSpec):
     bids_dir = Directory(
         exists=True,
         mandatory=True,
-        desc='BIDS dataset root directory')
+        desc='BIDS dataset root directory'
+    )
     task = InputMultiObject(
         Str,
         mandatory=False,
-        desc='names of tasks to denoise')
+        desc='names of tasks to denoise'
+    )
+    derivatives = traits.Either(
+        traits.Str, traits.List(Str),
+        default='fmriprep',
+        usedefault=True,
+        mandatory=False,
+        desc='Specifies which derivatives to to index'
+    )
 
 class BIDSGrabOutputSpec(TraitedSpec):
     fmri_prep = OutputMultiPath(ImageFile)
@@ -27,9 +36,30 @@ class BIDSGrab(SimpleInterface):
 
     def _run_interface(self, runtime):
 
+        import json
+
+        if isinstance(self.inputs.derivatives, str):
+            self.inputs.derivatives = [self.inputs.derivatives]
+
+        # Create full paths to derivatives folders
         derivatives = [os.path.join(self.inputs.bids_dir, 'derivatives', der)
-                       for der in ['fmriprep']]
-        scope = 'fMRIPrep'                                                      # TODO: handle additional packages
+                       for der in self.inputs.derivatives]
+
+        # Establish right scope keyword for arbitrary packages
+        scope = []
+        for derivative_path in derivatives:
+            dataset_desc_path = os.path.join(derivative_path,
+                                             'dataset_description.json')
+            try:
+                with open(dataset_desc_path, 'r') as f:
+                    dataset_desc = json.load(f)
+                scope.append(dataset_desc['PipelineDescription']['Name'])
+            except FileNotFoundError as e:
+                raise Exception(f"{derivative_path} should contain" +
+                    " dataset_description.json file") from e
+            except KeyError as e:
+                raise Exception(f"Key 'PipelineDescription.Name' is " +
+                    "required in {dataset_desc_path} file") from e
 
         layout = BIDSLayout(
             root=self.inputs.bids_dir,
@@ -110,12 +140,13 @@ if __name__ == "__main__":
     bids_dir_3 = os.path.join(path, 'pilot_study_fmri_kids')
 
     bids_dir = bids_dir_3
-    task = ['rest']
+    task = []
 
     grabber = BIDSGrab(
         bids_dir=bids_dir,
         task=task
     )
+
     result = grabber.run()
     print(result.outputs)
 
