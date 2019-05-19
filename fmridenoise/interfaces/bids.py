@@ -1,113 +1,139 @@
 # Interface for loading preprocessed fMRI data and confounds table
-# Modified code from poldracklab/fitlins/fitlins/interfaces/bids.py
 
-import numpy as np
-from nipype.interfaces.base import (
-    BaseInterfaceInputSpec, TraitedSpec, SimpleInterface,
-    InputMultiPath, OutputMultiPath, File, Directory,
-    traits, isdefined
-    )
 from nipype.interfaces.io import IOBase
 from nipype.utils.filemanip import split_filename, copyfile
-
-print('bids module is imported.')
-
-class BIDSLoadInputSpec(BaseInterfaceInputSpec):
-    bids_dir = Directory(exists=True,
-                         mandatory=True,
-                         desc='BIDS dataset root directories')
-    derivatives = traits.Either(True, InputMultiPath(Directory(exists=True)),
-                                desc='Derivative folders')
+from nipype.interfaces.base import (
+    BaseInterfaceInputSpec, SimpleInterface,
+    traits, isdefined, TraitedSpec,
+    Directory, File, Str, ImageFile,
+    InputMultiObject, OutputMultiObject, OutputMultiPath, InputMultiPath)
+import os
 
 
-class BIDSLoadOutputSpec(TraitedSpec):
-    entities = OutputMultiPath(traits.Dict)
+class BIDSGrabInputSpec(BaseInterfaceInputSpec):
+    bids_dir = Directory(
+        exists=True,
+        mandatory=True,
+        desc='BIDS dataset root directory'
+    )
+    task = InputMultiObject(
+        Str,
+        mandatory=False,
+        desc='names of tasks to denoise'
+    )
+    derivatives = traits.Either(
+        traits.Str, traits.List(Str),
+        default='fmriprep',
+        usedefault=True,
+        mandatory=False,
+        desc='Specifies which derivatives to to index'
+    )
 
-
-class BIDSLoad(SimpleInterface):
-    input_spec = BIDSLoadInputSpec
-    output_spec = BIDSLoadOutputSpec
-
-    def _run_interface(self, runtime):
-        from bids.layout import BIDSLayout
-
-        layout = BIDSLayout(self.inputs.bids_dir, derivatives=True)
-
-        entities = []
-        extensions = ['preproc_bold.nii.gz']
-
-        for subject in np.sort(layout.get_subjects()):
-            file = layout.get(subject=subject, task=layout.get_tasks(), extensions=extensions)
-            if file == []:
-                pass
-            else:
-                entity = {'subject': subject}#, 'session': session}
-                entities.append(entity)
-                self._results['entities'] = entities
-
-        return runtime
-
-
-class BIDSSelectInputSpec(BaseInterfaceInputSpec):
-    bids_dir = Directory(exists=True,
-                         mandatory=True,
-                         desc='BIDS dataset root directories')
-    derivatives = traits.Either(True, InputMultiPath(Directory(exists=True)),
-                                desc='Derivative folders')
-    entities = InputMultiPath(traits.Dict(), mandatory=True)
-    selectors = traits.Dict(desc='Additional selectors to be applied',
-                            usedefault=True)
-
-
-class BIDSSelectOutputSpec(TraitedSpec):
-    fmri_prep = OutputMultiPath(File)
+class BIDSGrabOutputSpec(TraitedSpec):
+    fmri_prep = OutputMultiPath(ImageFile)
     conf_raw = OutputMultiPath(File)
-    entities = OutputMultiPath(traits.Dict)
+    entities = OutputMultiObject(traits.Dict)
 
-
-class BIDSSelect(SimpleInterface):
-    input_spec = BIDSSelectInputSpec
-    output_spec = BIDSSelectOutputSpec
+class BIDSGrab(SimpleInterface):
+    input_spec = BIDSGrabInputSpec
+    output_spec = BIDSGrabOutputSpec
 
     def _run_interface(self, runtime):
-        from bids.layout import BIDSLayout
 
-        derivatives = self.inputs.derivatives
-        layout = BIDSLayout(self.inputs.bids_dir, derivatives=derivatives)
+        import json
+        from bids import BIDSLayout
 
-        fmri_prep = []
-        conf_raw = []
-        entities = []
+        if isinstance(self.inputs.derivatives, str):
+            self.inputs.derivatives = [self.inputs.derivatives]
 
-        for ents in self.inputs.entities:
-            selectors = {**self.inputs.selectors, **ents}
-            fmri_file = layout.get(extensions=['preproc_bold.nii.gz'], **selectors)
-            if len(fmri_file) == 0:
+        # Create full paths to derivatives folders
+        derivatives = [os.path.join(self.inputs.bids_dir, 'derivatives', der)
+                       for der in self.inputs.derivatives]
+
+        # Establish right scope keyword for arbitrary packages
+        scope = []
+        for derivative_path in derivatives:
+            dataset_desc_path = os.path.join(derivative_path,
+                                             'dataset_description.json')
+            try:
+                with open(dataset_desc_path, 'r') as f:
+                    dataset_desc = json.load(f)
+                scope.append(dataset_desc['PipelineDescription']['Name'])
+            except FileNotFoundError as e:
+                raise Exception(f"{derivative_path} should contain" +
+                    " dataset_description.json file") from e
+            except KeyError as e:
+                raise Exception(f"Key 'PipelineDescription.Name' is " +
+                    "required in {dataset_desc_path} file") from e
+
+        layout = BIDSLayout(
+            root=self.inputs.bids_dir,
+            validate=True,
+            derivatives=derivatives
+        )
+
+        # Tasks to denoise
+        if not isdefined(self.inputs.task):
+            task = layout.get_tasks()  # Grab all available tasks
+        else:
+            for t in self.inputs.task:
+                if t not in layout.get_tasks():
+                    raise ValueError(
+                        f'task {t} is not found')                               # TODO: find proper error to handle this
+            task = self.inputs.task
+
+        # Define query filters
+        keys_entities = ['subject', 'session', 'datatype', 'task']
+        filter_fmri = {
+            'extension': ['nii', 'nii.gz'],
+            'suffix': 'bold',
+            'desc': 'preproc',
+            'task': task
+        }
+        filter_conf = {
+            'extension': 'tsv',
+            'suffix': 'regressors',
+            'desc': 'confounds'
+        }
+
+        # Grab files
+        fmri_prep, conf_raw, entities = ([] for _ in range(3))
+
+        for fmri_file in layout.get(scope=scope, **filter_fmri):
+
+            entity_bold = fmri_file.get_entities()
+
+            # Look for corresponding confounds file
+            filter_entities = {key: value
+                               for key, value in entity_bold.items()
+                               if key in keys_entities}
+            filter_conf.update(
+                filter_entities)  # Add specific fields to constrain search
+            conf_file = layout.get(scope=scope, **filter_conf)
+
+            if not conf_file:
                 raise FileNotFoundError(
-                    "Could not find BOLD file in {} with entities {}"
-                    "".format(self.inputs.bids_dir, selectors))
-            elif len(fmri_file) > 1:
-                raise ValueError(
-                    "Non-unique BOLD file in {} with entities {}.\n"
-                    "Matches:\n\t{}"
-                    "".format(self.inputs.bids_dir, selectors,
-                              "\n\t".join(
-                                  '{} ({})'.format(
-                                      f.path,
-                                      layout.files[f.path].entities)
-                                  for f in fmri_file)))
+                    f"Regressor file not found for file {fmri_file.path}"
+                )
+            else:
+                # Add entity only if both files are available
+                if len(conf_file) > 1:
+                    print(
+                        f"Warning: Multiple regressors found for file {fmri_file.path}.\n"
+                        f"Selecting {conf_file[0].path}"
+                    )                                                           # TODO: find proper warning (logging?)
 
-            confounds = layout.get(extensions=['confounds_regressors.tsv'], **selectors)
+                conf_file = conf_file[0]
 
-            fmri_prep.append(fmri_file[0].path)
-            conf_raw.append(confounds[0].path)
+                fmri_prep.append(fmri_file.path)
+                conf_raw.append(conf_file.path)
+                entities.append(filter_entities)
 
         self._results['fmri_prep'] = fmri_prep
         self._results['conf_raw'] = conf_raw
-        self._results['entities'] = self.inputs.entities #entities
+        self._results['entities'] = entities
 
         return runtime
-
 
 class BIDSDataSinkInputSpec(BaseInterfaceInputSpec):
     base_directory = Directory(
@@ -148,14 +174,18 @@ class BIDSDataSink(IOBase):
 
 if __name__ == '__main__':
 
-    pass
-    # import os
-    #
-    # path = '/home/kmb/Desktop/Neuroscience/Projects/NBRAINGROUP_fmridenoise/test_data'
-    # datasets = os.listdir(path)
-    # bids_path = os.path.join(path, datasets[1])
-    #
-    # loader = BIDSLoad(bids_dir=bids_path, derivatives=True)
-    # result = loader.run()
+    path = '/home/kmb/Desktop/Neuroscience/Projects/NBRAINGROUP_fmridenoise/test_data'
+    bids_dir_1 = os.path.join(path, 'BIDS_2sub')
+    bids_dir_2 = os.path.join(path, 'synthetic')
+    bids_dir_3 = os.path.join(path, 'pilot_study_fmri_kids')
 
+    bids_dir = bids_dir_3
+    task = []
 
+    grabber = BIDSGrab(
+        bids_dir=bids_dir,
+        task=task
+    )
+
+    result = grabber.run()
+    print(result.outputs)

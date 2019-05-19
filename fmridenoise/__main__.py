@@ -1,4 +1,5 @@
 if __name__ == "__main__":
+
     import os
     from os.path import dirname, abspath, join
     import sys
@@ -6,6 +7,7 @@ if __name__ == "__main__":
         sys.path.append(dirname(dirname(abspath(__file__))))
     import argparse
     from fmridenoise.workflows.base import init_fmridenoise_wf
+
     parser = argparse.ArgumentParser()
     parser.add_argument("bids_dir", help="Path do preprocessed BIDS dataset.")
     parser.add_argument("-g", "--debug", help="Run fmridenois in debug mode", action="store_true")
@@ -16,6 +18,7 @@ if __name__ == "__main__":
                         help="Name (or list) of derivatives for which fmridenoise should be run.\
                         By default workflow looks for fmriprep dataset.")
     args = parser.parse_args()
+
     if str(args.bids_dir).startswith("./"):
         input = join(os.getcwd(), args.bids_dir[2:])
     if args.debug:
@@ -34,6 +37,7 @@ if __name__ == "__main__":
         except OSError as err:
             print('OSError: ' + err.args[0])
             print("         Graph file was not generated.")
+
     workflow.run()
 
 
