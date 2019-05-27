@@ -30,7 +30,7 @@ def init_fmridenoise_wf(bids_dir,
        PipelineSelector(),
        name="PipelineSelector")
     pipelineselector.iterables = ('pipeline_path', pipelines_paths)
-    # Outputs: pipeline
+    # Outputs: pipeline, pipeline_name, low_pass, high_pass
 
     # 2) --- Loading BIDS structure
 
@@ -62,7 +62,7 @@ def init_fmridenoise_wf(bids_dir,
         Denoise(
             output_dir=output_dir,
         ),
-        iterfield=['fmri_prep', 'conf_prep'], #, 'low_pass', 'high_pass'],
+        iterfield=['fmri_prep', 'conf_prep'],
         name="Denoiser")
     # Outputs: fmri_denoised
 
@@ -116,6 +116,8 @@ def init_fmridenoise_wf(bids_dir,
         (pipelineselector, ds_confounds, [('pipeline_name','pipeline_name')]),
         (pipelineselector, ds_carpet_plot, [('pipeline_name', 'pipeline_name')]),
         (pipelineselector, ds_matrix_plot, [('pipeline_name', 'pipeline_name')]),
+        (pipelineselector, denoise, [('low_pass', 'low_pass'),
+                                     ('high_pass', 'high_pass')]),
         (prep_conf, denoise, [('conf_prep', 'conf_prep')]),
         (denoise, connectivity, [('fmri_denoised', 'fmri_denoised')]),
         (prep_conf, ds_confounds, [('conf_prep', 'in_file')]),
@@ -147,8 +149,8 @@ if __name__ == '__main__':  # TODO Move parser to module __main__
     parser.add_argument("--output_dir")
     args = parser.parse_args()
 
-    bids_dir = '/home/kmb/Desktop/Neuroscience/Projects/NBRAINGROUP_fmridenoise/test_data/BIDS_2sub'
-    output_dir = '/home/kmb/Desktop/Neuroscience/Projects/NBRAINGROUP_fmridenoise/test_data/BIDS_2sub'
+    bids_dir = '/media/finc/Elements/BIDS_pseudowords_short/BIDS_2sub'
+    output_dir = '/media/finc/Elements/BIDS_pseudowords_short/BIDS_2sub'
 
     if args.bids_dir is not None:
         bids_dir = args.bids_dir
