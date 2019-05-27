@@ -1,5 +1,5 @@
 from nipype.interfaces.base import SimpleInterface, BaseInterfaceInputSpec, TraitedSpec
-from traits.trait_types import List, Dict, File, Str
+from traits.trait_types import List, Dict, File, Str, Float
 from fmridenoise.utils.utils import load_pipeline_from_json
 from fmridenoise.utils.json_validator import is_valid
 import os
@@ -12,6 +12,9 @@ class PipelineSelectorInputSpecification(BaseInterfaceInputSpec):
 class PipelineSelectorOutPutSpecification(TraitedSpec):
     pipeline = Dict(items=True)
     pipeline_name = Str(desc="Name of denoising strategy")
+    high_pass = Float(desc="High-pass filter")
+    low_pass = Float(desc="Low-pass filter")
+
 
 
 class PipelineSelector(SimpleInterface):
@@ -27,6 +30,9 @@ class PipelineSelector(SimpleInterface):
             """.format(os.path.basename(self.inputs.pipeline_path)))
         self._results['pipeline'] = js
         self._results['pipeline_name'] = js['name']
+        self._results['high_pass'] = js['filter']['high_pass']
+        self._results['low_pass'] = js['filter']['low_pass']
+
         return runtime
 
 # rudimentary test # TODO: Move to this to proper unittests
@@ -40,4 +46,4 @@ if __name__ == '__main__':
         reader.inputs.pipeline_path = path
         pipeline = reader.run()
 
-    print(pipeline.outputs.pipeline)
+    print(pipeline.outputs)

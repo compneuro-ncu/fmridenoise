@@ -1,8 +1,7 @@
 from nipype.interfaces.base import (
     BaseInterfaceInputSpec, TraitedSpec, SimpleInterface,
-    InputMultiPath, OutputMultiPath, File, Directory,
-    traits, isdefined
     )
+from traits.trait_types import File, Float
 from nipype.utils.filemanip import split_filename
 import nibabel as nb
 import os
@@ -19,6 +18,8 @@ class DenoiseInputSpec(BaseInterfaceInputSpec):
                      desc='Confound file',
                      mandatory=True)
     output_dir = File(desc='Output path')
+    high_pass = Float(desc="High-pass filter")
+    low_pass = Float(desc="Low-pass filter")
 
 
 class DenoiseOutputSpec(TraitedSpec):
@@ -47,8 +48,8 @@ class Denoise(SimpleInterface):
 
         denoised_img = clean_img(img,
                                  confounds=conf,
-                                 low_pass=0.08,  # TODO: load filter from file
-                                 high_pass=0.008,  # TODO: load filter from file
+                                 high_pass=self.inputs.high_pass,
+                                 low_pass=self.inputs.low_pass,
                                  t_r=2,  # TODO: load TR from pieline description
                         )
 
