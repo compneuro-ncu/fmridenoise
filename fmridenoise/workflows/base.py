@@ -5,24 +5,23 @@ from fmridenoise.interfaces.confounds import Confounds
 from fmridenoise.interfaces.denoising import Denoise
 from fmridenoise.interfaces.connectivity import Connectivity
 from fmridenoise.interfaces.pipeline_selector import PipelineSelector
+import fmridenoise.utils.temps as temps
 
 import fmridenoise
 import os
 import glob
 
 def init_fmridenoise_wf(bids_dir,
-                        output_dir,
                         derivatives='fmriprep',
                         task=[],
                         pipelines_paths=glob.glob(os.path.dirname(fmridenoise.__file__) + "/pipelines/*"),
                         # desc=None,
                         # ignore=None, force_index=None,
                         # model=None, participants=None,
-                        base_dir=None, name='fmridenoise_wf'
-                        ):
-
-    workflow = pe.Workflow(name='fmridenoise', base_dir=None)
-
+                        base_dir='/tmp/fmridenoise', name='fmridenoise_wf'
+                        ):                
+    workflow = pe.Workflow(name=name, base_dir=base_dir)
+    temps.base_dir = base_dir
     # 1) --- Selecting pipeline
 
     # Inputs: fulfilled
@@ -49,7 +48,7 @@ def init_fmridenoise_wf(bids_dir,
     # Inputs: pipeline, conf_raw
     prep_conf = pe.MapNode(
         Confounds(
-            output_dir=output_dir
+            output_dir=temps.mkdtemp('prep_conf')
         ),
         iterfield=['conf_raw'],
         name="ConfPrep")
@@ -60,7 +59,7 @@ def init_fmridenoise_wf(bids_dir,
     # Inputs: conf_prep, low_pass, high_pass
     denoise = pe.MapNode(
         Denoise(
-            output_dir=output_dir,
+            output_dir=temps.mkdtemp('denoise'),
         ),
         iterfield=['fmri_prep', 'conf_prep'],
         name="Denoiser")
@@ -73,28 +72,28 @@ def init_fmridenoise_wf(bids_dir,
     parcellation_path = glob.glob(parcellation_path + "/*")[0]
 
     connectivity = pe.MapNode(
-        Connectivity(output_dir=output_dir, parcellation=parcellation_path),
+        Connectivity(output_dir=temps.mkdtemp('connectivity'), parcellation=parcellation_path),
         iterfield=['fmri_denoised'],
         name='ConnCalc')
     # Outputs: conn_mat, carpet_plot
 
     # 6) --- Save derivatives
     # TODO: Fill missing in/out
-    ds_confounds = pe.MapNode(BIDSDataSink(base_directory=output_dir),
+    ds_confounds = pe.MapNode(BIDSDataSink(base_directory=bids_dir),
                     iterfield=['in_file', 'entities'],
                     name="ds_confounds")
-    ds_denoise = pe.MapNode(BIDSDataSink(base_directory=output_dir),
+    ds_denoise = pe.MapNode(BIDSDataSink(base_directory=bids_dir),
                     iterfield=['in_file', 'entities'],
                     name="ds_denoise")
-    ds_connectivity = pe.MapNode(BIDSDataSink(base_directory=output_dir),
+    ds_connectivity = pe.MapNode(BIDSDataSink(base_directory=bids_dir),
                     iterfield=['in_file', 'entities'],
                     name="ds_connectivity")
 
-    ds_carpet_plot = pe.MapNode(BIDSDataSink(base_directory=output_dir),
+    ds_carpet_plot = pe.MapNode(BIDSDataSink(base_directory=bids_dir),
                                  iterfield=['in_file', 'entities'],
                                  name="ds_carpet_plot")
 
-    ds_matrix_plot = pe.MapNode(BIDSDataSink(base_directory=output_dir),
+    ds_matrix_plot = pe.MapNode(BIDSDataSink(base_directory=bids_dir),
                                  iterfield=['in_file', 'entities'],
                                  name="ds_matrix_plot")
 
@@ -157,8 +156,7 @@ if __name__ == '__main__':  # TODO Move parser to module __main__
     if args.output_dir is not None:
         output_dir = args.output_dir
 
-    wf = init_fmridenoise_wf(bids_dir,
-                             output_dir)
+    wf = init_fmridenoise_wf(bids_dir)
 
     wf.run()
     wf.write_graph("workflow_graph.dot")
