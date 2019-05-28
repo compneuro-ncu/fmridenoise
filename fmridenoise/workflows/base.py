@@ -59,7 +59,6 @@ def init_fmridenoise_wf(bids_dir,
     # Inputs: conf_prep, low_pass, high_pass
     denoise = pe.MapNode(
         Denoise(
-            tr_dict=tr_dict,
             output_dir=temps.mkdtemp('denoise')
         ),
         iterfield=['fmri_prep', 'conf_prep', 'entities'],
