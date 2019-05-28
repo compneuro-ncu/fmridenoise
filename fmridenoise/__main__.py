@@ -11,8 +11,6 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("bids_dir", help="Path do preprocessed BIDS dataset.")
     parser.add_argument("-g", "--debug", help="Run fmridenois in debug mode", action="store_true")
-    parser.add_argument("-o", "--output", help="Output data path. \
-                        By default output is saved in source bids_dir in derivatives subfolder")
     parser.add_argument("--graph", type=str, help="Create workflow graph at given path")
     parser.add_argument("-d", "--derivatives", default=['fmriprep'], \
                         help="Name (or list) of derivatives for which fmridenoise should be run.\
@@ -20,17 +18,15 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
     if str(args.bids_dir).startswith("./"):
-        input = join(os.getcwd(), args.bids_dir[2:])
+        input_dir = join(os.getcwd(), args.bids_dir[2:])
+    else:
+        input_dir = args.bids_dir
     if args.debug:
         import nipype
         nipype.config.enable_debug_mode()
-    output = args.output if args.output is not None else input
-    if str(output).startswith("./"):
-        output = join(os.getcwd(), output)
-    os.makedirs(output, exist_ok=True)
     derivatives = args.derivatives if type(args.derivatives) in (list, bool) else [args.derivatives]
-    derivatives = list(map(lambda x: join(input, 'derivatives', x), derivatives))
-    workflow = init_fmridenoise_wf(input, output, derivatives=derivatives)
+    derivatives = list(map(lambda x: join(input_dir, 'derivatives', x), derivatives))
+    workflow = init_fmridenoise_wf(input_dir, derivatives=derivatives)
     if args.graph is not None:
         try:  # TODO: Look for pydot/dot and add to requirements
             workflow.write_graph(args.graph)

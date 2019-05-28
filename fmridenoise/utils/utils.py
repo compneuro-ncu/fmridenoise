@@ -69,7 +69,6 @@ def swap_booleans(dictionary: dict, inplace: bool=True) -> dict:  # TODO: Extend
             dictionary[key] = cast_bool(dictionary[key])
     return dictionary
 
-
 if __name__ == '__main__':
     #  rudimentary test/proof of work
     dicto = load_pipeline_from_json("../pipelines/36_parameters_spikes.json")
