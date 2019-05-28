@@ -36,6 +36,38 @@ class BIDSGrabOutputSpec(TraitedSpec):
     tr_dict = traits.Dict()
 
 class BIDSGrab(SimpleInterface):
+    """
+    Read a BIDS dataset and grabs:
+        (1) preprocessed imaging files,
+        (2) confound regressor tables,
+        (3) entities for corresponding files,
+        (4) TR values for available tasks.
+
+    Outputs
+    -------
+
+    fmri_prep : list of files
+        List containing all paths to available preprocessed functional files.
+        Files are searched using BIDSLayout.get() method with filters specifying
+        extensions ".nii" or ".nii.gz", suffix "bold" and extension "prep"
+        corresponding to preprocessed images.
+
+    conf_raw: list of files
+        List containing paths to confound regressors files. Elements of conf_raw
+        list correspond to fmri_prep elements such that each regressor file is
+        related to one imaging file.
+
+    entities : list of dictionaries
+        The entities list contains a list of entity dictionaries. Elements of
+        entities list correspond to fmri_prep elements such that each entity
+        describe one imaging files. Entities provide BIDS specific information
+        about subject, session (if there is more than one), task and datatype.
+
+    tr_dict: dictionary
+        Contains information about TR setting for each requested task. If task
+        are not specified, all tasks found are included.
+
+    """
     input_spec = BIDSGrabInputSpec
     output_spec = BIDSGrabOutputSpec
 
