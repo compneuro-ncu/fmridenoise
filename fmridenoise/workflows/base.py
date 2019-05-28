@@ -19,7 +19,7 @@ def init_fmridenoise_wf(bids_dir,
                         # ignore=None, force_index=None,
                         # model=None, participants=None,
                         base_dir='/tmp/fmridenoise', name='fmridenoise_wf'
-                        ):                
+                        ):
     workflow = pe.Workflow(name=name, base_dir=base_dir)
     temps.base_dir = base_dir
     # 1) --- Selecting pipeline
@@ -41,7 +41,7 @@ def init_fmridenoise_wf(bids_dir,
             task=task
         ),
         name="BidsGrabber")
-    # Outputs: fmri_prep, conf_raw, entities
+    # Outputs: fmri_prep, conf_raw, entities, tr_dict
 
     # 3) --- Confounds preprocessing
 
@@ -59,10 +59,11 @@ def init_fmridenoise_wf(bids_dir,
     # Inputs: conf_prep, low_pass, high_pass
     denoise = pe.MapNode(
         Denoise(
-            output_dir=temps.mkdtemp('denoise'),
+            output_dir=temps.mkdtemp('denoise')
         ),
-        iterfield=['fmri_prep', 'conf_prep'],
+        iterfield=['fmri_prep', 'conf_prep', 'entities'],
         name="Denoiser", mem_gb=6)
+
     # Outputs: fmri_denoised
 
     # 5) --- Connectivity estimation
@@ -72,7 +73,10 @@ def init_fmridenoise_wf(bids_dir,
     parcellation_path = glob.glob(parcellation_path + "/*")[0]
 
     connectivity = pe.MapNode(
-        Connectivity(output_dir=temps.mkdtemp('connectivity'), parcellation=parcellation_path),
+        Connectivity(
+            output_dir=temps.mkdtemp('connectivity'),
+            parcellation=parcellation_path
+        ),
         iterfield=['fmri_denoised'],
         name='ConnCalc')
     # Outputs: conn_mat, carpet_plot
@@ -101,7 +105,9 @@ def init_fmridenoise_wf(bids_dir,
 # --- Connecting nodes
 
     workflow.connect([
+        (grabbing_bids, denoise, [('tr_dict', 'tr_dict')]),
         (grabbing_bids, denoise, [('fmri_prep', 'fmri_prep')]),
+        (grabbing_bids, denoise, [('entities', 'entities')]),
         (grabbing_bids, prep_conf, [('conf_raw', 'conf_raw')]),
         (grabbing_bids, ds_confounds, [('entities', 'entities')]),
         (grabbing_bids, ds_denoise, [('entities', 'entities')]),
