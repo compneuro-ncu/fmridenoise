@@ -33,6 +33,7 @@ class BIDSGrabOutputSpec(TraitedSpec):
     fmri_prep = OutputMultiPath(ImageFile)
     conf_raw = OutputMultiPath(File)
     entities = OutputMultiObject(traits.Dict)
+    tr_dict = traits.Dict()
 
 class BIDSGrab(SimpleInterface):
     input_spec = BIDSGrabInputSpec
@@ -129,9 +130,22 @@ class BIDSGrab(SimpleInterface):
                 conf_raw.append(conf_file.path)
                 entities.append(filter_entities)
 
+        # Extract TRs
+        tr_dict = {}
+
+        for t in task:
+
+            filter_fmri_tr = filter_fmri.copy()
+            filter_fmri_tr['task'] = t
+
+            example_file = layout.get(**filter_fmri_tr)[0]
+            tr = layout.get_metadata(example_file.path)['RepetitionTime']
+            tr_dict[t] = tr
+
         self._results['fmri_prep'] = fmri_prep
         self._results['conf_raw'] = conf_raw
         self._results['entities'] = entities
+        self._results['tr_dict'] = tr_dict
 
         return runtime
 
@@ -176,8 +190,8 @@ if __name__ == '__main__':
 
     path = '/home/kmb/Desktop/Neuroscience/Projects/NBRAINGROUP_fmridenoise/test_data'
     bids_dir_1 = os.path.join(path, 'BIDS_2sub')
-    bids_dir_2 = os.path.join(path, 'synthetic')
-    bids_dir_3 = os.path.join(path, 'pilot_study_fmri_kids')
+    bids_dir_2 = os.path.join(path, 'pilot_study_fmri_kids')
+    bids_dir_3 = os.path.join(path, 'test')
 
     bids_dir = bids_dir_3
     task = []
