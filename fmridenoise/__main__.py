@@ -34,7 +34,7 @@ if __name__ == "__main__":
             print('OSError: ' + err.args[0])
             print("         Graph file was not generated.")
 
-    workflow.run()
+    workflow.run(plugin="MultiProc", plugin_args={'n_procs' : 6, 'memory_gb': 20})
 
 
     

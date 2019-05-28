@@ -62,7 +62,7 @@ def init_fmridenoise_wf(bids_dir,
             output_dir=temps.mkdtemp('denoise'),
         ),
         iterfield=['fmri_prep', 'conf_prep'],
-        name="Denoiser")
+        name="Denoiser", mem_gb=6)
     # Outputs: fmri_denoised
 
     # 5) --- Connectivity estimation
