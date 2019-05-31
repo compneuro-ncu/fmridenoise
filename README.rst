@@ -1,6 +1,8 @@
 fMRIDenoise - automated denoising and quality control of functional connectivity data
 =========================================
-
+.. image:: https://zenodo.org/badge/181017876.svg
+   :target: https://zenodo.org/badge/latestdoi/181017876
+   
 Tool for automatic denoising, denoising strategies comparisons,
 and functional connectivity data quality control.
 The goal of fMRIDenoise is to provide an objective way to select
