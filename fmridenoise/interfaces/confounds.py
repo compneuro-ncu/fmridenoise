@@ -45,10 +45,10 @@ class Confounds(SimpleInterface):
         conf_df_prep.to_csv(fname_prep, sep='\t', index=False)
 
         # Creates dictionary with summary measures
-        conf_summary = {"mean_fd": conf_df_raw["framewise_displacement"].mean(),
-                        "max_fd": conf_df_raw["framewise_displacement"].max(),
-                        "n_spikes": conf_df_prep.filter(regex='spike', axis=1).sum().sum(),
-                        "n_conf": len(conf_df_prep.columns)}
+        conf_summary = {"mean_fd": [conf_df_raw["framewise_displacement"].mean()],
+                        "max_fd": [conf_df_raw["framewise_displacement"].max()],
+                        "n_spikes": [conf_df_prep.filter(regex='spike', axis=1).sum().sum()],
+                        "n_conf": [len(conf_df_prep.columns)]}
 
         self._results['conf_prep'] = fname_prep
         self._results['conf_summary'] = conf_summary
