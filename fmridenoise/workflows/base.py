@@ -1,7 +1,7 @@
 from nipype.pipeline import engine as pe
 
 from fmridenoise.interfaces.bids import BIDSGrab, BIDSDataSink
-from fmridenoise.interfaces.confounds import Confounds
+from fmridenoise.interfaces.confounds import Confounds, AggConfounds
 from fmridenoise.interfaces.denoising import Denoise
 from fmridenoise.interfaces.connectivity import Connectivity
 from fmridenoise.interfaces.pipeline_selector import PipelineSelector
@@ -81,7 +81,18 @@ def init_fmridenoise_wf(bids_dir,
         name='ConnCalc')
     # Outputs: conn_mat, carpet_plot
 
-    # 6) --- Save derivatives
+    # --- Aggregate confounds
+
+    # Inputs: conf_summary
+
+    agg_conf_summary = pe.Node(
+        AggConfounds(
+            output_dir='/media/finc/Elements/fmridenoise/derivatives/fmridenoise/',
+        ),
+        name="AggConf")
+
+
+    # 7) --- Save derivatives
     # TODO: Fill missing in/out
     ds_confounds = pe.MapNode(BIDSDataSink(base_directory=bids_dir),
                     iterfield=['in_file', 'entities'],
@@ -116,6 +127,8 @@ def init_fmridenoise_wf(bids_dir,
         (grabbing_bids, ds_matrix_plot, [('entities', 'entities')]),
         #--- rest
         (pipelineselector, prep_conf, [('pipeline', 'pipeline')]),
+        (prep_conf, agg_conf_summary, [('conf_summary', 'conf_summary')]),
+
         (pipelineselector, ds_denoise, [('pipeline_name', 'pipeline_name')]),
         (pipelineselector, ds_connectivity, [('pipeline_name', 'pipeline_name')]),
         (pipelineselector, ds_confounds, [('pipeline_name','pipeline_name')]),
@@ -123,6 +136,7 @@ def init_fmridenoise_wf(bids_dir,
         (pipelineselector, ds_matrix_plot, [('pipeline_name', 'pipeline_name')]),
         (pipelineselector, denoise, [('low_pass', 'low_pass'),
                                      ('high_pass', 'high_pass')]),
+
         (prep_conf, denoise, [('conf_prep', 'conf_prep')]),
         (denoise, connectivity, [('fmri_denoised', 'fmri_denoised')]),
         (prep_conf, ds_confounds, [('conf_prep', 'in_file')]),
@@ -130,6 +144,7 @@ def init_fmridenoise_wf(bids_dir,
         (connectivity, ds_connectivity, [('corr_mat', 'in_file')]),
         (connectivity, ds_carpet_plot, [('carpet_plot', 'in_file')]),
         (connectivity, ds_matrix_plot, [('matrix_plot', 'in_file')]),
+
     ])
 
     return workflow
