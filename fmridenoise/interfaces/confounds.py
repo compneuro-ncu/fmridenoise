@@ -2,7 +2,8 @@ from fmridenoise.utils import confound_prep
 import pandas as pd
 import os
 from nipype.interfaces.base import BaseInterface, \
-    BaseInterfaceInputSpec, traits, File, TraitedSpec, SimpleInterface
+    BaseInterfaceInputSpec, traits, File, TraitedSpec, SimpleInterface, \
+    InputMultiObject
 from nipype.utils.filemanip import split_filename
 from fmridenoise.utils.confound_prep import prep_conf_df
 
@@ -15,6 +16,9 @@ class ConfoundsInputSpec(BaseInterfaceInputSpec):
         exist=True,
         desc="Confounds table",
         mandatory=True)
+    entities = traits.Dict(
+        usedefault=True,
+        desc='Per-file entities to include in filename')
     output_dir = File(          # needed to save data in other directory
         desc="Output path")     # TODO: Implement temp dir
 
@@ -45,10 +49,21 @@ class Confounds(SimpleInterface):
         conf_df_prep.to_csv(fname_prep, sep='\t', index=False)
 
         # Creates dictionary with summary measures
-        conf_summary = {"mean_fd": [conf_df_raw["framewise_displacement"].mean()],
-                        "max_fd": [conf_df_raw["framewise_displacement"].max()],
-                        "n_spikes": [conf_df_prep.filter(regex='spike', axis=1).sum().sum()],
-                        "n_conf": [len(conf_df_prep.columns)]}
+        n_spikes = conf_df_prep.filter(regex='spike', axis=1).sum().sum()
+        mean_fd = conf_df_raw["framewise_displacement"].mean()
+        max_fd = conf_df_raw["framewise_displacement"].max()
+        n_timepoints = len(conf_df_raw)
+
+        conf_summary = {
+                        "subject": [self.inputs.entities['subject']],
+                        "task": [self.inputs.entities['task']],
+                        "mean_fd": [mean_fd],
+                        "max_fd": [max_fd],
+                        "n_spikes": [n_spikes],
+                        "n_conf": [len(conf_df_prep.columns)],
+                        "include_lib": [inclusion_check(n_timepoints, mean_fd, max_fd, n_spikes, 0.5)],
+                        "include_con": [inclusion_check(n_timepoints, mean_fd, max_fd, n_spikes, 0.2)]
+                        }
 
         self._results['conf_prep'] = fname_prep
         self._results['conf_summary'] = conf_summary
@@ -56,11 +71,42 @@ class Confounds(SimpleInterface):
         return runtime
 
 
+def inclusion_check(n_timepoints, mean_fd, max_fd, n_spikes, fd_th):
+    """
+    Checking if participant is recommended to be excluded from analysis
+    based on motion parameters and spikes regressors.
+
+    Inputs
+    -------
+
+    n_timepoints: number of timepoints
+    mean_fd: mean framewise_displacement (FD)
+    max_fd: maximum FD
+    n_spikes: number of spikes
+    fd_th: threshold for mean FD
+
+    Outputs
+    -------
+
+    returns 0 if subject should be excluded due to head motion
+    or 1 if there is no reason to exclude subject based on submitted threshold.
+
+    """
+    if mean_fd > fd_th:
+        return 0
+    elif max_fd > 5:
+        return 0
+    elif n_spikes/n_timepoints > 0.20:
+        return 0
+    else:
+        return 1
+
 
 class AggConfoundsInputSpec(BaseInterfaceInputSpec):
     conf_summary = traits.List(
         exists=True,
         desc="Confounds summary")
+
     output_dir = File(          # needed to save data in other directory
         desc="Output path")     # TODO: Implement temp dir
 
@@ -69,6 +115,7 @@ class AggConfoundsOutputSpec(TraitedSpec):
     group_conf_summary = File(
         exists=True,
         desc="Confounds summary")
+
 
 class AggConfounds(SimpleInterface):
     input_spec = AggConfoundsInputSpec
@@ -79,10 +126,11 @@ class AggConfounds(SimpleInterface):
 
         for summary in self.inputs.conf_summary:
             group_conf_summary = group_conf_summary.append(pd.DataFrame.from_dict(summary))
-            fname = f"{self.inputs.output_dir}group_confounds_table.tsv"
-            group_conf_summary.to_csv(fname, sep='\t', index=False)
-            self._results['group_conf_summary'] = fname
-            return runtime
+
+        fname = f"{self.inputs.output_dir}group_confounds_table.tsv"
+        group_conf_summary.to_csv(fname, sep='\t', index=False)
+        self._results['group_conf_summary'] = fname
+        return runtime
 
 
 # --- TESTS
@@ -98,8 +146,6 @@ class AggConfounds(SimpleInterface):
 #     confpath = "/media/finc/Elements/BIDS_pseudowords/BIDS/derivatives/fmriprep/sub-01/func/" + \
 #                "sub-01_task-rhymejudgment_desc-confounds_regressors.tsv"
 #
-#     conf_summaries = [{'max_fd': [0.25027780000000005], 'mean_fd': [0.11377746541635224], 'n_conf': [35], 'n_spikes': [8]}, {'max_fd': [0.3917644499999999], 'mean_fd': [0.14487157071698104], 'n_conf': [58], 'n_spikes': [31]}]
-#
 #     cf = Confounds()
 #     cf.inputs.pipeline = jdicto
 #     cf.inputs.conf_raw = confpath
@@ -113,7 +159,8 @@ if __name__ == '__main__':
     import utils as ut
 
 
-    conf_summaries = [{'max_fd': [0.25027780000000005], 'mean_fd': [0.11377746541635224], 'n_conf': [35], 'n_spikes': [8]}, {'max_fd': [0.3917644499999999], 'mean_fd': [0.14487157071698104], 'n_conf': [58], 'n_spikes': [31]}]
+    conf_summaries = [{'mean_fd': [0.11377746541635224], 'max_fd': [0.25027780000000005], 'n_spikes': [8], 'n_conf': [35], 'include_lib': [1], 'include_con': [1]},
+                      {'mean_fd': [0.11377746541635224], 'max_fd': [0.25027780000000005], 'n_spikes': [8], 'n_conf': [35], 'include_lib': [1], 'include_con': [1]}]
 
     cf = AggConfounds()
     cf.inputs.output_dir = '/media/finc/Elements/fmridenoise/derivatives/fmridenoise/'

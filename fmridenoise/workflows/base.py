@@ -50,7 +50,7 @@ def init_fmridenoise_wf(bids_dir,
         Confounds(
             output_dir=temps.mkdtemp('prep_conf')
         ),
-        iterfield=['conf_raw'],
+        iterfield=['conf_raw', 'entities'],
         name="ConfPrep")
     # Outputs: conf_prep, low_pass, high_pass
 
@@ -87,7 +87,7 @@ def init_fmridenoise_wf(bids_dir,
 
     agg_conf_summary = pe.Node(
         AggConfounds(
-            output_dir='/media/finc/Elements/fmridenoise/derivatives/fmridenoise/',
+            output_dir='/media/finc/Elements/BIDS_pseudowords_short/',
         ),
         name="AggConf")
 
@@ -119,7 +119,8 @@ def init_fmridenoise_wf(bids_dir,
         (grabbing_bids, denoise, [('tr_dict', 'tr_dict')]),
         (grabbing_bids, denoise, [('fmri_prep', 'fmri_prep')]),
         (grabbing_bids, denoise, [('entities', 'entities')]),
-        (grabbing_bids, prep_conf, [('conf_raw', 'conf_raw')]),
+        (grabbing_bids, prep_conf, [('conf_raw', 'conf_raw'),
+                                    ('entities', 'entities')]),
         (grabbing_bids, ds_confounds, [('entities', 'entities')]),
         (grabbing_bids, ds_denoise, [('entities', 'entities')]),
         (grabbing_bids, ds_connectivity, [('entities', 'entities')]),
