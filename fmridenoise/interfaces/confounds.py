@@ -1,6 +1,4 @@
-from fmridenoise.utils import confound_prep
 import pandas as pd
-import os
 from nipype.interfaces.base import BaseInterface, \
     BaseInterfaceInputSpec, traits, File, TraitedSpec, SimpleInterface, \
     InputMultiObject
@@ -30,6 +28,8 @@ class ConfoundsOutputSpec(TraitedSpec):
     conf_summary = traits.Dict(
         exists=True,
         desc="Confounds summary")
+    pipeline_name = traits.Str(desc="Name of denoising strategy")
+
 
 class Confounds(SimpleInterface):
     input_spec = ConfoundsInputSpec
@@ -67,6 +67,7 @@ class Confounds(SimpleInterface):
 
         self._results['conf_prep'] = fname_prep
         self._results['conf_summary'] = conf_summary
+        self._results['pipeline_name'] = self.inputs.pipeline['name']
 
         return runtime
 
@@ -102,7 +103,7 @@ def inclusion_check(n_timepoints, mean_fd, max_fd, n_spikes, fd_th):
         return 1
 
 
-class AggConfoundsInputSpec(BaseInterfaceInputSpec):
+class GroupConfoundsInputSpec(BaseInterfaceInputSpec):
     conf_summary = traits.List(
         exists=True,
         desc="Confounds summary")
@@ -110,60 +111,25 @@ class AggConfoundsInputSpec(BaseInterfaceInputSpec):
     output_dir = File(          # needed to save data in other directory
         desc="Output path")     # TODO: Implement temp dir
 
+    pipeline_name = traits.List(mandatory=True)
 
-class AggConfoundsOutputSpec(TraitedSpec):
+
+class GroupConfoundsOutputSpec(TraitedSpec):
     group_conf_summary = File(
         exists=True,
         desc="Confounds summary")
 
 
-class AggConfounds(SimpleInterface):
-    input_spec = AggConfoundsInputSpec
-    output_spec = AggConfoundsOutputSpec
+class GroupConfounds(SimpleInterface):
+    input_spec = GroupConfoundsInputSpec
+    output_spec = GroupConfoundsOutputSpec
 
     def _run_interface(self, runtime):
         group_conf_summary = pd.DataFrame()
 
-        for summary in self.inputs.conf_summary:
+        for summary, pipeline_name in zip(self.inputs.conf_summary, self.inputs.pipeline_name):
             group_conf_summary = group_conf_summary.append(pd.DataFrame.from_dict(summary))
-
-        fname = f"{self.inputs.output_dir}group_confounds_table.tsv"
+        fname = f"{self.inputs.output_dir}{pipeline_name}_group_conf_summary.tsv"
         group_conf_summary.to_csv(fname, sep='\t', index=False)
         self._results['group_conf_summary'] = fname
         return runtime
-
-
-# --- TESTS
-
-# if __name__ == '__main__':
-#     from nipype import Node
-#     import utils as ut
-#
-#     prep_conf = Node(Confounds(), name="ConfPrep")
-#
-#     #jdicto = ut.load_pipeline_from_json("../pipelines/36_parameters_spikes.json")
-#     jdicto = ut.load_pipeline_from_json("../pipelines/pipeline-acomp_cor.json")
-#     confpath = "/media/finc/Elements/BIDS_pseudowords/BIDS/derivatives/fmriprep/sub-01/func/" + \
-#                "sub-01_task-rhymejudgment_desc-confounds_regressors.tsv"
-#
-#     cf = Confounds()
-#     cf.inputs.pipeline = jdicto
-#     cf.inputs.conf_raw = confpath
-#     cf.inputs.output_dir = '/media/finc/Elements/fmridenoise/derivatives/fmridenoise/'
-#     results = cf.run()
-#
-#     print(results.outputs)
-
-if __name__ == '__main__':
-    from nipype import Node
-    import utils as ut
-
-
-    conf_summaries = [{'mean_fd': [0.11377746541635224], 'max_fd': [0.25027780000000005], 'n_spikes': [8], 'n_conf': [35], 'include_lib': [1], 'include_con': [1]},
-                      {'mean_fd': [0.11377746541635224], 'max_fd': [0.25027780000000005], 'n_spikes': [8], 'n_conf': [35], 'include_lib': [1], 'include_con': [1]}]
-
-    cf = AggConfounds()
-    cf.inputs.output_dir = '/media/finc/Elements/fmridenoise/derivatives/fmridenoise/'
-    cf.inputs.conf_summary = conf_summaries
-    results = cf.run()
-    print(results.outputs)

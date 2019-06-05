@@ -66,14 +66,38 @@ class Connectivity(SimpleInterface):
         return runtime
 
 
-# --- TESTS
+class GroupConnectivityInputSpec(BaseInterfaceInputSpec):
+    corr_mat = traits.List(exists=True,
+                    desc='Connectivity matrix',
+                    mandatory=True)
 
-if __name__ == '__main__':
+    output_dir = File(desc='Output path')
+    pipeline_name = traits.List(mandatory=True)
 
-    conn = Connectivity()
-    conn.inputs.fmri_denoised = '/media/finc/Elements/fmridenoise/derivatives/fmridenoise/sub-01_task-rhymejudgment_space-MNI152NLin2009cAsym_desc-preproc_bold_denoised.nii'
-    conn.inputs.parcellation = '/home/finc/Dropbox/Projects/fMRIDenoise/fmridenoise/fmridenoise/parcellation/Schaefer2018_200Parcels_7Networks_order_FSLMNI152_1mm.nii.gz'
-    conn.inputs.output_dir = '/media/finc/Elements/fmridenoise/derivatives/fmridenoise/'
-    results = conn.run()
 
-    print(results.outputs)
+
+class GroupConnectivityOutputSpec(TraitedSpec):
+    group_corr_mat = File(exists=True,
+                    desc='Connectivity matrix',
+                    mandatory=True)
+
+
+class GroupConnectivity(SimpleInterface):
+    input_spec = GroupConnectivityInputSpec
+    output_spec = GroupConnectivityOutputSpec
+
+    def _run_interface(self, runtime):
+        n_corr_mat = len(self.inputs.corr_mat)
+        n_rois = 200
+        group_corr_mat = np.zeros((n_corr_mat, n_rois, n_rois))
+        for i, file in enumerate(self.inputs.corr_mat):
+            group_corr_mat[i, :, :] = np.load(file)
+
+        pipeline_name = self.inputs.pipeline_name[0]
+
+        group_corr_file = f'{self.inputs.output_dir}/{pipeline_name}_group_corr_mat.npy'
+        np.save(group_corr_file, group_corr_mat)
+
+        self._results['group_corr_mat'] = group_corr_file
+
+        return runtime

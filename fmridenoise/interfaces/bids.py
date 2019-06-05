@@ -36,6 +36,7 @@ class BIDSGrabOutputSpec(TraitedSpec):
     tr_dict = traits.Dict()
 
 class BIDSGrab(SimpleInterface):
+
     """
     Read a BIDS dataset and grabs:
         (1) preprocessed imaging files,
@@ -51,7 +52,6 @@ class BIDSGrab(SimpleInterface):
         Files are searched using BIDSLayout.get() method with filters specifying
         extensions ".nii" or ".nii.gz", suffix "bold" and extension "prep"
         corresponding to preprocessed images.
-
     conf_raw: list of files
         List containing paths to confound regressors files. Elements of conf_raw
         list correspond to fmri_prep elements such that each regressor file is
