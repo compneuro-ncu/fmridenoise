@@ -1,9 +1,9 @@
 from nipype.pipeline import engine as pe
 
 from fmridenoise.interfaces.bids import BIDSGrab, BIDSDataSink
-from fmridenoise.interfaces.confounds import Confounds
+from fmridenoise.interfaces.confounds import Confounds, GroupConfounds
 from fmridenoise.interfaces.denoising import Denoise
-from fmridenoise.interfaces.connectivity import Connectivity
+from fmridenoise.interfaces.connectivity import Connectivity, GroupConnectivity
 from fmridenoise.interfaces.pipeline_selector import PipelineSelector
 import fmridenoise.utils.temps as temps
 
@@ -50,7 +50,7 @@ def init_fmridenoise_wf(bids_dir,
         Confounds(
             output_dir=temps.mkdtemp('prep_conf')
         ),
-        iterfield=['conf_raw'],
+        iterfield=['conf_raw', 'entities'],
         name="ConfPrep")
     # Outputs: conf_prep, low_pass, high_pass
 
@@ -81,7 +81,32 @@ def init_fmridenoise_wf(bids_dir,
         name='ConnCalc')
     # Outputs: conn_mat, carpet_plot
 
-    # 6) --- Save derivatives
+    # 6) --- Group confounds
+
+    # Inputs: conf_summary, pipeline_name
+
+    group_conf_summary = pe.Node(
+        GroupConfounds(
+            output_dir=bids_dir+'derivatives/fmridenoise/',
+        ),
+        name="GroupConf")
+
+    # Outputs: group_conf_summary
+
+    # 7) --- Group confounds
+
+    # Inputs: corr_mat, pipeline_name
+
+    group_connectivity = pe.Node(
+        GroupConnectivity(
+            output_dir=bids_dir+'derivatives/fmridenoise/',
+        ),
+        name="GroupConn")
+
+    # Outputs: group_corr_mat
+
+
+    # 8) --- Save derivatives
     # TODO: Fill missing in/out
     ds_confounds = pe.MapNode(BIDSDataSink(base_directory=bids_dir),
                     iterfield=['in_file', 'entities'],
@@ -108,7 +133,8 @@ def init_fmridenoise_wf(bids_dir,
         (grabbing_bids, denoise, [('tr_dict', 'tr_dict')]),
         (grabbing_bids, denoise, [('fmri_prep', 'fmri_prep')]),
         (grabbing_bids, denoise, [('entities', 'entities')]),
-        (grabbing_bids, prep_conf, [('conf_raw', 'conf_raw')]),
+        (grabbing_bids, prep_conf, [('conf_raw', 'conf_raw'),
+                                    ('entities', 'entities')]),
         (grabbing_bids, ds_confounds, [('entities', 'entities')]),
         (grabbing_bids, ds_denoise, [('entities', 'entities')]),
         (grabbing_bids, ds_connectivity, [('entities', 'entities')]),
@@ -116,20 +142,29 @@ def init_fmridenoise_wf(bids_dir,
         (grabbing_bids, ds_matrix_plot, [('entities', 'entities')]),
         #--- rest
         (pipelineselector, prep_conf, [('pipeline', 'pipeline')]),
+        (prep_conf, group_conf_summary, [('conf_summary', 'conf_summary'),
+                                        ('pipeline_name', 'pipeline_name')]),
+
         (pipelineselector, ds_denoise, [('pipeline_name', 'pipeline_name')]),
         (pipelineselector, ds_connectivity, [('pipeline_name', 'pipeline_name')]),
-        (pipelineselector, ds_confounds, [('pipeline_name','pipeline_name')]),
+        (pipelineselector, ds_confounds, [('pipeline_name', 'pipeline_name')]),
         (pipelineselector, ds_carpet_plot, [('pipeline_name', 'pipeline_name')]),
         (pipelineselector, ds_matrix_plot, [('pipeline_name', 'pipeline_name')]),
         (pipelineselector, denoise, [('low_pass', 'low_pass'),
                                      ('high_pass', 'high_pass')]),
+
         (prep_conf, denoise, [('conf_prep', 'conf_prep')]),
         (denoise, connectivity, [('fmri_denoised', 'fmri_denoised')]),
+
+        (prep_conf, group_connectivity, [('pipeline_name', 'pipeline_name')]),
+        (connectivity, group_connectivity, [('corr_mat', 'corr_mat')]),
+
         (prep_conf, ds_confounds, [('conf_prep', 'in_file')]),
         (denoise, ds_denoise, [('fmri_denoised', 'in_file')]),
         (connectivity, ds_connectivity, [('corr_mat', 'in_file')]),
         (connectivity, ds_carpet_plot, [('carpet_plot', 'in_file')]),
         (connectivity, ds_matrix_plot, [('matrix_plot', 'in_file')]),
+
     ])
 
     return workflow
@@ -154,8 +189,8 @@ if __name__ == '__main__':  # TODO Move parser to module __main__
     parser.add_argument("--output_dir")
     args = parser.parse_args()
 
-    bids_dir = '/media/finc/Elements/BIDS_pseudowords_short/BIDS_2sub'
-    output_dir = '/media/finc/Elements/BIDS_pseudowords_short/BIDS_2sub'
+    bids_dir = '/media/finc/Elements/BIDS_pseudowords/BIDS/'
+    output_dir = '/media/finc/Elements/BIDS_pseudowords/BIDS/'
 
     if args.bids_dir is not None:
         bids_dir = args.bids_dir
