@@ -5,6 +5,7 @@ from fmridenoise.interfaces.confounds import Confounds, GroupConfounds
 from fmridenoise.interfaces.denoising import Denoise
 from fmridenoise.interfaces.connectivity import Connectivity, GroupConnectivity
 from fmridenoise.interfaces.pipeline_selector import PipelineSelector
+from fmridenoise.interfaces.quality_measures import QualityMeasures, PipelinesQualityMeasures
 import fmridenoise.utils.temps as temps
 
 import fmridenoise
@@ -93,7 +94,7 @@ def init_fmridenoise_wf(bids_dir,
 
     # Outputs: group_conf_summary
 
-    # 7) --- Group confounds
+    # 7) --- Group connectivity
 
     # Inputs: corr_mat, pipeline_name
 
@@ -105,8 +106,30 @@ def init_fmridenoise_wf(bids_dir,
 
     # Outputs: group_corr_mat
 
+    # 8) --- Quality measures
 
-    # 8) --- Save derivatives
+    # Inputs: group_corr_mat, group_conf_summary, pipeline_name
+
+    quality_measures = pe.MapNode(
+        QualityMeasures(
+            output_dir=bids_dir+'derivatives/fmridenoise/',
+        ),
+        iterfield=['group_corr_mat', 'group_conf_summary'],
+        name="QualityMeasures")
+    # Outputs: fc_fd_summary, edges_weight
+
+    # 9) --- Quality measures across pipelines
+
+    # Inputs: fc_fd_summary, edges_weight
+
+    pipelines_quality_measures = pe.Node(
+        PipelinesQualityMeasures(
+            output_dir=bids_dir + 'derivatives/fmridenoise/',
+        ),
+        name="PipelinesQC")
+    # Outputs: pipelines_fc_fd_summary, pipelines_edges_weight
+
+    # 10) --- Save derivatives
     # TODO: Fill missing in/out
     ds_confounds = pe.MapNode(BIDSDataSink(base_directory=bids_dir),
                     iterfield=['in_file', 'entities'],
@@ -165,6 +188,11 @@ def init_fmridenoise_wf(bids_dir,
         (connectivity, ds_carpet_plot, [('carpet_plot', 'in_file')]),
         (connectivity, ds_matrix_plot, [('matrix_plot', 'in_file')]),
 
+        (group_connectivity, quality_measures, [('pipeline_name', 'pipeline_name'),
+                                                ('group_corr_mat', 'group_corr_mat')]),
+        (group_conf_summary, quality_measures, [('group_conf_summary', 'group_conf_summary')]),
+        (quality_measures, pipelines_quality_measures, [('fc_fd_summary', 'fc_fd_summary'),
+                                                        ('edges_weight', 'edges_weight')])
     ])
 
     return workflow
@@ -189,8 +217,8 @@ if __name__ == '__main__':  # TODO Move parser to module __main__
     parser.add_argument("--output_dir")
     args = parser.parse_args()
 
-    bids_dir = '/media/finc/Elements/BIDS_pseudowords/BIDS/'
-    output_dir = '/media/finc/Elements/BIDS_pseudowords/BIDS/'
+    bids_dir = '/media/finc/Elements/BIDS_pseudowords_short/BIDS_2sub/'
+    output_dir = '/media/finc/Elements/BIDS_pseudowords_short/BIDS_2sub/'
 
     if args.bids_dir is not None:
         bids_dir = args.bids_dir
