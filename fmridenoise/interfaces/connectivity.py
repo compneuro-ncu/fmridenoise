@@ -80,6 +80,7 @@ class GroupConnectivityOutputSpec(TraitedSpec):
     group_corr_mat = File(exists=True,
                     desc='Connectivity matrix',
                     mandatory=True)
+    pipeline_name = traits.Str(mandatory=True)
 
 
 class GroupConnectivity(SimpleInterface):
@@ -99,5 +100,6 @@ class GroupConnectivity(SimpleInterface):
         np.save(group_corr_file, group_corr_mat)
 
         self._results['group_corr_mat'] = group_corr_file
+        self._results['pipeline_name'] = pipeline_name
 
         return runtime
