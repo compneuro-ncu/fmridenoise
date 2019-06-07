@@ -45,8 +45,8 @@ class QualityMeasures(SimpleInterface):
         vectorized = sym_matrix_to_vec(group_corr_mat)
 
         n_edges = vectorized.shape[1]
-        fc_fd_corr = np.zeros((n_edges))
-        fc_fd_pval = np.zeros((n_edges))
+        fc_fd_corr = np.zeros(n_edges)
+        fc_fd_pval = np.zeros(n_edges)
 
         for i in range(n_edges):
             corr = pearsonr(vectorized[:, i], group_conf_summary['mean_fd'].values)
@@ -54,7 +54,7 @@ class QualityMeasures(SimpleInterface):
             fc_fd_pval[i] = corr[1]
 
         fc_fd_summary = {"pipeline": pipeline_name,
-                         "perc_fc_fd_uncorr": np.sum(fc_fd_pval < 0.05) / np.sum(fc_fd_pval >= 0.05) * 100,
+                         "perc_fc_fd_uncorr": np.sum(fc_fd_pval < 0.5)/len(fc_fd_pval)*100,
                          "pearson_fc_fd": np.median(fc_fd_corr),
                          "tdof_loss": group_conf_summary["n_conf"].mean()
                          }
