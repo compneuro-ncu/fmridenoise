@@ -5,7 +5,7 @@ from fmridenoise.interfaces.confounds import Confounds, GroupConfounds
 from fmridenoise.interfaces.denoising import Denoise
 from fmridenoise.interfaces.connectivity import Connectivity, GroupConnectivity
 from fmridenoise.interfaces.pipeline_selector import PipelineSelector
-from fmridenoise.interfaces.quality_measures import QualityMeasures, PipelinesQualityMeasures
+from fmridenoise.interfaces.quality_measures import QualityMeasures, PipelinesQualityMeasures, MergeGroupQualityMeasures
 import fmridenoise.utils.temps as temps
 
 import fmridenoise
@@ -88,7 +88,7 @@ def init_fmridenoise_wf(bids_dir,
 
     group_conf_summary = pe.Node(
         GroupConfounds(
-            output_dir=bids_dir+'derivatives/fmridenoise/',
+            output_dir=os.path.join(bids_dir, 'derivatives', 'fmridenoise'),
         ),
         name="GroupConf")
 
@@ -100,7 +100,7 @@ def init_fmridenoise_wf(bids_dir,
 
     group_connectivity = pe.Node(
         GroupConnectivity(
-            output_dir=bids_dir+'derivatives/fmridenoise/',
+            output_dir=os.path.join(bids_dir, 'derivatives', 'fmridenoise'),
         ),
         name="GroupConn")
 
@@ -112,24 +112,34 @@ def init_fmridenoise_wf(bids_dir,
 
     quality_measures = pe.MapNode(
         QualityMeasures(
-            output_dir=bids_dir+'derivatives/fmridenoise/',
+            output_dir=os.path.join(bids_dir, 'derivatives', 'fmridenoise'),
         ),
         iterfield=['group_corr_mat', 'group_conf_summary'],
         name="QualityMeasures")
     # Outputs: fc_fd_summary, edges_weight
 
-    # 9) --- Quality measures across pipelines
+    # 9) --- Merge quality measures into lists for further processing
+
+    # Inputs: fc_fd_summary, edges_weight
+
+    merge_quality_measures = pe.JoinNode(MergeGroupQualityMeasures(),
+                                         joinsource=quality_measures,
+                                         name="Merge")
+
+    # Outputs: fc_fd_summary, edges_weight
+
+    # 10) --- Quality measures across pipelines
 
     # Inputs: fc_fd_summary, edges_weight
 
     pipelines_quality_measures = pe.Node(
         PipelinesQualityMeasures(
-            output_dir=bids_dir + 'derivatives/fmridenoise/',
+            output_dir=os.path.join(bids_dir, 'derivatives', 'fmridenoise'),
         ),
         name="PipelinesQC")
     # Outputs: pipelines_fc_fd_summary, pipelines_edges_weight
 
-    # 10) --- Save derivatives
+    # 11) --- Save derivatives
     # TODO: Fill missing in/out
     ds_confounds = pe.MapNode(BIDSDataSink(base_directory=bids_dir),
                     iterfield=['in_file', 'entities'],
@@ -191,8 +201,11 @@ def init_fmridenoise_wf(bids_dir,
         (group_connectivity, quality_measures, [('pipeline_name', 'pipeline_name'),
                                                 ('group_corr_mat', 'group_corr_mat')]),
         (group_conf_summary, quality_measures, [('group_conf_summary', 'group_conf_summary')]),
-        (quality_measures, pipelines_quality_measures, [('fc_fd_summary', 'fc_fd_summary'),
-                                                        ('edges_weight', 'edges_weight')])
+        (quality_measures, merge_quality_measures, [('fc_fd_summary', 'fc_fd_summary'),
+                                                    ('edges_weight', 'edges_weight')]),
+        (merge_quality_measures, pipelines_quality_measures,
+            [('fc_fd_summary', 'fc_fd_summary'),
+             ('edges_weight', 'edges_weight')])                                         
     ])
 
     return workflow

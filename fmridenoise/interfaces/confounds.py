@@ -4,7 +4,7 @@ from nipype.interfaces.base import BaseInterface, \
     InputMultiObject
 from nipype.utils.filemanip import split_filename
 from fmridenoise.utils.confound_prep import prep_conf_df
-
+from os.path import join
 
 class ConfoundsInputSpec(BaseInterfaceInputSpec):
     pipeline = traits.Dict(
@@ -45,7 +45,7 @@ class Confounds(SimpleInterface):
 
         # Create new filename and save
         path, base, _ = split_filename(fname)  # Path can be removed later
-        fname_prep = f"{self.inputs.output_dir}/{base}_prep.tsv"  # use output path
+        fname_prep = join(self.inputs.output_dir, f"{base}_prep.tsv")  # use output path
         conf_df_prep.to_csv(fname_prep, sep='\t', index=False)
 
         # Creates dictionary with summary measures
@@ -129,7 +129,7 @@ class GroupConfounds(SimpleInterface):
 
         for summary, pipeline_name in zip(self.inputs.conf_summary, self.inputs.pipeline_name):
             group_conf_summary = group_conf_summary.append(pd.DataFrame.from_dict(summary))
-        fname = f"{self.inputs.output_dir}{pipeline_name}_group_conf_summary.tsv"
+        fname = join(self.inputs.output_dir, f"{pipeline_name}_group_conf_summary.tsv")
         group_conf_summary.to_csv(fname, sep='\t', index=False)
         self._results['group_conf_summary'] = fname
         return runtime

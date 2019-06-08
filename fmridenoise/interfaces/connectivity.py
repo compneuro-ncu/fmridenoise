@@ -11,7 +11,7 @@ from nilearn.input_data import NiftiLabelsMasker
 from nilearn.connectome import ConnectivityMeasure
 from fmridenoise.utils.quality_measures import create_carpetplot
 from nilearn.plotting import plot_matrix
-
+from os.path import join
 class ConnectivityInputSpec(BaseInterfaceInputSpec):
     fmri_denoised = File(exists=True,
                          desc='Denoised fMRI file',
@@ -50,8 +50,8 @@ class Connectivity(SimpleInterface):
 
         conn_file = f'{self.inputs.output_dir}/{base}_conn_mat.npy'
 
-        carpet_plot_file = f'{self.inputs.output_dir}/{base}_carpet_plot.png'
-        matrix_plot_file = f'{self.inputs.output_dir}/{base}_matrix_plot.png'
+        carpet_plot_file = join(self.inputs.output_dir, f'{base}_carpet_plot.png')
+        matrix_plot_file = join(self.inputs.output_dir, f'{base}_matrix_plot.png')
 
         create_carpetplot(time_series, carpet_plot_file)
         mplot = plot_matrix(corr_mat,  vmin=-1, vmax=1)
@@ -96,7 +96,7 @@ class GroupConnectivity(SimpleInterface):
 
         pipeline_name = self.inputs.pipeline_name[0]
 
-        group_corr_file = f'{self.inputs.output_dir}/{pipeline_name}_group_corr_mat.npy'
+        group_corr_file = join(self.inputs.output_dir, f'{pipeline_name}_group_corr_mat.npy')
         np.save(group_corr_file, group_corr_mat)
 
         self._results['group_corr_mat'] = group_corr_file

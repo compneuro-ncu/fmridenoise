@@ -9,7 +9,7 @@ import pandas as pd
 from nilearn.connectome import sym_matrix_to_vec, vec_to_sym_matrix
 from scipy.stats import pearsonr
 import matplotlib.pyplot as plt
-
+from os.path import join
 
 class QualityMeasuresInputSpec(BaseInterfaceInputSpec):
     group_corr_mat = File(exists=True,
@@ -64,8 +64,8 @@ class QualityMeasures(SimpleInterface):
         fc_fd_summary_df = pd.DataFrame([fc_fd_summary])
         edges_weight_df = pd.DataFrame(edges_weight)
 
-        fc_fd_summary_df.to_csv(f"{self.inputs.output_dir}fc_fd_summary_{pipeline_name}.tsv", sep='\t', index=False)
-        edges_weight_df.to_csv(f"{self.inputs.output_dir}edges_weight_{pipeline_name}.tsv", sep='\t', index=False)
+        fc_fd_summary_df.to_csv(join(self.inputs.output_dir, f"fc_fd_summary_{pipeline_name}.tsv"), sep='\t', index=False)
+        edges_weight_df.to_csv(join(self.inputs.output_dir, f"edges_weight_{pipeline_name}.tsv"), sep='\t', index=False)
 
         # --- plotting matrices
         vec = vec_to_sym_matrix(fc_fd_corr)
@@ -79,12 +79,32 @@ class QualityMeasures(SimpleInterface):
         ax2.set_title(f"{pipeline_name}: FC-FD correlation")
         fig.colorbar(fig2, ax=ax2)
 
-        fig.savefig(f"{self.inputs.output_dir}FC_FD_corr_mat_{pipeline_name}.png", dpi=300)
+        fig.savefig(join(self.inputs.output_dir, f"FC_FD_corr_mat_{pipeline_name}.png"), dpi=300)
 
         self._results["fc_fd_summary"] = fc_fd_summary
         self._results["edges_weight"] = edges_weight
 
 
+        return runtime
+
+
+class MergeGroupQualityMeasuresOutputSpec(TraitedSpec):
+        fc_fd_summary = traits.List()
+        edges_weight = traits.List()
+
+
+class MergeGroupQualityMeasuresInputSpec(BaseInterfaceInputSpec):
+    fc_fd_summary = traits.List()
+    edges_weight = traits.List()
+
+
+class MergeGroupQualityMeasures(SimpleInterface):
+    input_spec = MergeGroupQualityMeasuresInputSpec
+    output_spec = MergeGroupQualityMeasuresOutputSpec
+
+    def _run_interface(self, runtime):
+        self._results['fc_fd_summary'] = self.inputs.fc_fd_summary
+        self._results['edges_weight'] = self.inputs.edges_weight
         return runtime
 
 
@@ -124,8 +144,8 @@ class PipelinesQualityMeasures(SimpleInterface):
             pipelines_edges_weight = pd.concat([pipelines_edges_weight, pd.DataFrame(edges)], axis=1)
 
 
-        fname1 = f"{self.inputs.output_dir}pipelines_fc_fd_summary.tsv"
-        fname2 = f"{self.inputs.output_dir}pipelines_edges_weight.tsv"
+        fname1 = join(self.inputs.output_dir, f"pipelines_fc_fd_summary.tsv")
+        fname2 = join(self.inputs.output_dir, f"pipelines_edges_weight.tsv")
 
         pipelines_fc_fd_summary.to_csv(fname1, sep='\t', index=False)
         pipelines_edges_weight.to_csv(fname2, sep='\t', index=False)
