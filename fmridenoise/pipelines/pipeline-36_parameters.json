@@ -1,5 +1,5 @@
 {
-  "name": "36_parameters_gs",
+  "name": "36_parameters",
   "description": "",
   "confounds":
   {
@@ -9,9 +9,7 @@
     "csf":
       {"temp_deriv": "True",
        "quad_terms": "True"},
-    "gs":
-      {"temp_deriv": "True",
-       "quad_terms": "True"},
+    "gs": "False",
     "motion":
       {"temp_deriv": "True",
        "quad_terms": "True"},
