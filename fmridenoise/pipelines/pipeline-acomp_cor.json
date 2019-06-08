@@ -1,13 +1,11 @@
 {
-  "name": "acomp_cor",
+  "name": "aCompCor",
   "description": "",
   "confounds":
   {
     "wm": "False",
     "csf": "False",
-    "gs":
-      {"temp_deriv": "True",
-       "quad_terms": "True"},
+    "gs": "False",
     "motion":
       {"temp_deriv": "True",
        "quad_terms": "True"},
@@ -15,7 +13,7 @@
   },
   "aroma": "False",
   "spikes":
-    {"fd_th": 0.2,
+    {"fd_th": 0.5,
      "dvars_th": 0},
   "filter":
     {"low_pass": 0.08,

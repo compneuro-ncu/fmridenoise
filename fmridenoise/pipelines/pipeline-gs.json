@@ -1,20 +1,14 @@
 {
-  "name": "36_parameters_gs",
+  "name": "gs",
   "description": "",
   "confounds":
   {
-    "wm":
-      {"temp_deriv": "True",
-       "quad_terms": "True"},
-    "csf":
-      {"temp_deriv": "True",
-       "quad_terms": "True"},
+    "wm": "False",
+    "csf": "False",
     "gs":
       {"temp_deriv": "True",
        "quad_terms": "True"},
-    "motion":
-      {"temp_deriv": "True",
-       "quad_terms": "True"},
+    "motion": "False",
     "acompcor": "False"
   },
   "aroma": "False",
