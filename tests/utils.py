@@ -2,6 +2,7 @@ import os
 import math
 import json
 import shutil
+import nipype as ni
 
 def create_dummy_bids(root: str, subjetcts: int, sessions: int,        
                       derivatives: list=[], tasks: list=[],
@@ -101,3 +102,4 @@ def copy_as_dummy_dataset(source_bids_dir: str, new_path: str, ext_to_copy=tuple
                     break
             else:
                 open(os.path.join(new_root, name), 'w').close()
+

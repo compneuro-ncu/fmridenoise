@@ -22,6 +22,14 @@
             "console": "integratedTerminal"
         },
         {
+            "name": "Test Quality",
+            "type": "python",
+            "request": "launch",
+            "module": "tests.integration.test_quality_group",
+            "cwd": "${workspaceFolder}",
+            "console": "integratedTerminal"
+        },
+        {
             "name": "RunTests",
             "type": "python",
             "request": "launch",
