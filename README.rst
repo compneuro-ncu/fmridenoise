@@ -20,8 +20,10 @@ We believe that the tool can make the selection of the denoising strategy more o
 
 Execution
 =========
-python -m fmridenoise
 
+**python -m fmridenoise**
+
+:: 
     positional arguments:
         bids_dir              Path do preprocessed BIDS dataset.
 
@@ -29,7 +31,4 @@ python -m fmridenoise
         -h, --help            show this help message and exit
         -g, --debug           Run fmridenois in debug mode
         --graph GRAPH         Create workflow graph at given path
-        -d DERIVATIVES, --derivatives DERIVATIVES
-                                Name (or list) of derivatives for which fmridenoise
-                                should be run. By default workflow looks for fmriprep
-                                dataset.
+        -d DERIVATIVES, --derivatives DERIVATIVES           Name (or list) of derivatives for which fmridenoise should be run. By default workflow looks for fmriprep dataset.
