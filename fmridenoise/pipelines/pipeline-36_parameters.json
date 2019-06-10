@@ -18,7 +18,7 @@
   "aroma": "False",
   "spikes":
     {"fd_th": 0.5,
-     "dvars_th": 0},
+     "dvars_th": 3},
   "filter":
     {"low_pass": 0.08,
      "high_pass": 0.008},
