@@ -11,6 +11,10 @@ from scipy.stats import pearsonr
 import matplotlib.pyplot as plt
 from os.path import join
 
+import seaborn as sns
+sns.set()
+
+
 class QualityMeasuresInputSpec(BaseInterfaceInputSpec):
     group_corr_mat = File(exists=True,
                           desc='Group connectivity matrix',
@@ -60,12 +64,6 @@ class QualityMeasures(SimpleInterface):
                          }
 
         edges_weight = {pipeline_name: vectorized.mean(axis=0)}
-
-        fc_fd_summary_df = pd.DataFrame([fc_fd_summary])
-        edges_weight_df = pd.DataFrame(edges_weight)
-
-        fc_fd_summary_df.to_csv(join(self.inputs.output_dir, f"fc_fd_summary_{pipeline_name}.tsv"), sep='\t', index=False)
-        edges_weight_df.to_csv(join(self.inputs.output_dir, f"edges_weight_{pipeline_name}.tsv"), sep='\t', index=False)
 
         # --- plotting matrices
         vec = vec_to_sym_matrix(fc_fd_corr)
@@ -135,13 +133,14 @@ class PipelinesQualityMeasures(SimpleInterface):
     output_spec = PipelinesQualityMeasuresOutputSpec
 
     def _run_interface(self, runtime):
+
         pipelines_fc_fd_summary = pd.DataFrame()
         pipelines_edges_weight = pd.DataFrame()
 
         for summary, edges in zip(self.inputs.fc_fd_summary, self.inputs.edges_weight):
 
-            pipelines_fc_fd_summary = pd.concat([pipelines_fc_fd_summary, pd.DataFrame([summary])], axis=0)
-            pipelines_edges_weight = pd.concat([pipelines_edges_weight, pd.DataFrame(edges)], axis=1)
+            pipelines_fc_fd_summary = pd.concat([pipelines_fc_fd_summary, pd.DataFrame([summary[0]])], axis=0)
+            pipelines_edges_weight = pd.concat([pipelines_edges_weight, pd.DataFrame(edges[0])], axis=1)
 
 
         fname1 = join(self.inputs.output_dir, f"pipelines_fc_fd_summary.tsv")
@@ -149,6 +148,39 @@ class PipelinesQualityMeasures(SimpleInterface):
 
         pipelines_fc_fd_summary.to_csv(fname1, sep='\t', index=False)
         pipelines_edges_weight.to_csv(fname2, sep='\t', index=False)
+
+        # --- Plotting
+
+        # density plot
+        fig1, ax = plt.subplots(1, 1)
+
+        for col in pipelines_edges_weight:
+            sns.kdeplot(pipelines_edges_weight[col], shade=True)
+            plt.axvline(0, 0, 2, color='gray', linestyle='dashed', linewidth=1.5)
+            plt.title("Density of edge weights")
+
+        fig1.savefig(f"{self.inputs.output_dir}/pipelines_edges_density.svg", dpi=300)
+
+        # boxplot (Pearson's r)
+        fig2, ax = plt.subplots(1, 1)
+        sns.barplot(x="pearson_fc_fd",
+                    y="pipeline",
+                    data=pipelines_fc_fd_summary,
+                    orient="h").set(xlabel="QC-FC (Pearson's r)",
+                                    ylabel='Pipeline')
+        fig2.savefig(f"{self.inputs.output_dir}/pipelines_fc_fd_pearson.svg", dpi=300, bbox_inches="tight")
+
+        # boxplot
+
+        fig3, ax = plt.subplots(1, 1)
+        sns.barplot(x="perc_fc_fd_uncorr",
+                    y="pipeline",
+                    data=pipelines_fc_fd_summary,
+                    orient="h").set(xlabel="QC-FC uncorrected (%)",
+                                    ylabel='Pipeline')
+
+        fig3.savefig(f"{self.inputs.output_dir}/pipelines_fc_fd_uncorr.svg", dpi=300, bbox_inches="tight")
+
 
         self._results['pipelines_fc_fd_summary'] = fname1
         self._results['pipelines_edges_weight'] = fname2
