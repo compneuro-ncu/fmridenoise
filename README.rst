@@ -17,3 +17,19 @@ We believe that the tool can make the selection of the denoising strategy more o
 
 .. _BIDS: https://bids.neuroimaging.io/
 .. _fMRIPrep: https://fmriprep.readthedocs.io
+
+Execution
+=========
+python -m fmridenoise
+
+    positional arguments:
+        bids_dir              Path do preprocessed BIDS dataset.
+
+    optional arguments:
+        -h, --help            show this help message and exit
+        -g, --debug           Run fmridenois in debug mode
+        --graph GRAPH         Create workflow graph at given path
+        -d DERIVATIVES, --derivatives DERIVATIVES
+                                Name (or list) of derivatives for which fmridenoise
+                                should be run. By default workflow looks for fmriprep
+                                dataset.
