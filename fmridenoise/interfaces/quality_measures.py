@@ -135,13 +135,19 @@ class PipelinesQualityMeasures(SimpleInterface):
     output_spec = PipelinesQualityMeasuresOutputSpec
 
     def _run_interface(self, runtime):
+        # fname1 = join(self.inputs.output_dir, f"pipelines_fc_fd_summary.npy")
+        # fname2 = join(self.inputs.output_dir, f"pipelines_edges_weight.npy")
+        #
+        # np.save(fname1, self.inputs.fc_fd_summary)
+        # np.save(fname2, self.inputs.edges_weight)
+
         pipelines_fc_fd_summary = pd.DataFrame()
         pipelines_edges_weight = pd.DataFrame()
 
         for summary, edges in zip(self.inputs.fc_fd_summary, self.inputs.edges_weight):
 
-            pipelines_fc_fd_summary = pd.concat([pipelines_fc_fd_summary, pd.DataFrame([summary])], axis=0)
-            pipelines_edges_weight = pd.concat([pipelines_edges_weight, pd.DataFrame(edges)], axis=1)
+            pipelines_fc_fd_summary = pd.concat([pipelines_fc_fd_summary, pd.DataFrame([summary[0]])], axis=0)
+            pipelines_edges_weight = pd.concat([pipelines_edges_weight, pd.DataFrame(edges[0])], axis=1)
 
 
         fname1 = join(self.inputs.output_dir, f"pipelines_fc_fd_summary.tsv")
@@ -149,7 +155,7 @@ class PipelinesQualityMeasures(SimpleInterface):
 
         pipelines_fc_fd_summary.to_csv(fname1, sep='\t', index=False)
         pipelines_edges_weight.to_csv(fname2, sep='\t', index=False)
-
+        #
         self._results['pipelines_fc_fd_summary'] = fname1
         self._results['pipelines_edges_weight'] = fname2
 

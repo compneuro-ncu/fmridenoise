@@ -123,7 +123,7 @@ def init_fmridenoise_wf(bids_dir,
     # Inputs: fc_fd_summary, edges_weight
 
     merge_quality_measures = pe.JoinNode(MergeGroupQualityMeasures(),
-                                         joinsource=quality_measures,
+                                         joinsource=pipelineselector,
                                          name="Merge")
 
     # Outputs: fc_fd_summary, edges_weight
@@ -173,7 +173,7 @@ def init_fmridenoise_wf(bids_dir,
         (grabbing_bids, ds_connectivity, [('entities', 'entities')]),
         (grabbing_bids, ds_carpet_plot, [('entities', 'entities')]),
         (grabbing_bids, ds_matrix_plot, [('entities', 'entities')]),
-        #--- rest
+
         (pipelineselector, prep_conf, [('pipeline', 'pipeline')]),
         (prep_conf, group_conf_summary, [('conf_summary', 'conf_summary'),
                                         ('pipeline_name', 'pipeline_name')]),
