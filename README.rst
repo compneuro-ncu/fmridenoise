@@ -1,4 +1,4 @@
-fMRIDenoise - automated denoising and quality control of functional connectivity data
+fMRIDenoise - automated denoising, denoising strategies comparison and quality control of functional connectivity data
 =========================================
 .. image:: https://zenodo.org/badge/181017876.svg
    :target: https://zenodo.org/badge/latestdoi/181017876
