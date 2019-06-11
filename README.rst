@@ -28,7 +28,7 @@ Execution
         bids_dir              Path do preprocessed BIDS dataset.
 
     optional arguments:
-        -h, --help            show this help message and exit
-        -g, --debug           Run fmridenois in debug mode
+        -h, --help            Show the help message and exit
+        -g, --debug           Run fmridenoise in debug mode
         --graph GRAPH         Create workflow graph at given path
         -d DERIVATIVES, --derivatives DERIVATIVES           Name (or list) of derivatives for which fmridenoise should be run. By default workflow looks for fmriprep dataset.
