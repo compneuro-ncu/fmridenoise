@@ -1,6 +1,5 @@
 {
   "creators": [
-
     {
       "name": "Finc, Karolina",
       "affiliation": "Centre for Modern Interdisciplinary Technologies, Nicolaus Copernicus University in Toruń",
@@ -15,8 +14,7 @@
       "name": "Kamil Bonna",
       "affiliation":"Centre for Modern Interdisciplinary Technologies, Nicolaus Copernicus University in Toruń",
       "orcid": "0000-0003-1034-5363"
-    },
-
+    }
   ],
   "keywords": [
     "neuroimaging",
