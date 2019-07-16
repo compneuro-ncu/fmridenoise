@@ -9,3 +9,4 @@ traits>=5.0.0
 niworkflows>=0.8.2
 nipype>=1.2.0
 sklearn>=0.0
+pydot>=1.4.1

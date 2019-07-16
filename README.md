@@ -12,6 +12,15 @@ data in [BIDS](https://bids.neuroimaging.io/) standard.
 We believe that the tool can make the selection of the denoising strategy more objective and also help researchers to obtain FC quality control metrics with almost no effort.
 
 
+Installation
+============
+
+**Run:**
+
+    python setup.py install (--user)
+
+Currently there is no fmridenoise version available in PyPi.
+
 Execution
 =========
 
