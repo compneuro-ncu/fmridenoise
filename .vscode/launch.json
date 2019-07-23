@@ -13,11 +13,11 @@
             "console": "integratedTerminal"
         },
         {
-            "name": "Base workflow",
+            "name": "Base workflow on test_bids",
             "type": "python",
             "request": "launch",
             "module": "fmridenoise",
-            "args": ["${workspaceFolder}/bids_data", "-g"],
+            "args": ["${workspaceFolder}/test_bids", "-g", "-p", "pipeline-36_parameters", "--dry"],
             "cwd": "${workspaceFolder}",
             "console": "integratedTerminal"
         },

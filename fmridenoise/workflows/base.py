@@ -11,12 +11,12 @@ import fmridenoise.utils.temps as temps
 import fmridenoise
 import os
 import glob
-
+from fmridenoise.pipelines import get_pipelines_paths
 def init_fmridenoise_wf(bids_dir,
                         derivatives='fmriprep',
                         task=[],
                         session=[],
-                        pipelines_paths=glob.glob(os.path.dirname(fmridenoise.__file__) + "/pipelines/*"),
+                        pipelines_paths=get_pipelines_paths(),
                         # desc=None,
                         # ignore=None, force_index=None,
                         # model=None, participants=None,
