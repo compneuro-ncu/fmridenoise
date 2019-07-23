@@ -1,0 +1,29 @@
+{
+  "name": "36_parameters_gs",
+  "description": "",
+  "confounds":
+  {
+    "wm":
+      {"temp_deriv": "True",
+       "quad_terms": "True"},
+    "csf":
+      {"temp_deriv": "True",
+       "quad_terms": "True"},
+    "gs":
+      {"temp_deriv": "True",
+       "quad_terms": "True"},
+    "motion":
+      {"temp_deriv": "True",
+       "quad_terms": "True"},
+    "acompcor": "False"
+  },
+  "aroma": "False",
+  "spikes":
+    {"fd_th": 0.5,
+     "dvars_th": 3},
+  "filter":
+    {"low_pass": 0.08,
+     "high_pass": 0.008},
+  "detrend": "True",
+  "standardize": "True"
+}

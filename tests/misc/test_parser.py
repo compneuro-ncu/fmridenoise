@@ -22,10 +22,10 @@ class TestPipelinesParser(ut.TestCase):
         custom = self.all_pipelines_valid.copy()
         custom.add(addition)
         paths = parse_pipelines(custom)
-        self.assertAlmostEqual(paths, custom)
+        self.assertSetEqual(paths, custom)
 
     def test_parse_pipelines_known_pipeline(self):
         selected = "pipeline-36_parameters"
-        selected_path = {join(self.pipelines_dir, selected, ".json")}
+        selected_path = {(join(self.pipelines_dir, selected) + ".json")}
         paths = parse_pipelines([selected]) # __main__ always return list of paths/selected pipelines names
-        self.assertAlmostEqual(paths, selected_path)
+        self.assertSetEqual(paths, selected_path)
