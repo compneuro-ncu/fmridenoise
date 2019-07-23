@@ -11,7 +11,7 @@ def get_requirements() -> list:
 
         
 setuptools.setup(
-    name="AdaptToolBox",
+    name="Fmridenoise",
     version="0.0.1dev",
     author=["Karolina Finc", "Kamil Bona", "Mateusz Chojnowski"],
     author_email="zygfrydwagner@gmail.com",
