@@ -21,6 +21,13 @@ class BIDSGrabInputSpec(BaseInterfaceInputSpec):
         mandatory=False,
         desc='names of tasks to denoise'
     )
+
+    session = InputMultiObject(
+        Str,
+        mandatory=False,
+        desc='names of sessions to denoise'
+    )
+
     derivatives = traits.Either(
         traits.Str, traits.List(Str),
         default='fmriprep',
@@ -29,14 +36,16 @@ class BIDSGrabInputSpec(BaseInterfaceInputSpec):
         desc='Specifies which derivatives to to index'
     )
 
+
 class BIDSGrabOutputSpec(TraitedSpec):
     fmri_prep = OutputMultiPath(ImageFile)
     conf_raw = OutputMultiPath(File)
+    conf_json = OutputMultiPath(File)  # TODO: Kamil check
     entities = OutputMultiObject(traits.Dict)
     tr_dict = traits.Dict()
 
-class BIDSGrab(SimpleInterface):
 
+class BIDSGrab(SimpleInterface):
     """
     Read a BIDS dataset and grabs:
         (1) preprocessed imaging files,
@@ -94,10 +103,10 @@ class BIDSGrab(SimpleInterface):
                 scope.append(dataset_desc['PipelineDescription']['Name'])
             except FileNotFoundError as e:
                 raise Exception(f"{derivative_path} should contain" +
-                    " dataset_description.json file") from e
+                                " dataset_description.json file") from e
             except KeyError as e:
                 raise Exception(f"Key 'PipelineDescription.Name' is " +
-                    "required in {dataset_desc_path} file") from e
+                                "required in {dataset_desc_path} file") from e
 
         layout = BIDSLayout(
             root=self.inputs.bids_dir,
@@ -112,8 +121,10 @@ class BIDSGrab(SimpleInterface):
             for t in self.inputs.task:
                 if t not in layout.get_tasks():
                     raise ValueError(
-                        f'task {t} is not found')                               # TODO: find proper error to handle this
+                        f'task {t} is not found')  # TODO: find proper error to handle this
             task = self.inputs.task
+
+        session = self.inputs.session  # TODO: To correct by Kamil
 
         # Define query filters
         keys_entities = ['subject', 'session', 'datatype', 'task']
@@ -121,16 +132,30 @@ class BIDSGrab(SimpleInterface):
             'extension': ['nii', 'nii.gz'],
             'suffix': 'bold',
             'desc': 'preproc',
-            'task': task
+            'task': task,
+            'session': session,
+
+
         }
+
         filter_conf = {
             'extension': 'tsv',
             'suffix': 'regressors',
-            'desc': 'confounds'
+            'desc': 'confounds',
+            'task': task,
+            'session': session,
+        }
+
+        filter_conf_json = {
+            'extension': 'json',
+            'suffix': 'regressors',
+            'desc': 'confounds',
+            'task': task,
+            'session': session,
         }
 
         # Grab files
-        fmri_prep, conf_raw, entities = ([] for _ in range(3))
+        fmri_prep, conf_raw, conf_json, entities = ([] for _ in range(4))
 
         for fmri_file in layout.get(scope=scope, **filter_fmri):
 
@@ -142,7 +167,12 @@ class BIDSGrab(SimpleInterface):
                                if key in keys_entities}
             filter_conf.update(
                 filter_entities)  # Add specific fields to constrain search
+
+            filter_conf_json.update(
+                filter_entities)  # Add specific fields to constrain search
+
             conf_file = layout.get(scope=scope, **filter_conf)
+            conf_json_file = layout.get(scope=scope, **filter_conf_json)
 
             if not conf_file:
                 raise FileNotFoundError(
@@ -154,19 +184,34 @@ class BIDSGrab(SimpleInterface):
                     print(
                         f"Warning: Multiple regressors found for file {fmri_file.path}.\n"
                         f"Selecting {conf_file[0].path}"
-                    )                                                           # TODO: find proper warning (logging?)
+                    )  # TODO: find proper warning (logging?)
 
                 conf_file = conf_file[0]
 
+            if not conf_json_file:
+                raise FileNotFoundError(
+                    f"Regressor file not found for file {fmri_file.path}"
+                )
+            else:
+                # Add entity only if both files are available
+                if len(conf_json_file) > 1:
+                    print(
+                          f"Warning: Multiple .json regressors found for file {fmri_file.path}.\n"
+                          f"Selecting {conf_json_file[0].path}"
+                    )
+                # TODO: find proper warning (logging?)
+
+                conf_json_file = conf_json_file[0]
+
                 fmri_prep.append(fmri_file.path)
                 conf_raw.append(conf_file.path)
+                conf_json.append(conf_json_file.path)
                 entities.append(filter_entities)
 
         # Extract TRs
         tr_dict = {}
 
         for t in task:
-
             filter_fmri_tr = filter_fmri.copy()
             filter_fmri_tr['task'] = t
 
@@ -176,10 +221,12 @@ class BIDSGrab(SimpleInterface):
 
         self._results['fmri_prep'] = fmri_prep
         self._results['conf_raw'] = conf_raw
+        self._results['conf_json'] = conf_json
         self._results['entities'] = entities
         self._results['tr_dict'] = tr_dict
 
         return runtime
+
 
 class BIDSDataSinkInputSpec(BaseInterfaceInputSpec):
     base_directory = Directory(
@@ -202,35 +249,40 @@ class BIDSDataSink(IOBase):
     _always_run = True
 
     def _list_outputs(self):
-        base_dir = self.inputs.base_directory 
+        base_dir = self.inputs.base_directory
         os.makedirs(base_dir, exist_ok=True)
-        
+
         out_files = []
         for entity, in_file in zip(self.inputs.entities, self.inputs.in_file):
-            sub_num = entity['subject'] # TODO: Add support for sessions
+            sub_num = entity['subject']  # TODO: Add support for sessions
+            session_num = entity['session'] # TODO: Add conditionals if no sessions
             basedir, basename, ext = split_filename(in_file)
-            path = f"{base_dir}/derivatives/fmridenoise/sub-{sub_num}"
+            path = f"{base_dir}/derivatives/fmridenoise/sub-{sub_num}/ses-{session_num}"
             os.makedirs(path, exist_ok=True)
             out_fname = f"{path}/{basename}_pipeline-{self.inputs.pipeline_name}{ext}"
             copyfile(in_file, out_fname, copy=True)
             out_files.append(out_fname)
         return {'out_file': out_files}
 
+
 # --- TESTS
 
 if __name__ == '__main__':
+    #path = '/media/finc/Elements/zmien_nazwe'
+    #bids_dir = os.path.join(path, 'BIDS_2sub')
+    bids_dir = '/media/finc/Elements/fMRIDenoise_data/BIDS_LearningBrain/'
+    #bids_dir_2 = os.path.join(path, 'pilot_study_fmri_kids')
+    #bids_dir_3 = os.path.join(path, 'test')
 
-    path = '/home/kmb/Desktop/Neuroscience/Projects/NBRAINGROUP_fmridenoise/test_data'
-    bids_dir_1 = os.path.join(path, 'BIDS_2sub')
-    bids_dir_2 = os.path.join(path, 'pilot_study_fmri_kids')
-    bids_dir_3 = os.path.join(path, 'test')
-
-    bids_dir = bids_dir_3
-    task = []
+    #bids_dir = bids_dir_3
+    task = ['rest']
+    session = ['1']
 
     grabber = BIDSGrab(
+
         bids_dir=bids_dir,
-        task=task
+        task=task,
+        session=session
     )
 
     result = grabber.run()

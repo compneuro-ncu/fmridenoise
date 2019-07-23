@@ -5,6 +5,7 @@ from nipype.interfaces.base import BaseInterface, \
 from nipype.utils.filemanip import split_filename
 from fmridenoise.utils.confound_prep import prep_conf_df
 from os.path import join
+import json
 
 class ConfoundsInputSpec(BaseInterfaceInputSpec):
     pipeline = traits.Dict(
@@ -13,6 +14,10 @@ class ConfoundsInputSpec(BaseInterfaceInputSpec):
     conf_raw = File(
         exist=True,
         desc="Confounds table",
+        mandatory=True)
+    conf_json = File(
+        exist=True,
+        desc="Details aCompCor",
         mandatory=True)
     entities = traits.Dict(
         usedefault=True,
@@ -38,10 +43,29 @@ class Confounds(SimpleInterface):
     def _run_interface(self, runtime):
 
         fname = self.inputs.conf_raw
+        json_path = self.inputs.conf_json
+
         conf_df_raw = pd.read_csv(fname, sep='\t')
 
+        # Load aCompCor list
+
+        with open(json_path, 'r') as json_file:
+            js = json.load(json_file)
+
+        a_comp_cor_csf, a_comp_cor_wm = ([] for _ in range(2))
+
+        for i in js.keys():
+            if i.startswith('a_comp_cor'):
+                if js[i]['Mask'] == 'CSF' and js[i]['Retained']:
+                    a_comp_cor_csf.append(i)
+
+                if js[i]['Mask'] == 'WM' and js[i]['Retained']:
+                    a_comp_cor_wm.append(i)
+
+        a_comp_cor = a_comp_cor_csf[:5] + a_comp_cor_wm[:5]
+
         # Preprocess confound table according to pipeline
-        conf_df_prep = prep_conf_df(conf_df_raw, self.inputs.pipeline)
+        conf_df_prep = prep_conf_df(conf_df_raw, self.inputs.pipeline, a_comp_cor)
 
         # Create new filename and save
         path, base, _ = split_filename(fname)  # Path can be removed later
@@ -133,3 +157,27 @@ class GroupConfounds(SimpleInterface):
         group_conf_summary.to_csv(fname, sep='\t', index=False)
         self._results['group_conf_summary'] = fname
         return runtime
+
+
+if __name__ == '__main__':
+
+    bids_dir = '/media/finc/Elements/zmien_nazwe'
+    conf_json = '/media/finc/Elements/zmien_nazwe/derivatives/fmriprep/sub-01/ses-1/func/sub-01_ses-1_task-rest_desc-confounds_regressors.json'
+    conf_raw = '/media/finc/Elements/zmien_nazwe/derivatives/fmriprep/sub-01/ses-1/func/sub-01_ses-1_task-rest_desc-confounds_regressors.tsv'
+
+    from fmridenoise.utils.utils import load_pipeline_from_json
+
+    pipeline = load_pipeline_from_json('/home/finc/Dropbox/Projects/fMRIDenoise/fmridenoise/fmridenoise/pipelines/pipeline-acomp_cor.json')
+    entities = {'datatype': 'func', 'session': '1', 'subject': '01', 'task': 'rest'}
+
+    conf = Confounds(
+        conf_json=conf_json,
+        conf_raw=conf_raw,
+        pipeline=pipeline,
+        entities=entities,
+        output_dir='/media/finc/Elements/zmien_nazwe'
+    )
+
+    result = conf.run()
+    print(result.outputs)
+

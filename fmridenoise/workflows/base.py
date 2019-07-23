@@ -15,6 +15,7 @@ import glob
 def init_fmridenoise_wf(bids_dir,
                         derivatives='fmriprep',
                         task=[],
+                        session=[],
                         pipelines_paths=glob.glob(os.path.dirname(fmridenoise.__file__) + "/pipelines/*"),
                         # desc=None,
                         # ignore=None, force_index=None,
@@ -39,19 +40,20 @@ def init_fmridenoise_wf(bids_dir,
         BIDSGrab(
             bids_dir=bids_dir,
             derivatives=derivatives,
-            task=task
+            task=task,
+            session=session
         ),
         name="BidsGrabber")
-    # Outputs: fmri_prep, conf_raw, entities, tr_dict
+    # Outputs: fmri_prep, conf_raw, conf_json, entities, tr_dict
 
     # 3) --- Confounds preprocessing
 
-    # Inputs: pipeline, conf_raw
+    # Inputs: pipeline, conf_raw, conf_json
     prep_conf = pe.MapNode(
         Confounds(
             output_dir=temps.mkdtemp('prep_conf')
         ),
-        iterfield=['conf_raw', 'entities'],
+        iterfield=['conf_raw', 'conf_json', 'entities'],
         name="ConfPrep")
     # Outputs: conf_prep, low_pass, high_pass
 
@@ -167,6 +169,7 @@ def init_fmridenoise_wf(bids_dir,
         (grabbing_bids, denoise, [('fmri_prep', 'fmri_prep')]),
         (grabbing_bids, denoise, [('entities', 'entities')]),
         (grabbing_bids, prep_conf, [('conf_raw', 'conf_raw'),
+                                    ('conf_json', 'conf_json'),
                                     ('entities', 'entities')]),
         (grabbing_bids, ds_confounds, [('entities', 'entities')]),
         (grabbing_bids, ds_denoise, [('entities', 'entities')]),
@@ -230,15 +233,15 @@ if __name__ == '__main__':  # TODO Move parser to module __main__
     parser.add_argument("--output_dir")
     args = parser.parse_args()
 
-    bids_dir = '/media/finc/Elements/BIDS_pseudowords_short/BIDS_2sub/'
-    output_dir = '/media/finc/Elements/BIDS_pseudowords_short/BIDS_2sub/'
+    bids_dir = '/media/finc/Elements/fMRIDenoise_data/BIDS_LearningBrain_short/'
+    output_dir = '/media/finc/Elements/fMRIDenoise_data/BIDS_LearningBrain_short/'
 
     if args.bids_dir is not None:
         bids_dir = args.bids_dir
     if args.output_dir is not None:
         output_dir = args.output_dir
 
-    wf = init_fmridenoise_wf(bids_dir)
+    wf = init_fmridenoise_wf(bids_dir, task=['rest'], session=['1'])
 
     wf.run()
     wf.write_graph("workflow_graph.dot")

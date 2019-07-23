@@ -82,12 +82,13 @@ def get_spikes_regressors(conf_df_raw, pipeline):
     return spikes_df
 
 
-def get_confounds_regressors(conf_df_raw, pipeline):
+def get_confounds_regressors(conf_df_raw, pipeline, a_comp_cor):
     """Prepare confound regressors given the method specified in pipeline.
 
     Args:
         conf_df_raw (pd.DataFrame): Contains unprocessed confounds.
         pipeline (dict): Denoising pipeline specification.
+        a_comp_cor (list): List of aCompCor regressors. # TODO: Kamil check
 
     Returns:
         pd.DataFrame: Contains all relevant nuissance regressors and (if
@@ -99,8 +100,9 @@ def get_confounds_regressors(conf_df_raw, pipeline):
         'csf': ['csf'],
         'gs': ['global_signal'],
         'motion': ['trans_x', 'trans_y', 'trans_z', 'rot_x', 'rot_y', 'rot_z'],
-        'acompcor': ['a_comp_cor_00', 'a_comp_cor_01', 'a_comp_cor_02',
-                     'a_comp_cor_03', 'a_comp_cor_04', 'a_comp_cor_05']}
+        'acompcor': a_comp_cor}
+         # ['a_comp_cor_00', 'a_comp_cor_01', 'a_comp_cor_02',
+                    # 'a_comp_cor_03', 'a_comp_cor_04', 'a_comp_cor_05']}
 
     for conf_name in pipeline['confounds']:
 
@@ -124,12 +126,13 @@ def get_confounds_regressors(conf_df_raw, pipeline):
     return confounds_df
 
 
-def prep_conf_df(conf_df_raw, pipeline):
+def prep_conf_df(conf_df_raw, pipeline, a_comp_cor):
     """Prepare final confound table given the methods specified in pipeline.
 
     Args:
         conf_df_raw (pd.DataFrame): Contains unprocessed confounds.
         pipeline (dict): Denoising pipeline specification.
+        a_comp_cor (list): List of aCompCor regressors. # TODO: Kamil check
 
     Returns:
         pd.DataFrame: Final confound regressors containing both spikes and
@@ -138,7 +141,7 @@ def prep_conf_df(conf_df_raw, pipeline):
     conf_df_prep = pd.DataFrame(index=conf_df_raw.index)
 
     # Confound signals with temporal derivaties and quadratic terms
-    confounds_df = get_confounds_regressors(conf_df_raw, pipeline)
+    confounds_df = get_confounds_regressors(conf_df_raw, pipeline, a_comp_cor)
     conf_df_prep = conf_df_prep.join(confounds_df)
 
     # Spike regressors
