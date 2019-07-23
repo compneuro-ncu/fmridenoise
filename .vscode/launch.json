@@ -17,7 +17,7 @@
             "type": "python",
             "request": "launch",
             "module": "fmridenoise",
-            "args": ["${workspaceFolder}/test_bids", "-g", "-p", "pipeline-36_parameters", "--dry"],
+            "args": ["/mnt/connectomics/small_new_fmriprep_datasource", "-g", "-t", "rest", "-s", "1", "-p", "pipeline-36_parameters", "--profiler", "${workspaceFolder}/logs", "--dry"],
             "cwd": "${workspaceFolder}",
             "console": "integratedTerminal"
         },

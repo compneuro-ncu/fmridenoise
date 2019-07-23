@@ -25,6 +25,12 @@ def get_parser() -> argparse.ArgumentParser:
                         default=['fmriprep'],
                         help="Name (or list) of derivatives for which fmridenoise should be run.\
                         By default workflow looks for fmriprep dataset.")
+    parser.add_argument('-s', "--sessions",
+                        nargs='+',
+                        help="List of session numbers")
+    parser.add_argument('-t', "--tasks",
+                        nargs="+",
+                        help="List of tasks names")
     parser.add_argument("-p", "--pipelines", 
                         nargs='+', 
                         help='Name of pipelines used for denoising',
@@ -99,6 +105,8 @@ def main():
     pipelines = parse_pipelines(args.pipelines)
     workflow = init_fmridenoise_wf(input_dir, 
                                    derivatives=derivatives,
+                                   session=args.sessions,
+                                   task=args.tasks,
                                    pipelines_paths=pipelines)
     if args.graph is not None:
         try:  # TODO: Look for pydot/dot and add to requirements
