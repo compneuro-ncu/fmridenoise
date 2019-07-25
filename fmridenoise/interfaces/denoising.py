@@ -15,11 +15,20 @@ class DenoiseInputSpec(BaseInterfaceInputSpec):
         mandatory=True
     )
 
+    fmri_prep_aroma = ImageFile(
+        desc='ICA-Aroma preprocessed fMRI file',
+        mandatory=False
+    )
+
     conf_prep = File(
         exists=True,
         desc="Confound file",
         mandatory=True
     )
+
+    pipeline = traits.Dict(
+        desc="Denoising pipeline",
+        mandatory=True)
 
     entities = traits.Dict(
         desc="entities dictionary",
@@ -64,7 +73,9 @@ class Denoise(SimpleInterface):
     def _run_interface(self, runtime):
 
         smoothing = self.inputs.smoothing
+        pipeline_aroma = self.inputs.pipeline['aroma']
         img = nb.load(self.inputs.fmri_prep)
+        img_aroma = nb.load(self.inputs.fmri_prep_aroma)
 
         # Handle possibility of null pipeline
         try:
@@ -80,8 +91,11 @@ class Denoise(SimpleInterface):
         else:
             raise KeyError(f'{task} TR not found in tr_dict')
 
-        if smoothing:
-            img = smooth_img(img, fwhm=6)
+        if pipeline_aroma:
+            img = img_aroma
+
+        if smoothing and not pipeline_aroma:
+           img = smooth_img(img, fwhm=6)
 
         denoised_img = clean_img(
             img,

@@ -36,9 +36,16 @@ class BIDSGrabInputSpec(BaseInterfaceInputSpec):
         desc='Specifies which derivatives to to index'
     )
 
+    ica_aroma = traits.Bool(
+        mandatory=False,
+        desc='ICA-Aroma files'
+    )
+
+
 
 class BIDSGrabOutputSpec(TraitedSpec):
     fmri_prep = OutputMultiPath(ImageFile)
+    fmri_prep_aroma = OutputMultiPath(ImageFile)
     conf_raw = OutputMultiPath(File)
     conf_json = OutputMultiPath(File)  # TODO: Kamil check
     entities = OutputMultiObject(traits.Dict)
@@ -92,6 +99,8 @@ class BIDSGrab(SimpleInterface):
         derivatives = [os.path.join(self.inputs.bids_dir, 'derivatives', der)
                        for der in self.inputs.derivatives]
 
+        ica_aroma = self.inputs.ica_aroma
+
         # Establish right scope keyword for arbitrary packages
         scope = []
         for derivative_path in derivatives:
@@ -128,14 +137,21 @@ class BIDSGrab(SimpleInterface):
 
         # Define query filters
         keys_entities = ['subject', 'session', 'datatype', 'task']
+
         filter_fmri = {
             'extension': ['nii', 'nii.gz'],
             'suffix': 'bold',
             'desc': 'preproc',
             'task': task,
             'session': session,
+        }
 
-
+        filter_fmri_aroma = {
+            'extension': ['nii', 'nii.gz'],
+            'suffix': 'bold',
+            'desc': 'smoothAROMAnonaggr',
+            'task': task,
+            'session': session,
         }
 
         filter_conf = {
@@ -155,7 +171,7 @@ class BIDSGrab(SimpleInterface):
         }
 
         # Grab files
-        fmri_prep, conf_raw, conf_json, entities = ([] for _ in range(4))
+        fmri_prep, fmri_prep_aroma, conf_raw, conf_json, entities = ([] for _ in range(5))
 
         for fmri_file in layout.get(scope=scope, **filter_fmri):
 
@@ -203,10 +219,32 @@ class BIDSGrab(SimpleInterface):
 
                 conf_json_file = conf_json_file[0]
 
-                fmri_prep.append(fmri_file.path)
-                conf_raw.append(conf_file.path)
-                conf_json.append(conf_json_file.path)
-                entities.append(filter_entities)
+            if ica_aroma:
+                filter_fmri_aroma.update(filter_entities)  # Add specific fields to constrain search
+                fmri_aroma_file = layout.get(scope=scope, **filter_fmri_aroma)
+
+                if not fmri_aroma_file:
+                    raise FileNotFoundError(
+                        f"ICA-Aroma file not found for file {fmri_file.path}"
+                    )
+
+                else:
+                    # Add entity only if both files are available
+                    if len(fmri_aroma_file) > 1:
+                        print(
+                            f"Warning: Multiple ICA-Aroma files found for file {fmri_file.path}.\n"
+                            f"Selecting {fmri_aroma_file[0].path}"
+                        )
+                    # TODO: find proper warning (logging?)
+
+                    fmri_aroma_file = fmri_aroma_file[0]
+                    fmri_prep_aroma.append(fmri_aroma_file.path)
+
+            fmri_prep.append(fmri_file.path)
+            conf_raw.append(conf_file.path)
+            conf_json.append(conf_json_file.path)
+            entities.append(filter_entities)
+
 
         # Extract TRs
         tr_dict = {}
@@ -224,6 +262,7 @@ class BIDSGrab(SimpleInterface):
         self._results['conf_json'] = conf_json
         self._results['entities'] = entities
         self._results['tr_dict'] = tr_dict
+        self._results['fmri_prep_aroma'] = fmri_prep_aroma
 
         return runtime
 
@@ -270,19 +309,21 @@ class BIDSDataSink(IOBase):
 if __name__ == '__main__':
     #path = '/media/finc/Elements/zmien_nazwe'
     #bids_dir = os.path.join(path, 'BIDS_2sub')
-    bids_dir = '/media/finc/Elements/fMRIDenoise_data/BIDS_LearningBrain/'
+    bids_dir = '/media/finc/Elements/fMRIDenoise_data/BIDS_LearningBrain_short/'
     #bids_dir_2 = os.path.join(path, 'pilot_study_fmri_kids')
     #bids_dir_3 = os.path.join(path, 'test')
 
     #bids_dir = bids_dir_3
     task = ['rest']
     session = ['1']
+    ica_aroma = True
 
     grabber = BIDSGrab(
 
         bids_dir=bids_dir,
         task=task,
-        session=session
+        session=session,
+        ica_aroma=ica_aroma
     )
 
     result = grabber.run()
