@@ -17,6 +17,7 @@ def init_fmridenoise_wf(bids_dir,
                         task=[],
                         session=[],
                         pipelines_paths=get_pipelines_paths(),
+                        smoothing=False,
                         # desc=None,
                         # ignore=None, force_index=None,
                         # model=None, participants=None,
@@ -24,6 +25,7 @@ def init_fmridenoise_wf(bids_dir,
                         ):
     workflow = pe.Workflow(name=name, base_dir=base_dir)
     temps.base_dir = base_dir
+
     # 1) --- Selecting pipeline
 
     # Inputs: fulfilled
@@ -62,6 +64,7 @@ def init_fmridenoise_wf(bids_dir,
     # Inputs: conf_prep, low_pass, high_pass
     denoise = pe.MapNode(
         Denoise(
+            smoothing=smoothing,
             output_dir=temps.mkdtemp('denoise')
         ),
         iterfield=['fmri_prep', 'conf_prep', 'entities'],
@@ -234,14 +237,14 @@ if __name__ == '__main__':  # TODO Move parser to module __main__
     args = parser.parse_args()
 
     bids_dir = '/media/finc/Elements/fMRIDenoise_data/BIDS_LearningBrain_short/'
-    output_dir = '/media/finc/Elements/fMRIDenoise_data/BIDS_LearningBrain_short/'
+    #pipelines_paths={'/home/finc/Dropbox/Projects/fMRIDenoise/fmridenoise/fmridenoise/pipelines/pipeline-36_parameters.json'}
 
     if args.bids_dir is not None:
         bids_dir = args.bids_dir
     if args.output_dir is not None:
         output_dir = args.output_dir
 
-    wf = init_fmridenoise_wf(bids_dir, task=['rest'], session=['1'])
+    wf = init_fmridenoise_wf(bids_dir, task=['rest'], session=['1'], smoothing=True)
 
     wf.run()
     wf.write_graph("workflow_graph.dot")

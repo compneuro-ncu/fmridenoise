@@ -1,4 +1,4 @@
-from nilearn.image import clean_img
+from nilearn.image import clean_img, smooth_img
 from nipype.utils.filemanip import split_filename
 from nipype.interfaces.base import (
     BaseInterfaceInputSpec, TraitedSpec, SimpleInterface,
@@ -14,29 +14,39 @@ class DenoiseInputSpec(BaseInterfaceInputSpec):
         desc='Preprocessed fMRI file',
         mandatory=True
     )
+
     conf_prep = File(
         exists=True,
         desc="Confound file",
         mandatory=True
     )
+
     entities = traits.Dict(
         desc="entities dictionary",
         mandatory=True
     )
+
     tr_dict = traits.Dict(
         desc="dictionary of tr for all tasks",
         mandatory=True
     )
+
     output_dir = Directory(
         exists=True,
         desc="Output path"
     )
+
     high_pass = traits.Float(
         desc="High-pass filter",
-
     )
+
     low_pass = traits.Float(
         desc="Low-pass filter"
+    )
+
+    smoothing = traits.Bool(
+        mandatory=False,
+        desc='Optional smoothing'
     )
 
 
@@ -53,9 +63,10 @@ class Denoise(SimpleInterface):
 
     def _run_interface(self, runtime):
 
+        smoothing = self.inputs.smoothing
         img = nb.load(self.inputs.fmri_prep)
 
-        # Handle possibility of null pipeling
+        # Handle possibility of null pipeline
         try:
             conf = pd.read_csv(self.inputs.conf_prep, delimiter='\t')
             conf = conf.values
@@ -68,6 +79,9 @@ class Denoise(SimpleInterface):
             tr = self.inputs.tr_dict[task]
         else:
             raise KeyError(f'{task} TR not found in tr_dict')
+
+        if smoothing:
+            img = smooth_img(img, fwhm=6)
 
         denoised_img = clean_img(
             img,

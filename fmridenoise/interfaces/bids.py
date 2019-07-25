@@ -19,13 +19,13 @@ class BIDSGrabInputSpec(BaseInterfaceInputSpec):
     task = InputMultiObject(
         Str,
         mandatory=False,
-        desc='names of tasks to denoise'
+        desc='Names of tasks to denoise'
     )
 
     session = InputMultiObject(
         Str,
         mandatory=False,
-        desc='names of sessions to denoise'
+        desc='Names of sessions to denoise'
     )
 
     derivatives = traits.Either(
