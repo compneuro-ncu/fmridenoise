@@ -1,0 +1,19 @@
+{
+  "name": "ica_aroma",
+  "description": "",
+  "confounds":
+  {
+    "wm": "False",
+    "csf": "False",
+    "gs": "False",
+    "motion": "False",
+    "acompcor": "False"
+  },
+  "aroma": "True",
+  "spikes": "False",
+  "filter":
+    {"low_pass": 0.08,
+     "high_pass": 0.008},
+  "detrend": "True",
+  "standardize": "True"
+}
