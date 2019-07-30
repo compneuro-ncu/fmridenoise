@@ -24,6 +24,10 @@ class QualityMeasuresInputSpec(BaseInterfaceInputSpec):
                               desc='Group confounds summmary',
                               mandatory=True)
 
+    distance_matrix = File(exists=True,
+                           desc='Distance matrix',
+                           mandatory=True)
+
     output_dir = File(desc='Output path')
     pipeline_name = traits.Str(mandatory=True)
 
@@ -45,25 +49,29 @@ class QualityMeasures(SimpleInterface):
         group_corr_mat = np.load(self.inputs.group_corr_mat)
         group_conf_summary = pd.read_csv(self.inputs.group_conf_summary, sep='\t')
         pipeline_name = self.inputs.pipeline_name
+        distance_vector = sym_matrix_to_vec(np.load(self.inputs.distance_matrix))
 
-        vectorized = sym_matrix_to_vec(group_corr_mat)
+        group_corr_vec = sym_matrix_to_vec(group_corr_mat)
 
-        n_edges = vectorized.shape[1]
+        n_edges = group_corr_vec.shape[1]
         fc_fd_corr = np.zeros(n_edges)
         fc_fd_pval = np.zeros(n_edges)
 
         for i in range(n_edges):
-            corr = pearsonr(vectorized[:, i], group_conf_summary['mean_fd'].values)
+            corr = pearsonr(group_corr_vec[:, i], group_conf_summary['mean_fd'].values)
             fc_fd_corr[i] = corr[0]
             fc_fd_pval[i] = corr[1]
+
+        distance_dependence = pearsonr(fc_fd_corr, distance_vector)[0]
 
         fc_fd_summary = {"pipeline": pipeline_name,
                          "perc_fc_fd_uncorr": np.sum(fc_fd_pval < 0.5)/len(fc_fd_pval)*100,
                          "pearson_fc_fd": np.median(fc_fd_corr),
-                         "tdof_loss": group_conf_summary["n_conf"].mean()
+                         "distance_dependence": distance_dependence,
+                         "tdof_loss": group_conf_summary["n_conf"].mean(),
                          }
 
-        edges_weight = {pipeline_name: vectorized.mean(axis=0)}
+        edges_weight = {pipeline_name: group_corr_vec.mean(axis=0)}
 
         # --- plotting matrices
         vec = vec_to_sym_matrix(fc_fd_corr)
@@ -161,7 +169,7 @@ class PipelinesQualityMeasures(SimpleInterface):
 
         fig1.savefig(f"{self.inputs.output_dir}/pipelines_edges_density.svg", dpi=300)
 
-        # boxplot (Pearson's r)
+        # boxplot (Pearson's r FC-DC)
         fig2, ax = plt.subplots(1, 1)
         sns.barplot(x="pearson_fc_fd",
                     y="pipeline",
@@ -170,8 +178,7 @@ class PipelinesQualityMeasures(SimpleInterface):
                                     ylabel='Pipeline')
         fig2.savefig(f"{self.inputs.output_dir}/pipelines_fc_fd_pearson.svg", dpi=300, bbox_inches="tight")
 
-        # boxplot
-
+        # boxplot (% correlated edges)
         fig3, ax = plt.subplots(1, 1)
         sns.barplot(x="perc_fc_fd_uncorr",
                     y="pipeline",
@@ -180,6 +187,17 @@ class PipelinesQualityMeasures(SimpleInterface):
                                     ylabel='Pipeline')
 
         fig3.savefig(f"{self.inputs.output_dir}/pipelines_fc_fd_uncorr.svg", dpi=300, bbox_inches="tight")
+
+        # boxplot (Pearson's r FC-DC with distance)
+
+        fig4, ax = plt.subplots(1, 1)
+        sns.barplot(x="distance_dependence",
+                    y="pipeline",
+                    data=pipelines_fc_fd_summary,
+                    orient="h").set(xlabel="Distance-dependence",
+                                    ylabel='Pipeline')
+        fig4.savefig(f"{self.inputs.output_dir}/pipelines_distance_dependence.svg", dpi=300, bbox_inches="tight")
+
 
 
         self._results['pipelines_fc_fd_summary'] = fname1

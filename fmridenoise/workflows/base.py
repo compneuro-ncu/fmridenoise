@@ -7,7 +7,7 @@ from fmridenoise.interfaces.connectivity import Connectivity, GroupConnectivity
 from fmridenoise.interfaces.pipeline_selector import PipelineSelector
 from fmridenoise.interfaces.quality_measures import QualityMeasures, PipelinesQualityMeasures, MergeGroupQualityMeasures
 import fmridenoise.utils.temps as temps
-from fmridenoise.parcellation import get_parcelation_file_path
+from fmridenoise.parcellation import get_parcelation_file_path, get_distance_matrix_file_path
 
 from nipype import config
 import fmridenoise
@@ -120,6 +120,7 @@ def init_fmridenoise_wf(bids_dir,
     quality_measures = pe.MapNode(
         QualityMeasures(
             output_dir=os.path.join(bids_dir, 'derivatives', 'fmridenoise'),
+            distance_matrix=get_distance_matrix_file_path()
         ),
         iterfield=['group_corr_mat', 'group_conf_summary'],
         name="QualityMeasures")
