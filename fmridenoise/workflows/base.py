@@ -18,6 +18,7 @@ def init_fmridenoise_wf(bids_dir,
                         session=[],
                         pipelines_paths=get_pipelines_paths(),
                         smoothing=False,
+                        ica_aroma=False,
                         # desc=None,
                         # ignore=None, force_index=None,
                         # model=None, participants=None,
@@ -43,7 +44,8 @@ def init_fmridenoise_wf(bids_dir,
             bids_dir=bids_dir,
             derivatives=derivatives,
             task=task,
-            session=session
+            session=session,
+            ica_aroma=ica_aroma
         ),
         name="BidsGrabber")
     # Outputs: fmri_prep, conf_raw, conf_json, entities, tr_dict
@@ -67,7 +69,7 @@ def init_fmridenoise_wf(bids_dir,
             smoothing=smoothing,
             output_dir=temps.mkdtemp('denoise')
         ),
-        iterfield=['fmri_prep', 'conf_prep', 'entities'],
+        iterfield=['fmri_prep', 'fmri_prep_aroma', 'conf_prep', 'entities'],
         name="Denoiser", mem_gb=6)
 
     # Outputs: fmri_denoised
@@ -169,7 +171,8 @@ def init_fmridenoise_wf(bids_dir,
 
     workflow.connect([
         (grabbing_bids, denoise, [('tr_dict', 'tr_dict')]),
-        (grabbing_bids, denoise, [('fmri_prep', 'fmri_prep')]),
+        (grabbing_bids, denoise, [('fmri_prep', 'fmri_prep'),
+                                  ('fmri_prep_aroma', 'fmri_prep_aroma')]),
         (grabbing_bids, denoise, [('entities', 'entities')]),
         (grabbing_bids, prep_conf, [('conf_raw', 'conf_raw'),
                                     ('conf_json', 'conf_json'),
@@ -181,6 +184,7 @@ def init_fmridenoise_wf(bids_dir,
         (grabbing_bids, ds_matrix_plot, [('entities', 'entities')]),
 
         (pipelineselector, prep_conf, [('pipeline', 'pipeline')]),
+        (pipelineselector, denoise, [('pipeline', 'pipeline')]),
         (prep_conf, group_conf_summary, [('conf_summary', 'conf_summary'),
                                         ('pipeline_name', 'pipeline_name')]),
 
@@ -244,7 +248,7 @@ if __name__ == '__main__':  # TODO Move parser to module __main__
     if args.output_dir is not None:
         output_dir = args.output_dir
 
-    wf = init_fmridenoise_wf(bids_dir, task=['rest'], session=['1'], smoothing=True)
+    wf = init_fmridenoise_wf(bids_dir, task=['rest'], session=['1'], smoothing=True, ica_aroma=True)
 
     wf.run()
     wf.write_graph("workflow_graph.dot")

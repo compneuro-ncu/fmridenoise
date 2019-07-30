@@ -1,20 +1,16 @@
 {
-  "name": "gs",
+  "name": "ica_aroma",
   "description": "",
   "confounds":
   {
     "wm": "False",
     "csf": "False",
-    "gs":
-      {"temp_deriv": "True",
-       "quad_terms": "True"},
+    "gs": "False",
     "motion": "False",
     "acompcor": "False"
   },
-  "aroma": "False",
-  "spikes":
-    {"fd_th": 0.5,
-     "dvars_th": 3},
+  "aroma": "True",
+  "spikes": "False",
   "filter":
     {"low_pass": 0.08,
      "high_pass": 0.008},
