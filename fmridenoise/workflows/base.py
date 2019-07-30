@@ -7,7 +7,9 @@ from fmridenoise.interfaces.connectivity import Connectivity, GroupConnectivity
 from fmridenoise.interfaces.pipeline_selector import PipelineSelector
 from fmridenoise.interfaces.quality_measures import QualityMeasures, PipelinesQualityMeasures, MergeGroupQualityMeasures
 import fmridenoise.utils.temps as temps
+from fmridenoise.parcellation import get_parcelation_file_path
 
+from nipype import config
 import fmridenoise
 import os
 import glob
@@ -77,9 +79,7 @@ def init_fmridenoise_wf(bids_dir,
     # 5) --- Connectivity estimation
 
     # Inputs: fmri_denoised
-    parcellation_path = os.path.abspath(os.path.join(fmridenoise.__path__[0], "parcellation"))
-    parcellation_path = glob.glob(parcellation_path + "/*")[0]
-
+    parcellation_path = get_parcelation_file_path()
     connectivity = pe.MapNode(
         Connectivity(
             output_dir=temps.mkdtemp('connectivity'),

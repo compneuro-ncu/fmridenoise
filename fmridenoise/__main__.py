@@ -66,12 +66,12 @@ def parse_pipelines(pipelines_args: str or set = "all") -> set:
     pipelines_args = set(pipelines_args)
     if pipelines_args <= known_pipelines:
         return get_pipelines_paths(pipelines_args)
-    ret = set()    
+    ret = set()
     for p in pipelines_args:
         if p in known_pipelines:
             ret.add(get_pipeline_path(p))    
-        elif p not in known_pipelines and is_valid(ut.load_pipeline_from_json(p)): 
-            ret.add(p)
+        # elif p not in known_pipelines and is_valid(ut.load_pipeline_from_json(p)): 
+        #     ret.add(p)
         else:
             raise ValueError(f"File: '{p} is not a valid pipeline")
     return ret
@@ -93,12 +93,11 @@ def main():
     else:
         input_dir = args.bids_dir
     if args.debug:
-        import nipype
+        from fmridenoise.workflows.base import config
         logs_dir = join(dirname(__file__), "logs")
-        nipype.config.set_log_dir(logs_dir)
-        nipype.logging.enable_file_logging()
-        nipype.config.enable_resource_monitor()
-        nipype.config.enable_debug_mode()
+        config.set_log_dir(logs_dir)
+        config.enable_resource_monitor()
+        config.enable_debug_mode()
 
     derivatives = args.derivatives if type(args.derivatives) in (list, bool) else [args.derivatives]
     derivatives = list(map(lambda x: join(input_dir, 'derivatives', x), derivatives))
