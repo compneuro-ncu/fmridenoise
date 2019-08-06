@@ -1,7 +1,6 @@
 import glob
 import os
 
-
 def get_pipeline_path(name: str) -> str:
     dirname = os.path.dirname(__file__)
     path = os.path.join(dirname, name) + ".json"

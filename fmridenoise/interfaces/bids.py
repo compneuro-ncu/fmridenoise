@@ -375,6 +375,7 @@ class BIDSDataSink(IOBase):
 # --- TESTS
 
 if __name__ == '__main__':
+
     bids_dir = '/media/finc/Elements/fMRIDenoise_data/BIDS_LearningBrain_short/'
     task = ['rest']
     session = ['1']
