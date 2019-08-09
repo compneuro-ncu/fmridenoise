@@ -10,10 +10,5 @@
     "acompcor": "False"
   },
   "aroma": "False",
-  "spikes": "False",
-  "filter":
-    {"low_pass": 0.08,
-     "high_pass": 0.008},
-  "detrend": "True",
-  "standardize": "True"
+  "spikes": "False"
 }

@@ -4,7 +4,7 @@ import copy
 import numbers
 pipeline_schema = {
     "type": "object",
-    "required": ["name", "description", "confounds", "aroma", "spikes", "filter", "detrend", "standardize"],
+    "required": ["name", "description", "confounds", "aroma", "spikes"],
     "additionalProperties": False,
     "properties": {
         "name": {"type": "string"},
@@ -22,18 +22,18 @@ pipeline_schema = {
                 }
             },
         "aroma": {"type": "boolean"},
-        "spikes": {"type": "spike"},
-        "filter": {
-            "type": "object",
-            "required": ["low_pass", "high_pass"],
-            "additionalProperties": False,
-            "properties": {
-                "low_pass": {"type": "number"},  # TODO: allow None type
-                "high_pass": {"type": "number"}  # TODO: allow None type
-            }
-        },
-        "detrend": {"type":"boolean"},
-        "standardize": {"type": "boolean"}
+        "spikes": {"type": "spike"}#,
+        # "filter": {
+        #     "type": "object",
+        #     "required": ["low_pass", "high_pass"],
+        #     "additionalProperties": False,
+        #     "properties": {
+        #         "low_pass": {"type": "number"},  # TODO: allow None type
+        #         "high_pass": {"type": "number"}  # TODO: allow None type
+        #     }
+        # },
+        # "detrend": {"type":"boolean"},
+        # "standardize": {"type": "boolean"}
     }
 }
 

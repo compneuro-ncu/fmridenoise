@@ -12,8 +12,8 @@ class PipelineSelectorInputSpecification(BaseInterfaceInputSpec):
 class PipelineSelectorOutPutSpecification(TraitedSpec):
     pipeline = Dict(items=True)
     pipeline_name = Str(desc="Name of denoising strategy")
-    high_pass = Float(desc="High-pass filter")
-    low_pass = Float(desc="Low-pass filter")
+    #high_pass = Float(desc="High-pass filter")
+    #low_pass = Float(desc="Low-pass filter")
 
 
 
@@ -30,8 +30,8 @@ class PipelineSelector(SimpleInterface):
             """.format(os.path.basename(self.inputs.pipeline_path)))
         self._results['pipeline'] = js
         self._results['pipeline_name'] = js['name']
-        self._results['high_pass'] = js['filter']['high_pass']
-        self._results['low_pass'] = js['filter']['low_pass']
+        #self._results['high_pass'] = js['filter']['high_pass']
+        #self._results['low_pass'] = js['filter']['low_pass']
 
         return runtime
 
