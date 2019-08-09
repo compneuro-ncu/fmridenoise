@@ -80,6 +80,7 @@ class Confounds(SimpleInterface):
 
         conf_summary = {
                         "subject": [self.inputs.entities['subject']],
+                        "session": [self.inputs.entities['session']],
                         "task": [self.inputs.entities['task']],
                         "mean_fd": [mean_fd],
                         "max_fd": [max_fd],
