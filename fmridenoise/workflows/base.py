@@ -18,6 +18,7 @@ def init_fmridenoise_wf(bids_dir,
                         derivatives='fmriprep',
                         task=[],
                         session=[],
+                        subject=[],
                         pipelines_paths=get_pipelines_paths(),
                         smoothing=True,
                         ica_aroma=True,
@@ -49,6 +50,7 @@ def init_fmridenoise_wf(bids_dir,
             derivatives=derivatives,
             task=task,
             session=session,
+            subject=subject,
             ica_aroma=ica_aroma
         ),
         name="BidsGrabber")
@@ -245,7 +247,7 @@ if __name__ == '__main__':  # TODO Move parser to module __main__
     parser.add_argument("--output_dir")
     args = parser.parse_args()
 
-    bids_dir = '/media/finc/Elements/fMRIDenoise_data/BIDS_LearningBrain_short/'
+    bids_dir = '/home/connectomics/Projects/LearningBrain/LearningBrain_BIDS/'
     #pipelines_paths={'/home/finc/Dropbox/Projects/fMRIDenoise/fmridenoise/fmridenoise/pipelines/pipeline-36_parameters.json'}
 
     if args.bids_dir is not None:
@@ -253,7 +255,7 @@ if __name__ == '__main__':  # TODO Move parser to module __main__
     if args.output_dir is not None:
         output_dir = args.output_dir
 
-    wf = init_fmridenoise_wf(bids_dir, task=['rest'], session=['1'], smoothing=True, ica_aroma=True)
+    wf = init_fmridenoise_wf(bids_dir, subject=['01', '02'], task=['rest'], session=['1'], smoothing=True, ica_aroma=True)
 
     wf.run()
     wf.write_graph("workflow_graph.dot")
