@@ -79,7 +79,10 @@ class Denoise(SimpleInterface):
 
         # Handle possibility of null pipeline
         try:
-            conf = pd.read_csv(self.inputs.conf_prep, delimiter='\t')
+            conf = pd.read_csv(self.inputs.conf_prep,
+                               delimiter='\t',
+                               #low_memory=False,
+                               engine='python')
             conf = conf.values
         except pd.errors.EmptyDataError:
             conf = None

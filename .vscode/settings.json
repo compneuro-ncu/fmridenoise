@@ -1,5 +1,9 @@
 {
     "python.linting.pylintEnabled": false,
     "python.linting.pep8Enabled": true,
-    "python.linting.enabled": true
+    "python.linting.enabled": true,
+    "cSpell.words": [
+        "denoising",
+        "fmriprep"
+    ]
 }

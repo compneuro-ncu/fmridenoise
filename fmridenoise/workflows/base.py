@@ -10,10 +10,17 @@ import fmridenoise.utils.temps as temps
 from fmridenoise.parcellation import get_parcelation_file_path, get_distance_matrix_file_path
 
 from nipype import config
+
 import fmridenoise
 import os
 import glob
 from fmridenoise.pipelines import get_pipelines_paths
+
+import logging
+logger = logging.getLogger("runtime")
+handler = logging.FileHandler("./runtime.log")
+logger.setLevel(logging.DEBUG)
+logger.addHandler(handler)
 def init_fmridenoise_wf(bids_dir,
                         derivatives='fmriprep',
                         task=[],
@@ -31,7 +38,6 @@ def init_fmridenoise_wf(bids_dir,
                         ):
     workflow = pe.Workflow(name=name, base_dir=base_dir)
     temps.base_dir = base_dir
-
     # 1) --- Selecting pipeline
 
     # Inputs: fulfilled
@@ -98,7 +104,11 @@ def init_fmridenoise_wf(bids_dir,
     # 6) --- Group confounds
 
     # Inputs: conf_summary, pipeline_name
-
+    # FIXME BEGIN
+    # This is part of temporary solution.
+    # Group nodes write to bids dir insted of tmp and let files be grabbed by datasink
+    os.makedirs(os.path.join(bids_dir, 'derivatives', 'fmridenoise'), exist_ok=True)
+    # FIXME END
     group_conf_summary = pe.Node(
         GroupConfounds(
             output_dir=os.path.join(bids_dir, 'derivatives', 'fmridenoise'),

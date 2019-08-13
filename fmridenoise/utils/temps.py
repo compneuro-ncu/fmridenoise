@@ -18,7 +18,7 @@ def mkdtemp(name: str) -> str:
     return ret
 
 
-@atexit.register    
+#@atexit.register    
 def cleanup_tempdirs() -> None:
     global temp_dirs
     for directory in temp_dirs:

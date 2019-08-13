@@ -2,15 +2,15 @@ import setuptools
 from os.path import join, dirname
 import glob
 from fmridenoise.pipelines import get_pipelines_paths
-from fmridenoise.parcellation import get_parcelation_file_path
+from fmridenoise.parcellation import get_parcelation_file_path, get_distance_matrix_file_path
 with open("README.md", "r") as fh:
     long_description = fh.read()
 
 def get_requirements() -> list:
     with open(join(dirname(__file__), 'requirements.txt'), 'r') as req:
-        output = [ str(line) for line in req ]
+        output = [str(line) for line in req]
         return output
-parcelation_path = [ get_parcelation_file_path() ]
+parcelation_path = [get_parcelation_file_path(), get_distance_matrix_file_path()]
 setuptools.setup(
     name="Fmridenoise",
     version="0.0.1dev",
@@ -25,7 +25,7 @@ setuptools.setup(
         "License :: OSI Approved :: Apatche License 2.0",
         "Operating System :: GNU Linux",
     ],
-    packages=setuptools.find_packages(),
+    packages=setuptools.find_packages(exclude=["*.tests", "*.tests.*", "tests.*", "tests"]),
     install_requires=get_requirements(),
     data_files=[('fmridenoise/pipelines', list(get_pipelines_paths())),
                 ('fmridenoise/parcellation', parcelation_path)]
