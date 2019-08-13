@@ -82,7 +82,8 @@ class Denoise(SimpleInterface):
             conf = pd.read_csv(self.inputs.conf_prep,
                                delimiter='\t',
                                #low_memory=False,
-                               engine='python')
+                               #engine='python'
+                               )
             conf = conf.values
         except pd.errors.EmptyDataError:
             conf = None
