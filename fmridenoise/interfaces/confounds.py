@@ -86,8 +86,7 @@ class Confounds(SimpleInterface):
                         "max_fd": [max_fd],
                         "n_spikes": [n_spikes],
                         "n_conf": [len(conf_df_prep.columns)],
-                        "include_lib": [inclusion_check(n_timepoints, mean_fd, max_fd, n_spikes, 0.5)],
-                        "include_con": [inclusion_check(n_timepoints, mean_fd, max_fd, n_spikes, 0.2)]
+                        "include": [inclusion_check(n_timepoints, mean_fd, max_fd, n_spikes, 0.2)]
                         }
 
         self._results['conf_prep'] = fname_prep
