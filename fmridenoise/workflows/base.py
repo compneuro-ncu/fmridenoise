@@ -38,6 +38,7 @@ def init_fmridenoise_wf(bids_dir,
                         ):
     workflow = pe.Workflow(name=name, base_dir=base_dir)
     temps.base_dir = base_dir
+
     # 1) --- Selecting pipeline
 
     # Inputs: fulfilled
@@ -81,6 +82,7 @@ def init_fmridenoise_wf(bids_dir,
             smoothing=smoothing,
             high_pass=high_pass,
             low_pass=low_pass,
+            ica_aroma=ica_aroma,
             output_dir=temps.mkdtemp('denoise')
         ),
         iterfield=['fmri_prep', 'fmri_prep_aroma', 'conf_prep', 'entities'],
@@ -161,6 +163,7 @@ def init_fmridenoise_wf(bids_dir,
             output_dir=os.path.join(bids_dir, 'derivatives', 'fmridenoise'),
         ),
         name="PipelinesQC")
+
     # Outputs: pipelines_fc_fd_summary, pipelines_edges_weight
 
     # 11) --- Save derivatives
@@ -257,7 +260,7 @@ if __name__ == '__main__':  # TODO Move parser to module __main__
     parser.add_argument("--output_dir")
     args = parser.parse_args()
 
-    bids_dir = '/home/connectomics/Projects/LearningBrain/LearningBrain_BIDS/'
+    bids_dir = '/media/finc/Elements/fMRIDenoise_data/BIDS_LearningBrain_short'
     #pipelines_paths={'/home/finc/Dropbox/Projects/fMRIDenoise/fmridenoise/fmridenoise/pipelines/pipeline-36_parameters.json'}
 
     if args.bids_dir is not None:

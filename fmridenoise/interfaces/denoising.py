@@ -8,6 +8,7 @@ import nibabel as nb
 import pandas as pd
 import os
 
+
 class DenoiseInputSpec(BaseInterfaceInputSpec):
     fmri_prep = ImageFile(
         exists=True,
@@ -58,6 +59,10 @@ class DenoiseInputSpec(BaseInterfaceInputSpec):
         desc='Optional smoothing'
     )
 
+    ica_aroma = traits.Bool(
+        mandatory=False,
+        desc='ICA-Aroma files exists'
+    )
 
 class DenoiseOutputSpec(TraitedSpec):
     fmri_denoised = File(
@@ -75,7 +80,11 @@ class Denoise(SimpleInterface):
         smoothing = self.inputs.smoothing
         pipeline_aroma = self.inputs.pipeline['aroma']
         img = nb.load(self.inputs.fmri_prep)
-        img_aroma = nb.load(self.inputs.fmri_prep_aroma)
+
+        if self.inputs.ica_aroma:
+            img_aroma = nb.load(self.inputs.fmri_prep_aroma)
+            if pipeline_aroma:
+                img = img_aroma
 
         # Handle possibility of null pipeline
         try:
@@ -95,8 +104,6 @@ class Denoise(SimpleInterface):
         else:
             raise KeyError(f'{task} TR not found in tr_dict')
 
-        if pipeline_aroma:
-            img = img_aroma
 
         if smoothing and not pipeline_aroma:
            img = smooth_img(img, fwhm=6)
