@@ -37,7 +37,12 @@ class QualityMeasuresOutputSpec(TraitedSpec):
     fc_fd_summary = traits.List(
         exists=True,
         desc="QC-FC quality measures")
-    edges_weight = traits.List(
+
+    edges_weight = traits.Dict(
+        exists=True,
+        desc="Weights of individual edges")
+
+    edges_weight_clean = traits.Dict(
         exists=True,
         desc="Weights of individual edges")
 
@@ -59,17 +64,19 @@ class QualityMeasures(SimpleInterface):
         excluded_sub_no = all_sub_no - sum(icluded_sub)
 
         included = {f"All subjects (n = {all_sub_no})":
-                        [np.ones((all_sub_no), dtype=bool), False, all_sub_no, "raw"],
+                        [np.ones((all_sub_no), dtype=bool), False, all_sub_no, "All"],
                     f"After excluding {excluded_sub_no} high motion subjects (n = {all_sub_no - excluded_sub_no})":
                         [group_conf_summary["include"].values.astype("bool"), True, all_sub_no - excluded_sub_no,
-                         "cleaned"]
+                         "No_high_motion"]
                     }
 
         group_corr_vec = sym_matrix_to_vec(group_corr_mat)
         n_edges = group_corr_vec.shape[1]
 
         fc_fd_corr, fc_fd_pval = (np.zeros(n_edges) for _ in range(2))
-        fc_fd_summary, edges_weight = ([] for _ in range(2))
+        fc_fd_summary = []
+        edges_weight = {}
+        edges_weight_clean = {}
 
         for key, value in included.items():
 
@@ -88,12 +95,16 @@ class QualityMeasures(SimpleInterface):
                                   "distance_dependence": distance_dependence,
                                   "tdof_loss": group_conf_summary["n_conf"].mean(),
                                   "cleaned": value[1],
+                                  "subjects": value[3],
                                   "sub_no": value[2]
                                   })
 
-            edges_weight.append({pipeline_name: group_corr_vec.mean(axis=0),
-                                 "cleaned": value[1],
-                                 "sub_no": value[2]})
+            if value[1]:
+                edges_weight_clean = {pipeline_name: group_corr_vec[value[0]].mean(axis=0)}
+
+            if not value[1]:
+                edges_weight = {pipeline_name: group_corr_vec[value[0]].mean(axis=0)}
+
 
             # --- plotting matrices
             vec = vec_to_sym_matrix(fc_fd_corr)
@@ -108,53 +119,12 @@ class QualityMeasures(SimpleInterface):
             fig.colorbar(fig2, ax=ax2)
             fig.suptitle(f"{pipeline_name}: {key}")
 
-            fig.savefig(join(self.inputs.output_dir, f"FC_FD_corr_mat_{pipeline_name}_{value[3]}.png"),
-                        dpi=300)  # TODO self
+            fig.savefig(join(self.inputs.output_dir, f"FC_FD_corr_mat_{pipeline_name}_{value[3].lower()}.png"),
+                        dpi=300)
 
             self._results["fc_fd_summary"] = fc_fd_summary
             self._results["edges_weight"] = edges_weight
-
-
-
-        # group_corr_vec = sym_matrix_to_vec(group_corr_mat)
-        #
-        # n_edges = group_corr_vec.shape[1]
-        # fc_fd_corr = np.zeros(n_edges)
-        # fc_fd_pval = np.zeros(n_edges)
-        #
-        # for i in range(n_edges):
-        #     corr = pearsonr(group_corr_vec[:, i], group_conf_summary['mean_fd'].values)
-        #     fc_fd_corr[i] = corr[0]
-        #     fc_fd_pval[i] = corr[1]
-        #
-        # distance_dependence = pearsonr(fc_fd_corr, distance_vector)[0]
-        #
-        # fc_fd_summary = {"pipeline": pipeline_name,
-        #                  "perc_fc_fd_uncorr": np.sum(fc_fd_pval < 0.5)/len(fc_fd_pval)*100,
-        #                  "pearson_fc_fd": np.median(fc_fd_corr),
-        #                  "distance_dependence": distance_dependence,
-        #                  "tdof_loss": group_conf_summary["n_conf"].mean(),
-        #                  }
-        #
-        # edges_weight = {pipeline_name: group_corr_vec.mean(axis=0)}
-        #
-        # # --- plotting matrices
-        # vec = vec_to_sym_matrix(fc_fd_corr)
-        # fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(16, 6))
-        #
-        # fig1 = ax1.imshow(group_corr_mat.mean(axis=0), vmin=-1, vmax=1, cmap="RdBu_r")
-        # ax1.set_title(f"{pipeline_name}: mean FC")
-        # fig.colorbar(fig1, ax=ax1)
-        #
-        # fig2 = ax2.imshow(vec, vmin=-1, vmax=1, cmap="RdBu_r")
-        # ax2.set_title(f"{pipeline_name}: FC-FD correlation")
-        # fig.colorbar(fig2, ax=ax2)
-        #
-        # fig.savefig(join(self.inputs.output_dir, f"FC_FD_corr_mat_{pipeline_name}.png"), dpi=300)
-        #
-        # self._results["fc_fd_summary"] = fc_fd_summary
-        # self._results["edges_weight"] = edges_weight
-
+            self._results["edges_weight_clean"] = edges_weight_clean
 
         return runtime
 
@@ -162,11 +132,13 @@ class QualityMeasures(SimpleInterface):
 class MergeGroupQualityMeasuresOutputSpec(TraitedSpec):
         fc_fd_summary = traits.List()
         edges_weight = traits.List()
+        edges_weight_clean = traits.List()
 
 
 class MergeGroupQualityMeasuresInputSpec(BaseInterfaceInputSpec):
     fc_fd_summary = traits.List()
     edges_weight = traits.List()
+    edges_weight_clean = traits.List()
 
 
 class MergeGroupQualityMeasures(SimpleInterface):
@@ -176,6 +148,7 @@ class MergeGroupQualityMeasures(SimpleInterface):
     def _run_interface(self, runtime):
         self._results['fc_fd_summary'] = self.inputs.fc_fd_summary
         self._results['edges_weight'] = self.inputs.edges_weight
+        self._results['edges_weight_clean'] = self.inputs.edges_weight_clean
         return runtime
 
 
@@ -185,6 +158,9 @@ class PipelinesQualityMeasuresInputSpec(BaseInterfaceInputSpec):
         exists=True,
         desc="QC-FC quality measures")
     edges_weight = traits.List(
+        exists=True,
+        desc="Weights of individual edges")
+    edges_weight_clean = traits.List(
         exists=True,
         desc="Weights of individual edges")
     output_dir = File(          # needed to save data in other directory
@@ -199,7 +175,9 @@ class PipelinesQualityMeasuresOutputSpec(TraitedSpec):
     pipelines_edges_weight = File(
         exists=True,
         desc="Group weights of individual edges")
-
+    pipelines_edges_weight_clean = File(
+        exists=True,
+        desc="Group weights of individual edges")
 
 class PipelinesQualityMeasures(SimpleInterface):
     input_spec = PipelinesQualityMeasuresInputSpec
@@ -207,46 +185,61 @@ class PipelinesQualityMeasures(SimpleInterface):
 
     def _run_interface(self, runtime):
 
-        pipelines_fc_fd_summary = pd.DataFrame(list(chain.from_iterable(self.inputs.fc_fd_summary[0]))) #pd.DataFrame()
-        pipelines_edges_weight = pd.DataFrame(list(chain.from_iterable(self.inputs.edges_weight[0]))) #pd.DataFrame()
+        pipelines_fc_fd_summary = pd.DataFrame(list(chain.from_iterable(list(chain.from_iterable(self.inputs.fc_fd_summary)))))
+        pipelines_edges_weight = pd.DataFrame()
+        pipelines_edges_weight_clean = pd.DataFrame()
 
-        # for summary, edges in zip(self.inputs.fc_fd_summary, self.inputs.edges_weight):
-        #
-        #     pipelines_fc_fd_summary = pd.concat([pipelines_fc_fd_summary, pd.DataFrame([summary[0]])], axis=0)
-        #     pipelines_edges_weight = pd.concat([pipelines_edges_weight, pd.DataFrame(edges[0])], axis=1)
+        for edges in zip(self.inputs.edges_weight):
+            pipelines_edges_weight = pd.concat([pipelines_edges_weight, pd.DataFrame(edges[0][0])], axis=1)
 
+        for edges_clean in zip(self.inputs.edges_weight_clean):
+            pipelines_edges_weight_clean = pd.concat([pipelines_edges_weight_clean, pd.DataFrame(edges_clean[0][0])], axis=1)
 
         fname1 = join(self.inputs.output_dir, f"pipelines_fc_fd_summary.tsv")
         fname2 = join(self.inputs.output_dir, f"pipelines_edges_weight.tsv")
+        fname3 = join(self.inputs.output_dir, f"pipelines_edges_weight_clean.tsv")
 
         pipelines_fc_fd_summary.to_csv(fname1, sep='\t', index=False)
         pipelines_edges_weight.to_csv(fname2, sep='\t', index=False)
+        pipelines_edges_weight_clean.to_csv(fname3, sep='\t', index=False)
 
         # --- Plotting
 
-        # density plot
+        # density plot (all subjects)
         fig1, ax = plt.subplots(1, 1)
 
         for col in pipelines_edges_weight:
             sns.kdeplot(pipelines_edges_weight[col], shade=True)
             plt.axvline(0, 0, 2, color='gray', linestyle='dashed', linewidth=1.5)
-            plt.title("Density of edge weights")
+            plt.title("Density of edge weights (all subjects)")
 
         fig1.savefig(f"{self.inputs.output_dir}/pipelines_edges_density.svg", dpi=300)
 
+        # density plot (no high motion)
+        fig1_2, ax = plt.subplots(1, 1)
+
+        for col in pipelines_edges_weight_clean:
+            sns.kdeplot(pipelines_edges_weight_clean[col], shade=True)
+            plt.axvline(0, 0, 2, color='gray', linestyle='dashed', linewidth=1.5)
+            plt.title("Density of edge weights (no high motion)")
+
+        fig1_2.savefig(f"{self.inputs.output_dir}/pipelines_edges_density_no_high_motion.svg", dpi=300)
+
         # boxplot (Pearson's r FC-DC)
-        fig2, ax = plt.subplots(1, 1)
-        sns.barplot(x="pearson_fc_fd",
+        fig2 = sns.catplot(x="pearson_fc_fd",
                     y="pipeline",
+                    col='subjects',
+                    kind='bar',
                     data=pipelines_fc_fd_summary,
                     orient="h").set(xlabel="QC-FC (Pearson's r)",
                                     ylabel='Pipeline')
         fig2.savefig(f"{self.inputs.output_dir}/pipelines_fc_fd_pearson.svg", dpi=300, bbox_inches="tight")
 
         # boxplot (% correlated edges)
-        fig3, ax = plt.subplots(1, 1)
-        sns.barplot(x="perc_fc_fd_uncorr",
+        fig3 = sns.catplot(x="perc_fc_fd_uncorr",
                     y="pipeline",
+                    col='subjects',
+                    kind='bar',
                     data=pipelines_fc_fd_summary,
                     orient="h").set(xlabel="QC-FC uncorrected (%)",
                                     ylabel='Pipeline')
@@ -255,9 +248,10 @@ class PipelinesQualityMeasures(SimpleInterface):
 
         # boxplot (Pearson's r FC-DC with distance)
 
-        fig4, ax = plt.subplots(1, 1)
-        sns.barplot(x="distance_dependence",
+        fig4 = sns.catplot(x="distance_dependence",
                     y="pipeline",
+                    col='subjects',
+                    kind='bar',
                     data=pipelines_fc_fd_summary,
                     orient="h").set(xlabel="Distance-dependence",
                                     ylabel='Pipeline')
@@ -267,6 +261,7 @@ class PipelinesQualityMeasures(SimpleInterface):
 
         self._results['pipelines_fc_fd_summary'] = fname1
         self._results['pipelines_edges_weight'] = fname2
+        self._results['pipelines_edges_weight_clean'] = fname3
 
         return runtime
 
