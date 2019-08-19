@@ -112,14 +112,14 @@ class QualityMeasures(SimpleInterface):
                 edges_weight = {pipeline_name: group_corr_vec[value[0]].mean(axis=0)}
 
             # Plotting FC and FC-FD correlation matrices
-            vec = vec_to_sym_matrix(fc_fd_corr)
+            fc_fd_corr_mat = vec_to_sym_matrix(fc_fd_corr)
             fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(16, 6))
 
-            fig1 = ax1.imshow(group_corr_mat.mean(axis=0), vmin=-1, vmax=1, cmap="RdBu_r")
+            fig1 = ax1.imshow(group_corr_mat[value[0]].mean(axis=0), vmin=-1, vmax=1, cmap="RdBu_r")
             ax1.set_title(f"{pipeline_name}: mean FC")
             fig.colorbar(fig1, ax=ax1)
 
-            fig2 = ax2.imshow(vec, vmin=-1, vmax=1, cmap="RdBu_r")
+            fig2 = ax2.imshow(fc_fd_corr_mat, vmin=-1, vmax=1, cmap="RdBu_r")
             ax2.set_title(f"{pipeline_name}: FC-FD correlation")
             fig.colorbar(fig2, ax=ax2)
             fig.suptitle(f"{pipeline_name}: {key}")

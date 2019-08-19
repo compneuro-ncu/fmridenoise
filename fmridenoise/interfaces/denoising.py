@@ -78,6 +78,7 @@ class Denoise(SimpleInterface):
     def _run_interface(self, runtime):
 
         smoothing = self.inputs.smoothing
+        pipeline_name = self.inputs.pipeline['name']
         pipeline_aroma = self.inputs.pipeline['aroma']
         img = nb.load(self.inputs.fmri_prep)
 
@@ -117,7 +118,7 @@ class Denoise(SimpleInterface):
         )
 
         _, base, _ = split_filename(self.inputs.fmri_prep)
-        denoised_file = f'{self.inputs.output_dir}/{base}_denoised.nii.gz'
+        denoised_file = f'{self.inputs.output_dir}/{base}_denoised_pipeline-{pipeline_name}.nii.gz'
 
         nb.save(denoised_img, denoised_file)
 
