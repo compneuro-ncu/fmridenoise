@@ -366,7 +366,7 @@ class BIDSDataSink(IOBase):
             basedir, basename, ext = split_filename(in_file)
             path = f"{base_dir}/derivatives/fmridenoise/sub-{sub_num}/ses-{session_num}"
             os.makedirs(path, exist_ok=True)
-            out_fname = f"{path}/{basename}_pipeline-{self.inputs.pipeline_name}{ext}"
+            out_fname = f"{path}/{basename}{ext}"
             copyfile(in_file, out_fname, copy=True)
             out_files.append(out_fname)
         return {'out_file': out_files}

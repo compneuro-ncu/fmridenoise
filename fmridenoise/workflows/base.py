@@ -142,11 +142,11 @@ def init_fmridenoise_wf(bids_dir,
         ),
         iterfield=['group_corr_mat', 'group_conf_summary'],
         name="QualityMeasures")
-    # Outputs: fc_fd_summary, edges_weight
+    # Outputs: fc_fd_summary, edges_weight, edges_weight_clean
 
     # 9) --- Merge quality measures into lists for further processing
 
-    # Inputs: fc_fd_summary, edges_weight
+    # Inputs: fc_fd_summary, edges_weight, edges_weight_clean
 
     merge_quality_measures = pe.JoinNode(MergeGroupQualityMeasures(),
                                          joinsource=pipelineselector,
@@ -171,9 +171,11 @@ def init_fmridenoise_wf(bids_dir,
     ds_confounds = pe.MapNode(BIDSDataSink(base_directory=bids_dir),
                     iterfield=['in_file', 'entities'],
                     name="ds_confounds")
+
     ds_denoise = pe.MapNode(BIDSDataSink(base_directory=bids_dir),
                     iterfield=['in_file', 'entities'],
                     name="ds_denoise")
+
     ds_connectivity = pe.MapNode(BIDSDataSink(base_directory=bids_dir),
                     iterfield=['in_file', 'entities'],
                     name="ds_connectivity")
@@ -213,8 +215,6 @@ def init_fmridenoise_wf(bids_dir,
         (pipelineselector, ds_confounds, [('pipeline_name', 'pipeline_name')]),
         (pipelineselector, ds_carpet_plot, [('pipeline_name', 'pipeline_name')]),
         (pipelineselector, ds_matrix_plot, [('pipeline_name', 'pipeline_name')]),
-        #(pipelineselector, denoise, [('low_pass', 'low_pass'),
-        #                            ('high_pass', 'high_pass')]),
 
         (prep_conf, denoise, [('conf_prep', 'conf_prep')]),
         (denoise, connectivity, [('fmri_denoised', 'fmri_denoised')]),
@@ -232,10 +232,12 @@ def init_fmridenoise_wf(bids_dir,
                                                 ('group_corr_mat', 'group_corr_mat')]),
         (group_conf_summary, quality_measures, [('group_conf_summary', 'group_conf_summary')]),
         (quality_measures, merge_quality_measures, [('fc_fd_summary', 'fc_fd_summary'),
-                                                    ('edges_weight', 'edges_weight')]),
+                                                    ('edges_weight', 'edges_weight'),
+                                                    ('edges_weight_clean', 'edges_weight_clean')]),
         (merge_quality_measures, pipelines_quality_measures,
             [('fc_fd_summary', 'fc_fd_summary'),
-             ('edges_weight', 'edges_weight')])                                         
+             ('edges_weight', 'edges_weight'),
+             ('edges_weight_clean', 'edges_weight_clean')])
     ])
 
     return workflow

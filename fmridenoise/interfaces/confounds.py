@@ -42,6 +42,7 @@ class Confounds(SimpleInterface):
 
     def _run_interface(self, runtime):
 
+        pipeline_name = self.inputs.pipeline['name']
         fname = self.inputs.conf_raw
         json_path = self.inputs.conf_json
 
@@ -69,7 +70,7 @@ class Confounds(SimpleInterface):
 
         # Create new filename and save
         path, base, _ = split_filename(fname)  # Path can be removed later
-        fname_prep = join(self.inputs.output_dir, f"{base}_prep.tsv")  # use output path
+        fname_prep = join(self.inputs.output_dir, f"{base}_prep_pipeline-{pipeline_name}.tsv")  # use output path
         conf_df_prep.to_csv(fname_prep, sep='\t', index=False)
 
         # Creates dictionary with summary measures
