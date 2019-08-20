@@ -103,3 +103,18 @@ def copy_as_dummy_dataset(source_bids_dir: str, new_path: str, ext_to_copy=tuple
             else:
                 open(os.path.join(new_root, name), 'w').close()
 
+if __name__ == '__main__':
+    import argparse
+    parser = argparse.ArgumentParser()
+    parser.add_argument("bids_dir",
+                        help="Data source bids directory.")
+    parser.add_argument("target_directory",
+                        help="Directory in which dummy dataset will be saved")
+    parser.add_argument("-c", "--copy",
+                        nargs="+",
+                        default=['.json'],
+                        help="Extensions of files that should be copied instead of creating dummy")
+    args = parser.parse_args()
+    copy_as_dummy_dataset(source_bids_dir=args.bids_dir,
+                          new_path=args.target_directory,
+                          ext_to_copy=args.copy)

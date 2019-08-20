@@ -95,8 +95,8 @@ class QualityMeasures(SimpleInterface):
 
 
 class MergeGroupQualityMeasuresOutputSpec(TraitedSpec):
-        fc_fd_summary = traits.List()
-        edges_weight = traits.List()
+    fc_fd_summary = traits.List()
+    edges_weight = traits.List()
 
 
 class MergeGroupQualityMeasuresInputSpec(BaseInterfaceInputSpec):

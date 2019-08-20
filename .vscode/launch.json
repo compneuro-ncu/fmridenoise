@@ -4,6 +4,7 @@
     // For more information, visit: https://go.microsoft.com/fwlink/?linkid=830387
     "version": "0.2.0",
     "configurations": [
+
     
         {
             "name": "Python: Current File (Integrated Terminal)",
@@ -18,9 +19,10 @@
             "type": "python",
             "request": "launch",
             "module": "fmridenoise",
-            "args": ["/mnt/connectomics/small_new_fmriprep_datasource", "-t", "rest", "-s", "1", "-p", "pipeline-36_parameters", "--MultiProc"],
+            "args": ["/mnt/dane/small", "-t", "rest", "-sub", "01", "02", "-ses", "1", "-p", "pipeline-36_parameters", "pipeline-36_parameters_gs"],
             "cwd": "${workspaceFolder}",
-            "console": "integratedTerminal"
+            "console": "integratedTerminal",
+            "justMyCode": false
         },
         {
             "name": "Dry",
@@ -41,13 +43,23 @@
             "console": "integratedTerminal"
         },
         {
-            "name": "RunTests",
+            "name": "Run Tests",
             "type": "python",
             "request": "launch",
             "module": "unittest",
             "args": ["discover", "-s", "${workspaceFolder}/tests"],
             "cwd": "${workspaceFolder}",
             "console": "integratedTerminal"
+        },
+        {
+            "name": "RunTest",
+            "type": "python",
+            "request": "launch",
+            "module": "unittest",
+            "args": ["${file}"],
+            "cwd": "${workspaceFolder}",
+            "console": "integratedTerminal",
+            "justMyCode": false
         },
         {
             "name": "Python: Remote Attach",
