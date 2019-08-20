@@ -37,7 +37,7 @@ def get_parser() -> argparse.ArgumentParser:
     parser.add_argument('-sub', "--subjects",
                         nargs='+',
                         default=[],
-                        help="List of subjects")                    
+                        help="List of subjects")
     parser.add_argument('-ses', "--sessions",
                         nargs='+',
                         default=[],
@@ -59,7 +59,7 @@ def get_parser() -> argparse.ArgumentParser:
                         default=0.08,
                         help="Low pass filter value")
     parser.add_argument("--MultiProc",
-                        help="EXPERIMENTAL: Run script on multiple processors, default False",
+                        help="Run script on multiple processors, default False",
                         action="store_true",
                         default=False)
     parser.add_argument("--profiler",
@@ -67,7 +67,7 @@ def get_parser() -> argparse.ArgumentParser:
                         help="Run profiler along workflow execution to estimate resources usage \
                         PROFILER is path to output log file.")
     parser.add_argument("--dry",
-                        help="Perform everything but do not run workflow",
+                        help="Perform everything except actually running workflow",
                         action="store_true",
                         default=False)
     return parser
