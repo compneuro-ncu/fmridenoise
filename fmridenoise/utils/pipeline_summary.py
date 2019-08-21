@@ -3,14 +3,17 @@ def get_pipeline_summary(pipeline):
     """Generates list of dictionaries with setting summary for pipeline.
 
     Args:
-        pipeline: Dictionary with pipeline set up (from .json file)
+        pipeline: Dictionary with pipeline setup (from .json file)
+
+     Returns:
+        pipeline_list: list of dictionaries with pipeline setup.
     """
 
     confounds = {"wm": "WM",
                  "csf": "CSF",
-                 "gs":"GS",
-                 "acompcor":"aCompCor",
-                 "aroma":"ICA-Aroma",
+                 "gs": "GS",
+                 "acompcor": "aCompCor",
+                 "aroma": "ICA-Aroma",
                  "spikes": "Spikes"}
 
     pipeline_list = []
@@ -22,8 +25,8 @@ def get_pipeline_summary(pipeline):
                 raw = ["Yes" if pipeline["confounds"][conf] else "No"][0]
 
                 if not pipeline["confounds"][conf]:
-                    temp_deriv = 'No'
-                    quad_terms = 'No'
+                    temp_deriv = "No"
+                    quad_terms = "No"
 
                 if isinstance(pipeline["confounds"][conf], dict):
 
@@ -44,9 +47,9 @@ def get_pipeline_summary(pipeline):
             quad_terms = 'No'
 
         pipeline_dict = {"Confound": conf_name,
-                          "Raw": raw,
-                          "Temp. deriv.": temp_deriv,
-                          "Quadr. terms": quad_terms}
+                         "Raw": raw,
+                         "Temp. deriv.": temp_deriv,
+                         "Quadr. terms": quad_terms}
 
         pipeline_list.append(pipeline_dict)
 
