@@ -60,6 +60,12 @@ class QualityMeasures(SimpleInterface):
         pipeline_name = self.inputs.pipeline_name
         distance_vector = sym_matrix_to_vec(np.load(self.inputs.distance_matrix))  # load distance matrix
 
+        # Plotting motion
+
+
+        
+
+
         # Creating vectors with subject filter
         all_sub_no = len(group_conf_summary)
         icluded_sub = group_conf_summary["include"]

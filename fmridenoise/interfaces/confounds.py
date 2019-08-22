@@ -86,6 +86,7 @@ class Confounds(SimpleInterface):
                         "mean_fd": [mean_fd],
                         "max_fd": [max_fd],
                         "n_spikes": [n_spikes],
+                        "perc_spikes": [(n_spikes/n_timepoints)*100],
                         "n_conf": [len(conf_df_prep.columns)],
                         "include": [inclusion_check(n_timepoints, mean_fd, max_fd, n_spikes, 0.2)]
                         }
