@@ -11,6 +11,7 @@ from scipy.stats import pearsonr
 import matplotlib.pyplot as plt
 from os.path import join
 from itertools import chain
+from fmridenoise.utils.plotting import motion_plot
 
 import seaborn as sns
 sns.set()
@@ -61,10 +62,8 @@ class QualityMeasures(SimpleInterface):
         distance_vector = sym_matrix_to_vec(np.load(self.inputs.distance_matrix))  # load distance matrix
 
         # Plotting motion
-
-
-        
-
+        fig = motion_plot(group_conf_summary)
+        fig.savefig(join(self.inputs.output_dir, f"motion_criterion_{pipeline_name}.svg"), dpi=300)
 
         # Creating vectors with subject filter
         all_sub_no = len(group_conf_summary)
@@ -247,6 +246,9 @@ class PipelinesQualityMeasures(SimpleInterface):
         # Plot quality measures
         # ----------------------
 
+        # Reset color palette
+        sns.set_palette("colorblind", 8)
+
         # Density plot (all subjects)
         fig1, ax = plt.subplots(1, 1)
 
@@ -254,8 +256,13 @@ class PipelinesQualityMeasures(SimpleInterface):
             sns.kdeplot(pipelines_edges_weight[col], shade=True)
             plt.axvline(0, 0, 2, color='gray', linestyle='dashed', linewidth=1.5)
             plt.title("Density of edge weights (all subjects)")
+
         plot_pipeline_edges_density = f"{self.inputs.output_dir}/pipelines_edges_density.svg"
         fig1.savefig(plot_pipeline_edges_density, dpi=300)
+        plt.legend(bbox_to_anchor=(1.05, 1), loc=2, borderaxespad=0.)
+
+        fig1.savefig(f"{self.inputs.output_dir}/pipelines_edges_density.svg", dpi=300)
+
         # Density plot (no high motion)
         fig1_2, ax = plt.subplots(1, 1)
 
@@ -263,6 +270,7 @@ class PipelinesQualityMeasures(SimpleInterface):
             sns.kdeplot(pipelines_edges_weight_clean[col], shade=True)
             plt.axvline(0, 0, 2, color='gray', linestyle='dashed', linewidth=1.5)
             plt.title("Density of edge weights (no high motion)")
+            plt.legend(bbox_to_anchor=(1.05, 1), loc=2, borderaxespad=0.)
 
         plot_pipelines_edges_density_no_high_motion = f"{self.inputs.output_dir}/pipelines_edges_density_no_high_motion.svg"
         fig1_2.savefig(plot_pipelines_edges_density_no_high_motion, dpi=300)
