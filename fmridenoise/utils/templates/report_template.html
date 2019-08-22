@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en">
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+<title>Fmridenoise report</title>
+<style type="text/css">
+{{css}}
+</style>
+</head>
+<body>
+    <div id="summary">
+        <h1 class="sub-report-title">Summary</h1>
+        {% for pipeline in pipelines %}
+        <h2>{{ pipeline.name }}</h2><br/>
+        <img src={{ pipeline.corelation_matrix_all }} /><br/>
+        <img src={{ pipeline.corelation_matrix_no_high_motion }} /><br/>
+        <table class="confound_summary">
+            <tr>
+                <th>Confound</th>
+                <th>Original</th> 
+                <th>Temporary derivative</th>
+                <th>Quadratic terms</th>
+            </tr>
+            {% for confound in pipeline.summary %}
+            <tr>
+                {% for value in confound.values() %}
+                <td {{ "class='yes'" if value == '\u2713' else "class='no'" if value == '\u2717' else ""}}>{{ value }}</td>
+                {% endfor %}
+            </tr>
+            {% endfor %}
+        </table>
+        <br/>
+        {% endfor %}
+    </div>
+</body>

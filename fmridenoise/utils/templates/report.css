@@ -1,0 +1,24 @@
+img {
+    width: 100%;
+    height: auto;
+}
+.confound_summary {
+    border-collapse: collapse;
+}
+.confound_summary table, th, td {
+    border: 1px solid black;
+}
+.confound_summary td, th {
+    font-size: 1.5em;
+    width: 10em;
+}
+.confound_summary .yes, .no {
+    font-weight: bolder;
+    text-align: center;
+}
+.confound_summary .yes {
+    background-color: greenyellow;
+}
+.confound_summary .no {
+    background-color: red;
+}

@@ -16,7 +16,6 @@ class PipelineSelectorOutPutSpecification(TraitedSpec):
     #low_pass = Float(desc="Low-pass filter")
 
 
-
 class PipelineSelector(SimpleInterface):
     input_spec = PipelineSelectorInputSpecification
     output_spec = PipelineSelectorOutPutSpecification

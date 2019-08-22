@@ -146,7 +146,6 @@ class MergeGroupQualityMeasuresOutputSpec(TraitedSpec):
     edges_weight_clean = traits.List()
 
 
-
 class MergeGroupQualityMeasuresInputSpec(BaseInterfaceInputSpec):
     fc_fd_summary = traits.List()
     edges_weight = traits.List()
@@ -174,7 +173,7 @@ class PipelinesQualityMeasuresInputSpec(BaseInterfaceInputSpec):
         exists=True,
         desc="Weights of individual edges")
 
-    edges_weight_clean = traits.List(
+    edges_weight_clean = traits.List( # TODO: Fix me
         exists=True,
         desc="Weights of individual edges")
 
@@ -194,6 +193,28 @@ class PipelinesQualityMeasuresOutputSpec(TraitedSpec):
     pipelines_edges_weight_clean = File(
         exists=True,
         desc="Group weights of individual edges")
+
+    plot_pipeline_edges_density = File(
+        exists=True,
+        desc="Density of edge weights (all subjects)"
+    )
+
+    plot_pipelines_edges_density_no_high_motion = File(
+        exist=True,
+        desc="Density of edge weights (no high motion)"
+    )
+
+    plot_pipelines_fc_fd_pearson = File(
+        exist=True
+    )
+
+    plot_pipelines_fc_fd_uncorr = File(
+        exist=True
+    )
+
+    plot_pipelines_distance_dependence = File(
+        exist=True
+    )
 
 class PipelinesQualityMeasures(SimpleInterface):
     input_spec = PipelinesQualityMeasuresInputSpec
@@ -233,9 +254,8 @@ class PipelinesQualityMeasures(SimpleInterface):
             sns.kdeplot(pipelines_edges_weight[col], shade=True)
             plt.axvline(0, 0, 2, color='gray', linestyle='dashed', linewidth=1.5)
             plt.title("Density of edge weights (all subjects)")
-
-        fig1.savefig(f"{self.inputs.output_dir}/pipelines_edges_density.svg", dpi=300)
-
+        plot_pipeline_edges_density = f"{self.inputs.output_dir}/pipelines_edges_density.svg"
+        fig1.savefig(plot_pipeline_edges_density, dpi=300)
         # Density plot (no high motion)
         fig1_2, ax = plt.subplots(1, 1)
 
@@ -244,7 +264,8 @@ class PipelinesQualityMeasures(SimpleInterface):
             plt.axvline(0, 0, 2, color='gray', linestyle='dashed', linewidth=1.5)
             plt.title("Density of edge weights (no high motion)")
 
-        fig1_2.savefig(f"{self.inputs.output_dir}/pipelines_edges_density_no_high_motion.svg", dpi=300)
+        plot_pipelines_edges_density_no_high_motion = f"{self.inputs.output_dir}/pipelines_edges_density_no_high_motion.svg"
+        fig1_2.savefig(plot_pipelines_edges_density_no_high_motion, dpi=300)
 
         # Boxplot (Pearson's r FC-DC)
         fig2 = sns.catplot(x="pearson_fc_fd",
@@ -254,7 +275,9 @@ class PipelinesQualityMeasures(SimpleInterface):
                     data=pipelines_fc_fd_summary,
                     orient="h").set(xlabel="QC-FC (Pearson's r)",
                                     ylabel='Pipeline')
-        fig2.savefig(f"{self.inputs.output_dir}/pipelines_fc_fd_pearson.svg", dpi=300, bbox_inches="tight")
+
+        plot_pipelines_fc_fd_pearson = f"{self.inputs.output_dir}/pipelines_fc_fd_pearson.svg"
+        fig2.savefig(plot_pipelines_fc_fd_pearson, dpi=300, bbox_inches="tight")
 
         # Boxplot (% correlated edges)
         fig3 = sns.catplot(x="perc_fc_fd_uncorr",
@@ -265,7 +288,8 @@ class PipelinesQualityMeasures(SimpleInterface):
                     orient="h").set(xlabel="QC-FC uncorrected (%)",
                                     ylabel='Pipeline')
 
-        fig3.savefig(f"{self.inputs.output_dir}/pipelines_fc_fd_uncorr.svg", dpi=300, bbox_inches="tight")
+        plot_pipelines_fc_fd_uncorr = f"{self.inputs.output_dir}/pipelines_fc_fd_uncorr.svg"
+        fig3.savefig(plot_pipelines_fc_fd_uncorr, dpi=300, bbox_inches="tight")
 
         # Boxplot (Pearson's r FC-DC with distance)
 
@@ -276,10 +300,16 @@ class PipelinesQualityMeasures(SimpleInterface):
                     data=pipelines_fc_fd_summary,
                     orient="h").set(xlabel="Distance-dependence",
                                     ylabel='Pipeline')
-        fig4.savefig(f"{self.inputs.output_dir}/pipelines_distance_dependence.svg", dpi=300, bbox_inches="tight")
+        
+        plot_pipelines_distance_dependence = f"{self.inputs.output_dir}/pipelines_distance_dependence.svg"
+        fig4.savefig(plot_pipelines_distance_dependence, dpi=300, bbox_inches="tight")
 
         self._results['pipelines_fc_fd_summary'] = fname1
         self._results['pipelines_edges_weight'] = fname2
         self._results['pipelines_edges_weight_clean'] = fname3
-
+        self._results['plot_pipeline_edges_density'] = plot_pipeline_edges_density
+        self._results['plot_pipelines_distance_dependence'] = plot_pipelines_distance_dependence
+        self._results['plot_pipelines_edges_density_no_high_motion'] = plot_pipelines_edges_density_no_high_motion
+        self._results['plot_pipelines_fc_fd_pearson'] = plot_pipelines_fc_fd_pearson
+        self._results['plot_pipelines_fc_fd_uncorr'] = plot_pipelines_fc_fd_uncorr
         return runtime

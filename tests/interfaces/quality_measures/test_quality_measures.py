@@ -3,7 +3,7 @@ from fmridenoise.interfaces import QualityMeasures
 from tests import *
 import os
 import shutil
-
+from os.path import join, dirname
 class TestQualityMeasures(ut.TestCase):
 
 

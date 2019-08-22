@@ -3,6 +3,7 @@ from os.path import join, dirname
 import glob
 from fmridenoise.pipelines import get_pipelines_paths
 from fmridenoise.parcellation import get_parcelation_file_path, get_distance_matrix_file_path
+from fmridenoise.utils.templates import get_all_templates
 with open("README.md", "r") as fh:
     long_description = fh.read()
 
@@ -28,5 +29,6 @@ setuptools.setup(
     packages=setuptools.find_packages(exclude=["*.tests", "*.tests.*", "tests.*", "tests"]),
     install_requires=get_requirements(),
     data_files=[('fmridenoise/pipelines', list(get_pipelines_paths())),
-                ('fmridenoise/parcellation', parcelation_path)]
+                ('fmridenoise/parcellation', parcelation_path),
+                ('fmridenoise/utils/templates', get_all_templates())]
 )

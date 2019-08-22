@@ -157,7 +157,7 @@ def main() -> None:
         # linear/multiproc
         if args.MultiProc:
             workflow_args['maxtasksperchild'] = 1
-            workflow_args['memory_gb'] = 9
+            workflow_args['memory_gb'] = 30
             workflow.run(plugin="MultiProc", plugin_args=workflow_args)
         else:
             workflow.run()
