@@ -7,7 +7,7 @@ def motion_plot(group_conf_summary):
     plt.style.use('seaborn-white')
     plt.rcParams['font.family'] = 'Helvetica'
     colour = ["#fe6863", "#00a074"]
-    sns.set_palette(colour)
+    palette = sns.set_palette(colour)
 
     small = 15
     plt.rc('font', size=small)  # controls default text sizes
@@ -36,6 +36,7 @@ def motion_plot(group_conf_summary):
                           data=group_conf_summary,
                           alpha=0.8,
                           s=10,
+                          color=palette,
                           ax=axes[i]
                           )
 
