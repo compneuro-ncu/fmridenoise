@@ -282,7 +282,7 @@ if __name__ == '__main__':  # TODO Move parser to module __main__
     args = parser.parse_args()
 
     bids_dir = '/media/finc/Elements/fMRIDenoise_data/BIDS_LearningBrain_short'
-    #pipelines_paths={'/home/finc/Dropbox/Projects/fMRIDenoise/fmridenoise/fmridenoise/pipelines/pipeline-36_parameters.json'}
+    #pipelines_paths={'/home/finc/Dropbox/Projects/fMRIDenoise/fmridenoise/fmridenoise/pipelines/pipeline-24HMP_8Phys_SpikeReg.json'}
 
     if args.bids_dir is not None:
         bids_dir = args.bids_dir

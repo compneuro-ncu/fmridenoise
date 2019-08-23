@@ -1,14 +1,16 @@
 {
-  "name": "null",
+  "name": "ICA-AROMA_8Phys",
   "description": "",
   "confounds":
   {
-    "wm": "False",
+    "wm":
+      {"temp_deriv": "True",
+       "quad_terms": "True"},
     "csf": "False",
     "gs": "False",
     "motion": "False",
     "acompcor": "False"
   },
-  "aroma": "False",
+  "aroma": "True",
   "spikes": "False"
 }

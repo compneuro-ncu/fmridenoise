@@ -1,6 +1,6 @@
 {
-  "name": "ica_aroma",
-  "description": "",
+  "name": "Null",
+  "description": "Reference pipeline with no denoising strategy applied.",
   "confounds":
   {
     "wm": "False",
@@ -9,6 +9,6 @@
     "motion": "False",
     "acompcor": "False"
   },
-  "aroma": "True",
+  "aroma": "False",
   "spikes": "False"
 }

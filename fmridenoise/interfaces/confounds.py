@@ -159,27 +159,3 @@ class GroupConfounds(SimpleInterface):
         group_conf_summary.to_csv(fname, sep='\t', index=False)
         self._results['group_conf_summary'] = fname
         return runtime
-
-
-if __name__ == '__main__':
-
-    bids_dir = '/media/finc/Elements/zmien_nazwe'
-    conf_json = '/media/finc/Elements/zmien_nazwe/derivatives/fmriprep/sub-01/ses-1/func/sub-01_ses-1_task-rest_desc-confounds_regressors.json'
-    conf_raw = '/media/finc/Elements/zmien_nazwe/derivatives/fmriprep/sub-01/ses-1/func/sub-01_ses-1_task-rest_desc-confounds_regressors.tsv'
-
-    from fmridenoise.utils.utils import load_pipeline_from_json
-
-    pipeline = load_pipeline_from_json('/home/finc/Dropbox/Projects/fMRIDenoise/fmridenoise/fmridenoise/pipelines/pipeline-acomp_cor.json')
-    entities = {'datatype': 'func', 'session': '1', 'subject': '01', 'task': 'rest'}
-
-    conf = Confounds(
-        conf_json=conf_json,
-        conf_raw=conf_raw,
-        pipeline=pipeline,
-        entities=entities,
-        output_dir='/media/finc/Elements/zmien_nazwe'
-    )
-
-    result = conf.run()
-    print(result.outputs)
-

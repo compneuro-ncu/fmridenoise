@@ -1,0 +1,24 @@
+{
+  "name": "24HMP_8Phys_SpikeReg_4GS",
+  "description": "Denoising strategy based on regressing out: 24HMP - 24 head motion parameters including: 3 translations, 3 rotations, their temporal derivatives, and their quadratic terms (Satterthwaite et al., 2013), 8Phys - mean physiological signals from white matter (WM) and cerebrospinal fluid (CSF), their temporal derivatives, and quadratic terms (Satterthwaite et al., 2013), SpikeReg - spike regressors based on FD and DVARS thresholds (Power et al., 2013). Pipeline additionally includes global signal regression (GS), its temporal derivative, and quadratic terms (4GS).",
+  "confounds":
+  {
+    "wm":
+      {"temp_deriv": "True",
+       "quad_terms": "True"},
+    "csf":
+      {"temp_deriv": "True",
+       "quad_terms": "True"},
+    "gs":
+      {"temp_deriv": "True",
+       "quad_terms": "True"},
+    "motion":
+      {"temp_deriv": "True",
+       "quad_terms": "True"},
+    "acompcor": "False"
+  },
+  "aroma": "False",
+  "spikes":
+    {"fd_th": 0.5,
+     "dvars_th": 3}
+}

@@ -20,8 +20,8 @@ class TestQualityMeasures(ut.TestCase):
     def test_on_two_subject_data(self):
         """
         Data obtained from performing denoising with pipelines:
-        pipeline-36_parameters.json
-        pipeline-36_parameters_gs.json
+        pipeline-24HMP_8Phys_SpikeReg.json
+        pipeline-24HMP_8Phys_SpikeReg_4GS.json
         """
         qc = QualityMeasures()
 
