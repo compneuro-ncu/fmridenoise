@@ -14,7 +14,6 @@ from itertools import chain
 from fmridenoise.utils.plotting import motion_plot
 
 import seaborn as sns
-sns.set()
 
 
 class QualityMeasuresInputSpec(BaseInterfaceInputSpec):
@@ -62,6 +61,8 @@ class QualityMeasures(SimpleInterface):
         distance_vector = sym_matrix_to_vec(np.load(self.inputs.distance_matrix))  # load distance matrix
 
         # Plotting motion
+        colour = ["#fe6863", "#00a074"]
+        sns.set_palette(colour)
         fig = motion_plot(group_conf_summary)
         fig.savefig(join(self.inputs.output_dir, f"motion_criterion_{pipeline_name}.svg"), dpi=300)
 
@@ -258,10 +259,10 @@ class PipelinesQualityMeasures(SimpleInterface):
             plt.title("Density of edge weights (all subjects)")
 
         plot_pipeline_edges_density = f"{self.inputs.output_dir}/pipelines_edges_density.svg"
-        fig1.savefig(plot_pipeline_edges_density, dpi=300)
+        fig1.savefig(plot_pipeline_edges_density, dpi=300,  bbox_inches='tight')
         plt.legend(bbox_to_anchor=(1.05, 1), loc=2, borderaxespad=0.)
 
-        fig1.savefig(f"{self.inputs.output_dir}/pipelines_edges_density.svg", dpi=300)
+        fig1.savefig(f"{self.inputs.output_dir}/pipelines_edges_density.svg", dpi=300,  bbox_inches='tight')
 
         # Density plot (no high motion)
         fig1_2, ax = plt.subplots(1, 1)
@@ -273,7 +274,7 @@ class PipelinesQualityMeasures(SimpleInterface):
             plt.legend(bbox_to_anchor=(1.05, 1), loc=2, borderaxespad=0.)
 
         plot_pipelines_edges_density_no_high_motion = f"{self.inputs.output_dir}/pipelines_edges_density_no_high_motion.svg"
-        fig1_2.savefig(plot_pipelines_edges_density_no_high_motion, dpi=300)
+        fig1_2.savefig(plot_pipelines_edges_density_no_high_motion, dpi=300,  bbox_inches='tight')
 
         # Boxplot (Pearson's r FC-DC)
         fig2 = sns.catplot(x="pearson_fc_fd",
