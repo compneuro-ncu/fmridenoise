@@ -1,9 +1,26 @@
+body{
+    font-family: 'Comic Sans MS';
+}
+.box {
+    display: flex;
+    justify-content: space-between;
+}
 img {
-    width: 100%;
-    height: auto;
+    display: block;
+    width: auto;
+    height: 600px;
+    margin-left: auto;
+    margin-right: auto;
+}
+.box img {
+    display: flex;
 }
 .confound_summary {
     border-collapse: collapse;
+}
+table {
+    margin-left: auto;
+    margin-right: auto;
 }
 .confound_summary table, th, td {
     border: 1px solid black;
@@ -12,13 +29,16 @@ img {
     font-size: 1.5em;
     width: 10em;
 }
-.confound_summary .yes, .no {
+.confound_summary td {
     font-weight: bolder;
     text-align: center;
 }
 .confound_summary .yes {
-    background-color: greenyellow;
+    background-color: #86C98A;
 }
 .confound_summary .no {
-    background-color: red;
+    background-color: rgb(221, 118, 117);
+}
+.confound_summary .na {
+    background-color: rgb(175, 168, 168); 
 }
