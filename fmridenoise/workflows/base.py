@@ -144,21 +144,29 @@ def init_fmridenoise_wf(bids_dir,
         name="QualityMeasures")
     # Outputs: fc_fd_summary, edges_weight, edges_weight_clean
 
-    # 9) --- Quality measures across pipelines
+    # 9) --- Merge quality measures into lists for further processing
+
+    # Inputs: fc_fd_summary, edges_weight, edges_weight_clean
+
+    merge_quality_measures = pe.JoinNode(MergeGroupQualityMeasures(),
+                                         joinsource=pipelineselector,
+                                         name="Merge")
+
+    # Outputs: fc_fd_summary, edges_weight
+
+    # 10) --- Quality measures across pipelines
 
     # Inputs: fc_fd_summary, edges_weight
 
-    pipelines_quality_measures = pe.JoinNode(
+    pipelines_quality_measures = pe.Node(
         PipelinesQualityMeasures(
             output_dir=os.path.join(bids_dir, 'derivatives', 'fmridenoise'),
         ),
-        joinfield=['edges_weight', 'edges_weight_clean', 'fc_fd_summary'],
-        joinsource=pipelineselector,
         name="PipelinesQC")
 
     # Outputs: pipelines_fc_fd_summary, pipelines_edges_weight
 
-    # 10) --- Report from data
+    # 11) --- Report from data
 
     report_creator = pe.JoinNode(
         ReportCreator(
@@ -168,27 +176,27 @@ def init_fmridenoise_wf(bids_dir,
         joinfield=['pipelines', 'pipelines_names'],
         name='ReportCreator')
 
-    # 11) --- Save derivatives
+    # 12) --- Save derivatives
     # TODO: Fill missing in/out
     ds_confounds = pe.MapNode(BIDSDataSink(base_directory=bids_dir),
-                              iterfield=['in_file', 'entities'],
-                              name="ds_confounds")
+                    iterfield=['in_file', 'entities'],
+                    name="ds_confounds")
 
     ds_denoise = pe.MapNode(BIDSDataSink(base_directory=bids_dir),
-                            iterfield=['in_file', 'entities'],
-                            name="ds_denoise")
+                    iterfield=['in_file', 'entities'],
+                    name="ds_denoise")
 
     ds_connectivity = pe.MapNode(BIDSDataSink(base_directory=bids_dir),
-                                 iterfield=['in_file', 'entities'],
-                                 name="ds_connectivity")
+                    iterfield=['in_file', 'entities'],
+                    name="ds_connectivity")
 
     ds_carpet_plot = pe.MapNode(BIDSDataSink(base_directory=bids_dir),
-                                iterfield=['in_file', 'entities'],
-                                name="ds_carpet_plot")
+                                 iterfield=['in_file', 'entities'],
+                                 name="ds_carpet_plot")
 
     ds_matrix_plot = pe.MapNode(BIDSDataSink(base_directory=bids_dir),
-                                iterfield=['in_file', 'entities'],
-                                name="ds_matrix_plot")
+                                 iterfield=['in_file', 'entities'],
+                                 name="ds_matrix_plot")
 
 
 # --- Connecting nodes
@@ -210,7 +218,7 @@ def init_fmridenoise_wf(bids_dir,
         (pipelineselector, prep_conf, [('pipeline', 'pipeline')]),
         (pipelineselector, denoise, [('pipeline', 'pipeline')]),
         (prep_conf, group_conf_summary, [('conf_summary', 'conf_summary'),
-                                         ('pipeline_name', 'pipeline_name')]),
+                                        ('pipeline_name', 'pipeline_name')]),
 
         (pipelineselector, ds_denoise, [('pipeline_name', 'pipeline_name')]),
         (pipelineselector, ds_connectivity, [('pipeline_name', 'pipeline_name')]),
@@ -233,7 +241,10 @@ def init_fmridenoise_wf(bids_dir,
         (group_connectivity, quality_measures, [('pipeline_name', 'pipeline_name'),
                                                 ('group_corr_mat', 'group_corr_mat')]),
         (group_conf_summary, quality_measures, [('group_conf_summary', 'group_conf_summary')]),
-        (quality_measures, pipelines_quality_measures,
+        (quality_measures, merge_quality_measures, [('fc_fd_summary', 'fc_fd_summary'),
+                                                    ('edges_weight', 'edges_weight'),
+                                                    ('edges_weight_clean', 'edges_weight_clean')]),
+        (merge_quality_measures, pipelines_quality_measures,
             [('fc_fd_summary', 'fc_fd_summary'),
              ('edges_weight', 'edges_weight'),
              ('edges_weight_clean', 'edges_weight_clean')]),
