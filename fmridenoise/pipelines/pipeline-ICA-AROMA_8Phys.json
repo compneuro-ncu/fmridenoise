@@ -6,7 +6,9 @@
     "wm":
       {"temp_deriv": "True",
        "quad_terms": "True"},
-    "csf": "False",
+    "csf":
+      {"temp_deriv": "True",
+       "quad_terms": "True"},
     "gs": "False",
     "motion": "False",
     "acompcor": "False"
