@@ -18,20 +18,25 @@
         <button class="tablinks active" onclick="showAll(event)">Show All</button>
         <button class="tablinks" onclick="openCity(event, 'group')">Group summary</button>
         {% for pipeline in pipelines %}
-        <button class="tablinks" onclick="openCity(event, '{{ pipeline.name.replace }}')">{{ pipeline.name.replace('_', '+') }}</button>
+        <button class="tablinks" onclick="openCity(event, '{{ pipeline.name }}')">{{ pipeline.name.replace('_', '+') }}</button>
         {% endfor %}
     </div>
     <div id="group" class="tabcontent">
         <h1>Group Summary</h1>
-<!--         <div class="box"> -->
-            <img src={{ group.img.Edges_Density }}/>
-            <img src={{ group.img.Edges_Density_No_High_Motion}}/></br>
-<!--         </div> -->
+        <img src={{ group.img.Edges_Density }}/>
+        <img src={{ group.img.Edges_Density_No_High_Motion}}/></br>
         <img src={{ group.img.Pipelines_Distance_Dependency }}/></br>
         <img src={{ group.img.Pipelines_FC_FC_Pearson}}/></br>  
+        <img style=" min-width: 450px; max-width: 40%;" src={{ group.img.Tdof_Loss }}/>
         <img src={{ group.img.Motion_Out }}/>
+        {% if excluded_subjects %}
+        <h2>Excluded subjects:</h2>
+            {% for excluded in excluded_subjects %}
+            {{ excluded }}</br>
+            {% endfor %}
+        {% endif %}
+        </br>
     </div>
-        <!-- <h1>Pipeline Summary</h1> -->
     {% for pipeline in pipelines %}
     <div id="{{ pipeline.name }}" class="tabcontent">
         <h2>{{ pipeline.name.replace('_', '+') }}</h2><br/>
