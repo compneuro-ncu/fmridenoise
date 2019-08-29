@@ -216,6 +216,10 @@ class PipelinesQualityMeasuresOutputSpec(TraitedSpec):
         exist=True
     )
 
+    plot_pipelines_tdof_loss = File(
+        exist=True
+    )
+
 class PipelinesQualityMeasures(SimpleInterface):
     input_spec = PipelinesQualityMeasuresInputSpec
     output_spec = PipelinesQualityMeasuresOutputSpec
@@ -313,6 +317,18 @@ class PipelinesQualityMeasures(SimpleInterface):
         plot_pipelines_distance_dependence = f"{self.inputs.output_dir}/pipelines_distance_dependence.svg"
         fig4.savefig(plot_pipelines_distance_dependence, dpi=300, bbox_inches="tight")
 
+        # Boxplot (fDOF-loss)
+
+        fig5 = sns.catplot(x="tdof_loss",
+                           y="pipeline",
+                           kind='bar',
+                           data=pipelines_fc_fd_summary,
+                           orient="h").set(xlabel="fDOF-loss",
+                                           ylabel='Pipeline')
+
+        plot_pipelines_tdof_loss = f"{self.inputs.output_dir}/pipelines_tdof_loss.svg"
+        fig5.savefig(plot_pipelines_tdof_loss, dpi=300, bbox_inches="tight")
+
         self._results['pipelines_fc_fd_summary'] = fname1
         self._results['pipelines_edges_weight'] = fname2
         self._results['pipelines_edges_weight_clean'] = fname3
@@ -321,4 +337,6 @@ class PipelinesQualityMeasures(SimpleInterface):
         self._results['plot_pipelines_edges_density_no_high_motion'] = plot_pipelines_edges_density_no_high_motion
         self._results['plot_pipelines_fc_fd_pearson'] = plot_pipelines_fc_fd_pearson
         self._results['plot_pipelines_fc_fd_uncorr'] = plot_pipelines_fc_fd_uncorr
+        self._results['plot_pipelines_tdof_loss'] = plot_pipelines_fc_fd_uncorr
+
         return runtime
