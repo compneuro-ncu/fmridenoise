@@ -11,20 +11,30 @@
 </style>
 </head>
 <body>
-    <div id="summary">
+    <script>
+        {{ script }}
+    </script>
+    <div class="tab">
+        <button class="tablinks active" onclick="showAll(event)">Show All</button>
+        <button class="tablinks" onclick="openCity(event, 'group')">Group summary</button>
+        {% for pipeline in pipelines %}
+        <button class="tablinks" onclick="openCity(event, '{{ pipeline.name.replace }}')">{{ pipeline.name.replace('_', '+') }}</button>
+        {% endfor %}
+    </div>
+    <div id="group" class="tabcontent">
         <h1>Group Summary</h1>
-        <div class="box">
+<!--         <div class="box"> -->
             <img src={{ group.img.Edges_Density }}/>
             <img src={{ group.img.Edges_Density_No_High_Motion}}/></br>
-        </div class="box">
-        <div class="box">
-            <img src={{ group.img.Pipelines_Distance_Dependency }}/>
-            <img src={{ group.img.Pipelines_FC_FC_Pearson}}/></br>  
-        </div>
+<!--         </div> -->
+        <img src={{ group.img.Pipelines_Distance_Dependency }}/></br>
+        <img src={{ group.img.Pipelines_FC_FC_Pearson}}/></br>  
         <img src={{ group.img.Motion_Out }}/>
-        <h1>Pipeline Summary</h1>
-        {% for pipeline in pipelines %}
-        <h2>{{ pipeline.name.replace('_', ' ') }}</h2><br/>
+    </div>
+        <!-- <h1>Pipeline Summary</h1> -->
+    {% for pipeline in pipelines %}
+    <div id="{{ pipeline.name }}" class="tabcontent">
+        <h2>{{ pipeline.name.replace('_', '+') }}</h2><br/>
         <p>{{ pipeline.description }}</p>
         <table class="confound_summary">
             <tr>
@@ -44,7 +54,7 @@
         <br/>
         <img src={{ pipeline.corelation_matrix_all }} /><br/>
         <img src={{ pipeline.corelation_matrix_no_high_motion }} /><br/>
-        {% endfor %}
     </div>
+    {% endfor %}
 </body>
 {% endwith %}

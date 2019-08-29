@@ -1,5 +1,5 @@
 body{
-    font-family: 'Comic Sans MS';
+    font-family: 'Helvetica', 'Comic Sans MS';
 }
 .box {
     display: flex;
@@ -7,12 +7,13 @@ body{
 }
 img {
     display: block;
-    width: auto;
-    height: 600px;
+    width: 80%;
+    height: auto;
     margin-left: auto;
     margin-right: auto;
 }
 .box img {
+    width: 45%;
     display: flex;
 }
 .confound_summary {
@@ -27,7 +28,8 @@ table {
 }
 .confound_summary td, th {
     font-size: 1.5em;
-    width: 10em;
+    width: 11em;
+    padding-top: 0.3em;
 }
 .confound_summary td {
     font-weight: bolder;
@@ -41,4 +43,42 @@ table {
 }
 .confound_summary .na {
     background-color: rgb(175, 168, 168); 
+}
+ /* Style the tab */
+ .tab {
+    overflow: hidden;
+    border: 1px solid #ccc;
+    background-color: #f1f1f1;
+}
+  
+  /* Style the buttons that are used to open the tab content */
+.tab button {
+    background-color: inherit;
+    float: left;
+    border: none;
+    outline: none;
+    cursor: pointer;
+    padding: 14px 16px;
+    transition: 0.3s;
+}
+  
+  /* Change background color of buttons on hover */
+.tab button:hover {
+    background-color: #ddd;
+}
+  
+  /* Create an active/current tablink class */
+.tab button.active {
+    background-color: #ccc;
+}
+  
+  /* Style the tab content */
+  .tabcontent {
+    display: block;
+    padding: 6px 12px;
+    border: 1px solid #ccc;
+    border-top: none;
+}
+#group img {
+    width: 60%;
 }

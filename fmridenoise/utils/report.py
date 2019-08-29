@@ -35,7 +35,10 @@ def get_pipeline_summary(pipeline):
             raw = YES if pipeline[conf] else NO
             temp_deriv = NA
             quad_terms = NA
-
+        elif conf == 'acompcor':
+            raw = YES if pipeline['confounds'][conf] else NO
+            temp_deriv = NA
+            quad_terms = NA
         else:
             raw = YES if pipeline["confounds"][conf] else NO
 
@@ -85,6 +88,8 @@ def create_report(data_path: str, pipelines_list: list) -> None:
             searchpath=join(dirname(__file__), 'templates')))
     css_template = env.get_template('report.css')
     css = css_template.render()
+    script_template = env.get_template('script.js')
+    script = script_template.render()
     tpl = env.get_template('report_template.html')
     data_dict = create_pipelines_data_dict(data_path, pipelines_list)
     data_dict['group'] = {}
@@ -93,14 +98,15 @@ def create_report(data_path: str, pipelines_list: list) -> None:
                                  'Pipelines_Distance_Dependency': join(data_path, 'pipelines_distance_dependence.svg'),
                                  'Pipelines_FC_FC_Pearson': join(data_path, 'pipelines_fc_fd_pearson.svg'),
                                  'Motion_Out': glob.glob(join(data_path, "motion_criterion*"))[0]}
-    html = tpl.render(data_dict, css=css)
+    html = tpl.render(data_dict, css=css, script=script)
     with open(join(data_path, 'report.html'), 'w') as report_file:
         report_file.write(html)
 
 if __name__ == '__main__':
     from fmridenoise.utils.utils import load_pipeline_from_json
-    from fmridenoise.pipelines import get_pipeline_path
-    path = '/mnt/dane/small/derivatives/fmridenoise'
-    pipelines_list = [load_pipeline_from_json(get_pipeline_path('pipeline-Null')),
-                      load_pipeline_from_json(get_pipeline_path('pipeline-24HMP_8Phys_SpikeReg'))]
+    from fmridenoise.pipelines import get_pipeline_path, get_pipelines_paths
+    path = '/mnt/Data/raport'
+    # pipelines_list = [load_pipeline_from_json(get_pipeline_path('pipeline-Null')),
+    #                   load_pipeline_from_json(get_pipeline_path('pipeline-24HMP_8Phys_SpikeReg'))]
+    pipelines_list = [load_pipeline_from_json(pipeline_path) for pipeline_path in get_pipelines_paths()]
     create_report(path, pipelines_list)
