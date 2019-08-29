@@ -30,5 +30,6 @@ setuptools.setup(
     install_requires=get_requirements(),
     data_files=[('fmridenoise/pipelines', list(get_pipelines_paths())),
                 ('fmridenoise/parcellation', parcelation_path),
-                ('fmridenoise/utils/templates', get_all_templates())]
+                ('fmridenoise/utils/templates', get_all_templates())],
+    scripts=['fmridenoise/scripts/fmridenoise']
 )
