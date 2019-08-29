@@ -48,6 +48,10 @@ class QualityMeasuresOutputSpec(TraitedSpec):
         desc="Weights of individual edges after "
              "removing subjects with high motion")
 
+    exclude_list = traits.List(
+        exists=True,
+        desc="List of subjects to exclude")
+
 
 class QualityMeasures(SimpleInterface):
     input_spec = QualityMeasuresInputSpec
@@ -133,9 +137,13 @@ class QualityMeasures(SimpleInterface):
             fig.savefig(join(self.inputs.output_dir, f"FC_FD_corr_mat_{pipeline_name}_{value[3].lower()}.png"),
                         dpi=300)
 
+            exclude_list = [f"sub-{x + 1:02}" for x in
+                            group_conf_summary[group_conf_summary['include'] == 1]['subject']]
+
             self._results["fc_fd_summary"] = fc_fd_summary
             self._results["edges_weight"] = edges_weight
             self._results["edges_weight_clean"] = edges_weight_clean
+            self._results["exclude_list"] = exclude_list
 
         return runtime
 
