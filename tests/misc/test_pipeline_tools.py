@@ -7,7 +7,7 @@ class TestPipelinesTools(ut.TestCase):
 
     pipelines_dir = dirname(pipe.__file__)
     def test_get_pipeline_path(self):
-        name = 'pipeline-36_parameters_gs'
+        name = 'pipeline-24HMP_8Phys_SpikeReg_4GS'
         target = join(self.pipelines_dir, 'pipeline-24HMP_8Phys_SpikeReg_4GS.json')
         path = pipe.get_pipeline_path(name)
         self.assertEqual(target, path)
@@ -20,7 +20,7 @@ class TestPipelinesTools(ut.TestCase):
 
     def test_get_pipeline_name(self):
         path = join(self.pipelines_dir, 'pipeline-24HMP_8Phys_SpikeReg_4GS.json')
-        target = 'pipeline-36_parameters_gs'
+        target = 'pipeline-24HMP_8Phys_SpikeReg_4GS'
         self.assertEqual(pipe.get_pipeline_name(path), target)
 
 
@@ -40,5 +40,5 @@ class TestPipelinesTools(ut.TestCase):
     def test_get_pipelines_paths_fail(self):
         all_invalid = {'foo', 'bar'}
         self.assertRaises(ValueError, pipe.get_pipelines_paths, all_invalid)
-        some_valid = {'pipeline-36_parameters_gs', 'not_valid'}
+        some_valid = {'pipeline-24HMP_8Phys_SpikeReg_4GS', 'not_valid'}
         self.assertRaises(ValueError, pipe.get_pipelines_paths, some_valid)

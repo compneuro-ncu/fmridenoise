@@ -99,7 +99,7 @@ def create_report(data_path: str,
                                  'Edges_Density_No_High_Motion': 'pipelines_edges_density_no_high_motion.svg',
                                  'Pipelines_Distance_Dependency': 'pipelines_distance_dependence.svg',
                                  'Pipelines_FC_FC_Pearson': 'pipelines_fc_fd_pearson.svg',
-                                 'Motion_Out': basename(glob.glob(join(data_path, "motion_criterion*"))[0]),
+                                 'Motion_Out': basename(glob.glob(join(data_path, 'motion_criterion*'))[0]),
                                  'Tdof_Loss': 'pipelines_tdof_loss.svg'}
     html = tpl.render(data_dict,                                            excluded_subjects=excluded_subjects,
                       css=css, 

@@ -1,4 +1,4 @@
-{% with cell_dict = {'\u2713': 'class=yes', '\u2717': 'class=no','N/A': 'class=na'} %}
+{% with cell_dict = {'\u2713': 'class="yes"', '\u2717': 'class="no"','N/A': 'class="na"'} %}
 
 <?xml version="1.0" encoding="utf-8" ?>
 <!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
@@ -11,7 +11,7 @@
 </style>
 </head>
 <body>
-    <script>
+    <script type="text/javascript">
         {{ script }}
     </script>
     <div class="tab">
@@ -23,19 +23,19 @@
     </div>
     <div id="group" class="tabcontent">
         <h1>Group Summary</h1>
-        <img src={{ group.img.Edges_Density }}/>
-        <img src={{ group.img.Edges_Density_No_High_Motion}}/></br>
-        <img src={{ group.img.Pipelines_Distance_Dependency }}/></br>
-        <img src={{ group.img.Pipelines_FC_FC_Pearson}}/></br>  
-        <img style=" min-width: 450px; max-width: 40%;" src={{ group.img.Tdof_Loss }}/>
-        <img src={{ group.img.Motion_Out }}/>
+        <img src="{{ group.img.Edges_Density }}" alt="edges density"/>
+        <img src="{{ group.img.Edges_Density_No_High_Motion}}" alt="edges density no high motion"/><br/>
+        <img src="{{ group.img.Pipelines_Distance_Dependency }}" alt="pipeline distance dependency"/><br/>
+        <img src="{{ group.img.Pipelines_FC_FC_Pearson}}" alt="pipelines fc fd pearson"/><br/>  
+        <img style="min-width: 450px; max-width: 40%;" src="{{ group.img.Tdof_Loss }}" alt="tdof loss"/>
+        <img src="{{ group.img.Motion_Out }}" alt="motion out"/>
         {% if excluded_subjects %}
         <h2>Excluded subjects:</h2>
             {% for excluded in excluded_subjects %}
-            {{ excluded }}</br>
+            {{ excluded }}<br/>
             {% endfor %}
         {% endif %}
-        </br>
+        <br/>
     </div>
     {% for pipeline in pipelines %}
     <div id="{{ pipeline.name }}" class="tabcontent">
@@ -57,8 +57,8 @@
             {% endfor %}
         </table>
         <br/>
-        <img src={{ pipeline.corelation_matrix_all }} /><br/>
-        <img src={{ pipeline.corelation_matrix_no_high_motion }} /><br/>
+        <img src="{{ pipeline.corelation_matrix_all }}" alt="corelation matrix"/><br/>
+        <img src="{{ pipeline.corelation_matrix_no_high_motion }}" alt="corelation matrix no high motion"/><br/>
     </div>
     {% endfor %}
 </body>

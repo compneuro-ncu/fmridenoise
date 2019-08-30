@@ -5,7 +5,6 @@ from os.path import exists
 _pipeline_valid_keys = ["name", "descrtiption", "confounds"]
 type_checker = jsonschema.Draft4Validator.VALIDATORS
 
-
 def load_pipeline_from_json(json_path: str) -> dict:
     """
     Loads json file and prepares it for further use (e.g. assures proper types interpretation)
