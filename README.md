@@ -11,6 +11,14 @@ FMRIDenoise is designed to work directly on [fMRIPrep](https://fmriprep.readthed
 data in [BIDS](https://bids.neuroimaging.io/) standard.
 We believe that the tool can make the selection of the denoising strategy more objective and also help researchers to obtain FC quality control metrics with almost no effort.
 
+Problem
+============
+
+![Alt text](docs/fmridenoise_problem.png?raw=true "Title")
+
+Solution
+============
+![Alt text](docs/fmridenoise_solution.png?raw=true "Title")
 
 Installation
 ============
