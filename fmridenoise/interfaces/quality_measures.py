@@ -152,22 +152,26 @@ class MergeGroupQualityMeasuresOutputSpec(TraitedSpec):
     fc_fd_summary = traits.List()
     edges_weight = traits.List()
     edges_weight_clean = traits.List()
+    exclude_list = traits.Set(traits.Str())
 
 
 class MergeGroupQualityMeasuresInputSpec(BaseInterfaceInputSpec):
     fc_fd_summary = traits.List()
     edges_weight = traits.List()
     edges_weight_clean = traits.List()
+    exclude_list = traits.List(default=[])
 
 
 class MergeGroupQualityMeasures(SimpleInterface):
     input_spec = MergeGroupQualityMeasuresInputSpec
     output_spec = MergeGroupQualityMeasuresOutputSpec
+    
 
     def _run_interface(self, runtime):
         self._results['fc_fd_summary'] = self.inputs.fc_fd_summary
         self._results['edges_weight'] = self.inputs.edges_weight
         self._results['edges_weight_clean'] = self.inputs.edges_weight_clean
+        self._results['exclude_list'] = set(chain(*chain(*self.inputs.exclude_list)))
         return runtime
 
 

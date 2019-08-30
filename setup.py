@@ -26,9 +26,10 @@ setuptools.setup(
         "License :: OSI Approved :: Apatche License 2.0",
         "Operating System :: GNU Linux",
     ],
-    packages=setuptools.find_packages(exclude=["*.tests", "*.tests.*", "tests.*", "tests"]),
+    packages=setuptools.find_packages(exclude=["*.tests", "*.tests.*", "tests.*", "tests", "*tests*"]),
     install_requires=get_requirements(),
     data_files=[('fmridenoise/pipelines', list(get_pipelines_paths())),
                 ('fmridenoise/parcellation', parcelation_path),
-                ('fmridenoise/utils/templates', get_all_templates())]
+                ('fmridenoise/utils/templates', get_all_templates())],
+    scripts=['fmridenoise/scripts/fmridenoise']
 )

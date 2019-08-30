@@ -23,9 +23,9 @@ class TestPipelineSummary(ut.TestCase):
                 self.assertEqual(confound["Quadr. terms"], YES)
             elif confound['Confound'] == 'aCompCor':
                 self.assertEqual(confound['Raw'], NO)
-                self.assertEqual(confound["Temp. deriv."], NO)
-                self.assertEqual(confound["Quadr. terms"], NO)
-            elif confound['Confound'] == 'ICA-Aroma':
+                self.assertEqual(confound["Temp. deriv."], NA)
+                self.assertEqual(confound["Quadr. terms"], NA)
+            elif confound['Confound'] == 'ICA-AROMA':
                 self.assertEqual(confound['Raw'], NO)
                 self.assertEqual(confound["Temp. deriv."], NA)
                 self.assertEqual(confound["Quadr. terms"], NA)
@@ -54,9 +54,9 @@ class TestPipelineSummary(ut.TestCase):
                 self.assertEqual(confound["Quadr. terms"], NO)
             elif confound['Confound'] == 'aCompCor':
                 self.assertEqual(confound['Raw'], NO)
-                self.assertEqual(confound["Temp. deriv."], NO)
-                self.assertEqual(confound["Quadr. terms"], NO)
-            elif confound['Confound'] == 'ICA-Aroma':
+                self.assertEqual(confound["Temp. deriv."], NA)
+                self.assertEqual(confound["Quadr. terms"], NA)
+            elif confound['Confound'] == 'ICA-AROMA':
                 self.assertEqual(confound['Raw'], YES)
                 self.assertEqual(confound["Temp. deriv."], NA)
                 self.assertEqual(confound["Quadr. terms"], NA)
@@ -85,9 +85,9 @@ class TestPipelineSummary(ut.TestCase):
                 self.assertEqual(confound["Quadr. terms"], NO)
             elif confound['Confound'] == 'aCompCor':
                 self.assertEqual(confound['Raw'], YES)
-                self.assertEqual(confound["Temp. deriv."], NO)
-                self.assertEqual(confound["Quadr. terms"], NO)
-            elif confound['Confound'] == 'ICA-Aroma':
+                self.assertEqual(confound["Temp. deriv."], NA)
+                self.assertEqual(confound["Quadr. terms"], NA)
+            elif confound['Confound'] == 'ICA-AROMA':
                 self.assertEqual(confound['Raw'], NO)
                 self.assertEqual(confound["Temp. deriv."], NA)
                 self.assertEqual(confound["Quadr. terms"], NA)

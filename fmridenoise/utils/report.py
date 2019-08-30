@@ -1,5 +1,5 @@
 import jinja2
-from os.path import join, dirname, exists
+from os.path import join, dirname, exists, basename
 import glob
 
 YES = '\u2713'
@@ -82,7 +82,9 @@ def create_pipelines_data_dict(data_path: str, pipelines_list: list) -> dict:
     return output
 
 
-def create_report(data_path: str, pipelines_list: list) -> None:
+def create_report(data_path: str, 
+                  pipelines_list: list,
+                  excluded_subjects: list = ()) -> None:
     env = jinja2.Environment(
         loader=jinja2.FileSystemLoader(
             searchpath=join(dirname(__file__), 'templates')))
@@ -93,20 +95,23 @@ def create_report(data_path: str, pipelines_list: list) -> None:
     tpl = env.get_template('report_template.html')
     data_dict = create_pipelines_data_dict(data_path, pipelines_list)
     data_dict['group'] = {}
-    data_dict['group']['img'] = {'Edges_Density': join(data_path, 'pipelines_edges_density.svg'),
-                                 'Edges_Density_No_High_Motion': join(data_path, 'pipelines_edges_density_no_high_motion.svg'),
-                                 'Pipelines_Distance_Dependency': join(data_path, 'pipelines_distance_dependence.svg'),
-                                 'Pipelines_FC_FC_Pearson': join(data_path, 'pipelines_fc_fd_pearson.svg'),
-                                 'Motion_Out': glob.glob(join(data_path, "motion_criterion*"))[0]}
-    html = tpl.render(data_dict, css=css, script=script)
+    data_dict['group']['img'] = {'Edges_Density': 'pipelines_edges_density.svg',
+                                 'Edges_Density_No_High_Motion': 'pipelines_edges_density_no_high_motion.svg',
+                                 'Pipelines_Distance_Dependency': 'pipelines_distance_dependence.svg',
+                                 'Pipelines_FC_FC_Pearson': 'pipelines_fc_fd_pearson.svg',
+                                 'Motion_Out': basename(glob.glob(join(data_path, 'motion_criterion*'))[0]),
+                                 'Tdof_Loss': 'pipelines_tdof_loss.svg'}
+    html = tpl.render(data_dict,                                            excluded_subjects=excluded_subjects,
+                      css=css, 
+                      script=script)
     with open(join(data_path, 'report.html'), 'w') as report_file:
         report_file.write(html)
 
 if __name__ == '__main__':
     from fmridenoise.utils.utils import load_pipeline_from_json
     from fmridenoise.pipelines import get_pipeline_path, get_pipelines_paths
-    path = '/mnt/Data/raport'
+    path = '/home/siegfriedwagner/Music/fmridenoise_output_neuroinformatics'
     # pipelines_list = [load_pipeline_from_json(get_pipeline_path('pipeline-Null')),
     #                   load_pipeline_from_json(get_pipeline_path('pipeline-24HMP_8Phys_SpikeReg'))]
     pipelines_list = [load_pipeline_from_json(pipeline_path) for pipeline_path in get_pipelines_paths()]
-    create_report(path, pipelines_list)
+    create_report(path, pipelines_list, ['sub-46'])

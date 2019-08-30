@@ -1,20 +1,22 @@
 body{
     font-family: 'Helvetica', 'Comic Sans MS';
+    font-size: 1.3em;
 }
 .box {
     display: flex;
     justify-content: space-between;
 }
+p {
+    text-align: justify;
+}
 img {
+    padding-top: 6px;
     display: block;
-    width: 80%;
+    min-width: 900px;
+    max-width: 80%;
     height: auto;
     margin-left: auto;
     margin-right: auto;
-}
-.box img {
-    width: 45%;
-    display: flex;
 }
 .confound_summary {
     border-collapse: collapse;
@@ -27,12 +29,11 @@ table {
     border: 1px solid black;
 }
 .confound_summary td, th {
-    font-size: 1.5em;
     width: 11em;
     padding-top: 0.3em;
 }
 .confound_summary td {
-    font-weight: bolder;
+    font-weight: normal;
     text-align: center;
 }
 .confound_summary .yes {
@@ -49,6 +50,8 @@ table {
     overflow: hidden;
     border: 1px solid #ccc;
     background-color: #f1f1f1;
+    top: 0px;
+    position: sticky;
 }
   
   /* Style the buttons that are used to open the tab content */
@@ -73,12 +76,9 @@ table {
 }
   
   /* Style the tab content */
-  .tabcontent {
+.tabcontent {
     display: block;
-    padding: 6px 12px;
     border: 1px solid #ccc;
     border-top: none;
-}
-#group img {
-    width: 60%;
+    padding: 0 3% 0 3%;
 }

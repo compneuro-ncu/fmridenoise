@@ -10,6 +10,8 @@ class ReportCreatorInputSpec(BaseInterfaceInputSpec):
 
     group_data_dir = Directory(exists=True)
 
+    excluded_subjects = List(Str(), value=())
+
     plot_pipeline_edges_density = File(
         exists=True,
         desc="Density of edge weights (all subjects)"
@@ -38,5 +40,6 @@ class ReportCreator(SimpleInterface):
 
     def _run_interface(self, runtime):
         create_report(self.inputs.group_data_dir,
-                      self.inputs.pipelines)
+                      self.inputs.pipelines,
+                      self.inputs.excluded_subjects)
         return runtime
