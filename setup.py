@@ -15,19 +15,19 @@ def get_requirements() -> list:
 parcelation_path = [get_parcelation_file_path(), get_distance_matrix_file_path()]
 setuptools.setup(
     name="fmridenoise",
-    version="0.1",
+    version="0.1.1",
     author="Karolina Finc, Mateusz Chojnowski, Kamil Bona",
     author_email="karolinafinc@gmail.com, zygfrydwagner@gmail.com, kongokou@gmail.com",
-    short_description="fMRIDenoise - automated denoising, denoising strategies comparison, and functional connectivity data quality control.",
+    description="fMRIDenoise - automated denoising, denoising strategies comparison, and functional connectivity data quality control.",
     long_description=long_description,
     long_description_content_type="text/markdown",
     url="https://github.com/nbraingroup/fmridenoise",
     classifiers=[
-        'Development Status :: Alpha'
-        'Intended Audience :: Scientist',
+        'Development Status :: 3 - Alpha',
+        'Environment :: Console',
+        'Intended Audience :: Science/Research',
         "Programming Language :: Python :: 3",
-        "License :: OSI Approved :: Apatche License 2.0",
-        "Operating System :: GNU Linux",
+        "License :: OSI Approved :: Apache Software License",
     ],
     packages=setuptools.find_packages(exclude=["*.tests", "*.tests.*", "tests.*", "tests", "*tests*"]),
     install_requires=get_requirements(),
