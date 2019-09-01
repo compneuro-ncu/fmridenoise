@@ -3,63 +3,63 @@
 <?xml version="1.0" encoding="utf-8" ?>
 <!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
 <html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en">
-<head>
-<meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
-<title>Fmridenoise report</title>
-<style type="text/css">
-{{css}}
-</style>
-</head>
-<body>
-    <script type="text/javascript">
-        {{ script }}
-    </script>
-    <div class="tab">
-        <button class="tablinks active" onclick="showAll(event)">Show All</button>
-        <button class="tablinks" onclick="openCity(event, 'group')">Group summary</button>
-        {% for pipeline in pipelines %}
-        <button class="tablinks" onclick="openCity(event, '{{ pipeline.name }}')">{{ pipeline.name.replace('_', '+') }}</button>
-        {% endfor %}
-    </div>
-    <div id="group" class="tabcontent">
-        <h1>Group Summary</h1>
-        <img src="{{ group.img.Edges_Density }}" alt="edges density"/>
-        <img src="{{ group.img.Edges_Density_No_High_Motion}}" alt="edges density no high motion"/><br/>
-        <img src="{{ group.img.Pipelines_Distance_Dependency }}" alt="pipeline distance dependency"/><br/>
-        <img src="{{ group.img.Pipelines_FC_FC_Pearson}}" alt="pipelines fc fd pearson"/><br/>  
-        <img style="min-width: 450px; max-width: 40%;" src="{{ group.img.Tdof_Loss }}" alt="tdof loss"/>
-        <img src="{{ group.img.Motion_Out }}" alt="motion out"/>
-        {% if excluded_subjects %}
-        <h2>Excluded subjects:</h2>
+    <head>
+	<meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+	<title>Fmridenoise report</title>
+	<style type="text/css">
+	 {{css}}
+	</style>
+    </head>
+    <body>
+	<script type="text/javascript">
+         {{ script }}
+	</script>
+	<div class="tab">
+            <button class="tablinks active" onclick="showAll(event)">Show All</button>
+            <button class="tablinks" onclick="openCity(event, 'group')">Group summary</button>
+            {% for pipeline in pipelines %}
+            <button class="tablinks" onclick="openCity(event, '{{ pipeline.name }}')">{{ pipeline.name.replace('_', '+') }}</button>
+            {% endfor %}
+	</div>
+	<div id="group" class="tabcontent">
+            <h1>Group Summary</h1>
+            <img src="{{ group.img.Edges_Density }}" alt="edges density"/>
+            <img src="{{ group.img.Edges_Density_No_High_Motion}}" alt="edges density no high motion"/><br/>
+            <img src="{{ group.img.Pipelines_Distance_Dependency }}" alt="pipeline distance dependency"/><br/>
+            <img src="{{ group.img.Pipelines_FC_FC_Pearson}}" alt="pipelines fc fd pearson"/><br/>  
+            <img style="min-width: 450px; max-width: 40%;" src="{{ group.img.Tdof_Loss }}" alt="tdof loss"/>
+            <img src="{{ group.img.Motion_Out }}" alt="motion out"/>
+            {% if excluded_subjects %}
+            <h2>Excluded subjects:</h2>
             {% for excluded in excluded_subjects %}
             {{ excluded }}<br/>
             {% endfor %}
-        {% endif %}
-        <br/>
-    </div>
-    {% for pipeline in pipelines %}
-    <div id="{{ pipeline.name }}" class="tabcontent">
-        <h2>{{ pipeline.name.replace('_', '+') }}</h2><br/>
-        <p>{{ pipeline.description }}</p>
-        <table class="confound_summary">
-            <tr>
-                <th>Confound</th>
-                <th>Original</th> 
-                <th>Temporary derivative</th>
-                <th>Quadratic terms</th>
-            </tr>
-            {% for confound in pipeline.summary %}
-            <tr>
-                {% for value in confound.values() %}
-                <td {{ cell_dict[value] if value in cell_dict.keys() else "" }}>{{ value }}</td>
-                {% endfor %}
-            </tr>
-            {% endfor %}
-        </table>
-        <br/>
-        <img src="{{ pipeline.corelation_matrix_all }}" alt="corelation matrix"/><br/>
-        <img src="{{ pipeline.corelation_matrix_no_high_motion }}" alt="corelation matrix no high motion"/><br/>
-    </div>
-    {% endfor %}
-</body>
-{% endwith %}
+            {% endif %}
+            <br/>
+	</div>
+	{% for pipeline in pipelines %}
+	<div id="{{ pipeline.name }}" class="tabcontent">
+            <h2>{{ pipeline.name.replace('_', '+') }}</h2><br/>
+            <p>{{ pipeline.description }}</p>
+            <table class="confound_summary">
+		<tr>
+                    <th>Confound</th>
+                    <th>Original</th> 
+                    <th>Temporal derivative</th>
+                    <th>Quadratic terms</th>
+		</tr>
+		{% for confound in pipeline.summary %}
+		<tr>
+                    {% for value in confound.values() %}
+                    <td {{ cell_dict[value] if value in cell_dict.keys() else "" }}>{{ value }}</td>
+                    {% endfor %}
+		</tr>
+		{% endfor %}
+            </table>
+            <br/>
+            <img src="{{ pipeline.corelation_matrix_all }}" alt="corelation matrix"/><br/>
+            <img src="{{ pipeline.corelation_matrix_no_high_motion }}" alt="corelation matrix no high motion"/><br/>
+	</div>
+	{% endfor %}
+    </body>
+    {% endwith %}

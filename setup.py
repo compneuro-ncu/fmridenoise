@@ -11,17 +11,20 @@ def get_requirements() -> list:
     with open(join(dirname(__file__), 'requirements.txt'), 'r') as req:
         output = [str(line) for line in req]
         return output
+
 parcelation_path = [get_parcelation_file_path(), get_distance_matrix_file_path()]
 setuptools.setup(
-    name="Fmridenoise",
-    version="0.0.1dev",
-    author=["Karolina Finc", "Kamil Bona", "Mateusz Chojnowski"],
-    author_email="zygfrydwagner@gmail.com",
-    description="A toolbox for fmri data denoising and comparision",
+    name="fmridenoise",
+    version="0.1",
+    author="Karolina Finc, Mateusz Chojnowski, Kamil Bona",
+    author_email="karolinafinc@gmail.com, zygfrydwagner@gmail.com, kongokou@gmail.com",
+    short_description="fMRIDenoise - automated denoising, denoising strategies comparison, and functional connectivity data quality control.",
     long_description=long_description,
     long_description_content_type="text/markdown",
     url="https://github.com/nbraingroup/fmridenoise",
     classifiers=[
+        'Development Status :: Alpha'
+        'Intended Audience :: Scientist',
         "Programming Language :: Python :: 3",
         "License :: OSI Approved :: Apatche License 2.0",
         "Operating System :: GNU Linux",
@@ -30,6 +33,8 @@ setuptools.setup(
     install_requires=get_requirements(),
     data_files=[('fmridenoise/pipelines', list(get_pipelines_paths())),
                 ('fmridenoise/parcellation', parcelation_path),
-                ('fmridenoise/utils/templates', get_all_templates())],
+                ('fmridenoise/utils/templates', get_all_templates()),
+                'README.md',
+                'LICENSE'],
     scripts=['fmridenoise/scripts/fmridenoise']
 )

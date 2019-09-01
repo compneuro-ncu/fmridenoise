@@ -1,7 +1,7 @@
 # fMRIDenoise - automated denoising, denoising strategies comparison, and functional connectivity data quality control.
 
-![](https://zenodo.org/badge/181017876.svg)
-![](https://travis-ci.org/nbraingroup/fmridenoise.svg?branch=master)
+[<img src="https://zenodo.org/badge/181017876.svg">](https://zenodo.org/record/3243178)
+[<img src="https://travis-ci.org/nbraingroup/fmridenoise.svg?branch=master">](https://travis-ci.org/nbraingroup/fmridenoise)
    
 Tool for automatic denoising, denoising strategies comparisons,
 and functional connectivity data quality control.
@@ -11,54 +11,69 @@ FMRIDenoise is designed to work directly on [fMRIPrep](https://fmriprep.readthed
 data in [BIDS](https://bids.neuroimaging.io/) standard.
 We believe that the tool can make the selection of the denoising strategy more objective and also help researchers to obtain FC quality control metrics with almost no effort.
 
+**The project is in alpha stage and we are looking for feedback and collaborators.**
+
 Problem
-============
+=======
 
 ![Alt text](docs/fmridenoise_problem.png?raw=true "Title")
 
 Solution
-============
+========
+
 ![Alt text](docs/fmridenoise_solution.png?raw=true "Title")
 
 Installation
 ============
 
-**Run:**
+**In a project directory run:**
 
     python setup.py install (--user)
 
-Currently there is no fmridenoise version available in PyPi.
+**To install fmriprep from PyPi run:**
+    
+    pip install fmridenoise (--user)
 
 Execution
 =========
 
-**python -m fmridenoise**
+**fmridenoise or python -m fmridenoise**
+
+    usage: fmridenoise [-h] [-sub SUBJECTS [SUBJECTS ...]]
+                    [-ses SESSIONS [SESSIONS ...]] [-t TASKS [TASKS ...]]
+                    [-p PIPELINES [PIPELINES ...]]
+                    [-d DERIVATIVES [DERIVATIVES ...]] [--high-pass HIGH_PASS]
+                    [--low-pass LOW_PASS] [--MultiProc] [--profiler PROFILER]
+                    [-g] [--graph GRAPH] [--dry]
+                    bids_dir
 
     positional arguments:
-    bids_dir              Path do preprocessed BIDS dataset.
+    bids_dir                Path do preprocessed BIDS dataset.
 
     optional arguments:
-    -h, --help            show this help message and exit
-    -g, --debug           Run fmridenoise in debug mode
-    --graph GRAPH         Create workflow graph at given path
+    -h, --help              Show help message and exit.
+    -sub SUBJECTS [SUBJECTS ...], --subjects SUBJECTS [SUBJECTS ...]
+                            List of subjects
+    -ses SESSIONS [SESSIONS ...], --sessions SESSIONS [SESSIONS ...]
+                            List of session numbers, separated with spaces.
+    -t TASKS [TASKS ...], --tasks TASKS [TASKS ...]
+                            List of tasks names, separated with spaces.
+    -p PIPELINES [PIPELINES ...], --pipelines PIPELINES [PIPELINES ...]
+                            Name of pipelines used for denoising, can be both
+                            paths to json files with pipeline or name of pipelines
+                            from package.
     -d DERIVATIVES [DERIVATIVES ...], --derivatives DERIVATIVES [DERIVATIVES ...]
                             Name (or list) of derivatives for which fmridenoise
                             should be run. By default workflow looks for fmriprep
                             dataset.
-    -sub SUBJECTS [SUBJECTS ...], --subjects SUBJECTS [SUBJECTS ...]
-                            List of subjects
-    -ses SESSIONS [SESSIONS ...], --sessions SESSIONS [SESSIONS ...]
-                            List of session numbers
-    -t TASKS [TASKS ...], --tasks TASKS [TASKS ...]
-                            List of tasks names
-    -p PIPELINES [PIPELINES ...], --pipelines PIPELINES [PIPELINES ...]
-                            Name of pipelines used for denoising
-    --high_pass HIGH_PASS
-                            High pass filter value
-    --low_pass LOW_PASS   Low pass filter value
-    --MultiProc           EXPERIMENTAL: Run script on multiple processors,
-                            default False
-    --profiler PROFILER   Run profiler along workflow execution to estimate
+    --high-pass HIGH_PASS
+                            High pass filter value, deafult 0.008.
+    --low-pass LOW_PASS     Low pass filter value, default 0.08
+    --MultiProc             Run script on multiple processors, default False
+    --profiler PROFILER     Run profiler along workflow execution to estimate
                             resources usage PROFILER is path to output log file.
-    --dry                 Perform everything but do not run workflow
+    -g, --debug             Run fmridenoise in debug mode - richer output, stops
+                            on first unchandled exception.
+    --graph GRAPH           Create workflow graph at GRAPH path
+    --dry                   Perform everything except actually running workflow
                                     

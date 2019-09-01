@@ -14,6 +14,8 @@ from fmridenoise.pipelines import (get_pipelines_paths,
                                    get_pipelines_names,
                                    get_pipeline_path)
 
+HIGH_PASS_DEFAULT = 0.008
+LOW_PASS_DEFAULT = 0.08
 
 def get_parser() -> argparse.ArgumentParser:
     """
@@ -23,17 +25,6 @@ def get_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser()
     parser.add_argument("bids_dir",
                         help="Path do preprocessed BIDS dataset.")
-    parser.add_argument("-g", "--debug",
-                        help="Run fmridenoise in debug mode",
-                        action="store_true")
-    parser.add_argument("--graph",
-                        type=str,
-                        help="Create workflow graph at given path")
-    parser.add_argument("-d", "--derivatives",
-                        nargs="+",
-                        default=['fmriprep'],
-                        help="Name (or list) of derivatives for which fmridenoise should be run.\
-                        By default workflow looks for fmriprep dataset.")
     parser.add_argument('-sub', "--subjects",
                         nargs='+',
                         default=[],
@@ -41,23 +32,28 @@ def get_parser() -> argparse.ArgumentParser:
     parser.add_argument('-ses', "--sessions",
                         nargs='+',
                         default=[],
-                        help="List of session numbers")
+                        help="List of session numbers, separated with spaces.")
     parser.add_argument('-t', "--tasks",
                         nargs="+",
                         default=[],
-                        help="List of tasks names")
+                        help="List of tasks names, separated with spaces.")
     parser.add_argument("-p", "--pipelines",
                         nargs='+',
-                        help='Name of pipelines used for denoising',
+                        help='Name of pipelines used for denoising, can be both paths to json files with pipeline or name of pipelines from package.',
                         default="all")
-    parser.add_argument("--high_pass",
+    parser.add_argument("-d", "--derivatives",
+                        nargs="+",
+                        default=['fmriprep'],
+                        help="Name (or list) of derivatives for which fmridenoise should be run.\
+                        By default workflow looks for fmriprep dataset.")
+    parser.add_argument("--high-pass",
                         type=float,
-                        default=0.008,
-                        help="High pass filter value")
-    parser.add_argument("--low_pass",
+                        default=HIGH_PASS_DEFAULT,
+                        help=f"High pass filter value, deafult {HIGH_PASS_DEFAULT}.")
+    parser.add_argument("--low-pass",
                         type=float,
-                        default=0.08,
-                        help="Low pass filter value")
+                        default=LOW_PASS_DEFAULT,
+                        help=f"Low pass filter value, default {LOW_PASS_DEFAULT}")
     parser.add_argument("--MultiProc",
                         help="Run script on multiple processors, default False",
                         action="store_true",
@@ -66,6 +62,12 @@ def get_parser() -> argparse.ArgumentParser:
                         type=str,
                         help="Run profiler along workflow execution to estimate resources usage \
                         PROFILER is path to output log file.")
+    parser.add_argument("-g", "--debug",
+                        help="Run fmridenoise in debug mode - richer output, stops on first unchandled exception.",
+                        action="store_true")
+    parser.add_argument("--graph",
+                        type=str,
+                        help="Create workflow graph at GRAPH path")
     parser.add_argument("--dry",
                         help="Perform everything except actually running workflow",
                         action="store_true",
