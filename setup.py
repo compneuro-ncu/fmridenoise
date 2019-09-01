@@ -35,6 +35,7 @@ setuptools.setup(
                 ('fmridenoise/parcellation', parcelation_path),
                 ('fmridenoise/utils/templates', get_all_templates()),
                 'README.md',
-                'LICENSE'],
+                'LICENSE',
+                'requirements.txt'],
     scripts=['fmridenoise/scripts/fmridenoise']
 )
