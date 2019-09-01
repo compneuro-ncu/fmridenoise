@@ -30,7 +30,7 @@ Installation
 
     python setup.py install (--user)
 
-**To install fmriprep from PyPi run:**
+**To install fmridenoise from PyPi run:**
     
     pip install fmridenoise (--user)
 
