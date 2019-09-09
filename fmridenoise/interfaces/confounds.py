@@ -79,9 +79,14 @@ class Confounds(SimpleInterface):
         max_fd = conf_df_raw["framewise_displacement"].max()
         n_timepoints = len(conf_df_raw)
 
+        try:
+            session = self.inputs.entities['session']
+        except KeyError:
+            session = 0
+
         conf_summary = {
                         "subject": [self.inputs.entities['subject']],
-                        "session": [self.inputs.entities['session']],
+                        "session": [session],
                         "task": [self.inputs.entities['task']],
                         "mean_fd": [mean_fd],
                         "max_fd": [max_fd],
