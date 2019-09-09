@@ -360,11 +360,16 @@ class BIDSDataSink(IOBase):
 
         out_files = []
         for entity, in_file in zip(self.inputs.entities, self.inputs.in_file):
-            sub_num = entity['subject']  # TODO: Add support for sessions
-            session_num = entity[
-                'session']  # TODO: Add conditionals if no sessions
+            sub_num = entity['subject']
             basedir, basename, ext = split_filename(in_file)
-            path = f"{base_dir}/derivatives/fmridenoise/sub-{sub_num}/ses-{session_num}"
+            sub_deriv_dir = f"/derivatives/fmridenoise/sub-{sub_num}/"
+
+            try:
+                session_num = entity['session']
+                path = f"{base_dir}{sub_deriv_dir}ses-{session_num}"
+            except KeyError:
+                path = f"{base_dir}/{sub_deriv_dir}"
+
             os.makedirs(path, exist_ok=True)
             out_fname = f"{path}/{basename}{ext}"
             copyfile(in_file, out_fname, copy=True)
@@ -376,15 +381,13 @@ class BIDSDataSink(IOBase):
 
 if __name__ == '__main__':
 
-    bids_dir = '/media/finc/Elements/fMRIDenoise_data/BIDS_LearningBrain_short/'
-    task = ['rest']
-    session = ['1']
+    bids_dir = '/media/finc/Elements/fMRIDenoise_data/BIDS_ds000003-00001/'
+    #task = ['rest']
+    #session = ['1']
     ica_aroma = True
 
     grabber = BIDSGrab(
         bids_dir=bids_dir,
-        task=task,
-        session=session,
         ica_aroma=ica_aroma
     )
 
