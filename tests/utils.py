@@ -77,8 +77,8 @@ def copy_as_dummy_dataset(source_bids_dir: str, new_path: str, ext_to_copy=tuple
         new_path {str} -- destination of new dummy dataset
     
     Keyword Arguments:
-        ext_to_copy {touple or str} -- files with given extensions
-        will be copied insted of empty (default: {tuple()})
+        ext_to_copy {tuple or str} -- files with given extensions
+        will be copied instead of empty (default: {tuple()})
     
     Returns:
         None
@@ -87,7 +87,8 @@ def copy_as_dummy_dataset(source_bids_dir: str, new_path: str, ext_to_copy=tuple
     if type(ext_to_copy) is str:
         ext_to_copy = (ext_to_copy,)
     source_bids_dir = os.path.abspath(source_bids_dir)
-    os.makedirs(new_path)
+    if not os.path.isdir(newdir):
+        os.makedirs(new_path)
     for root, dirs, files in os.walk(source_bids_dir, topdown=True):
         rel_root = os.path.relpath(root, source_bids_dir)
         rel_root = rel_root.strip(".")
@@ -104,6 +105,7 @@ def copy_as_dummy_dataset(source_bids_dir: str, new_path: str, ext_to_copy=tuple
                 open(os.path.join(new_root, name), 'w').close()
 
 if __name__ == '__main__':
+
     import argparse
     parser = argparse.ArgumentParser()
     parser.add_argument("bids_dir",
@@ -115,6 +117,8 @@ if __name__ == '__main__':
                         default=['.json'],
                         help="Extensions of files that should be copied instead of creating dummy")
     args = parser.parse_args()
+
     copy_as_dummy_dataset(source_bids_dir=args.bids_dir,
                           new_path=args.target_directory,
                           ext_to_copy=args.copy)
+
