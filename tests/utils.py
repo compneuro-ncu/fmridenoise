@@ -4,10 +4,10 @@ import json
 import shutil
 import nipype as ni
 
-def create_dummy_bids(root: str, subjetcts: int, sessions: int,        
+def create_dummy_bids(root: str, subjects: int, sessions: int,
                       derivatives: list=[], tasks: list=[],
                       *args: callable) -> None:  # TODO: Finish or delete
-    subfill = math.floor(math.log10(subjetcts))+1
+    subfill = math.floor(math.log10(subjects))+1
     if sessions != 0: 
         sesfill = math.floor(math.log10(sessions))+1
     os.makedirs(root, exist_ok=True)
@@ -19,7 +19,7 @@ def create_dummy_bids(root: str, subjetcts: int, sessions: int,
         deriv_path = os.path.join(root_withderr, deriv)
         os.makedirs(deriv_path)
         create_dummy_data_description(deriv_path)
-        for sub_num in range(1, subjetcts+1):
+        for sub_num in range(1, subjects+1):
             sub_path = os.path.join(deriv_path, f"sub-{str(sub_num).zfill(subfill)}")
             os.makedirs(sub_path)
             if sessions != 0:
@@ -87,7 +87,7 @@ def copy_as_dummy_dataset(source_bids_dir: str, new_path: str, ext_to_copy=tuple
     if type(ext_to_copy) is str:
         ext_to_copy = (ext_to_copy,)
     source_bids_dir = os.path.abspath(source_bids_dir)
-    if not os.path.isdir(newdir):
+    if not os.path.isdir(new_path):
         os.makedirs(new_path)
     for root, dirs, files in os.walk(source_bids_dir, topdown=True):
         rel_root = os.path.relpath(root, source_bids_dir)
