@@ -201,6 +201,7 @@ class BIDSGrab(SimpleInterface):  # TODO: update documentation
             validate=True,
             index_metadata=False
         )
+        print(*layout.get(), sep='\n')
 
         # Validate optional arguments
         filter_base = {}
@@ -280,9 +281,11 @@ class BIDSGrab(SimpleInterface):  # TODO: update documentation
             filter_fmri_tr = filter_fmri.copy()
             filter_fmri_tr['task'] = t
 
-            example_file = layout_for_tr.get(**filter_fmri_tr)[0]
+            try:
+                example_file = layout_for_tr.get(**filter_fmri_tr)[0]
+            except IndexError:
+                raise MissingFile(f"no imaging file found for task {t}")
             tr_dict[t] = layout_for_tr.get_metadata(example_file.path)['RepetitionTime']
-            # tr_dict[t] = 2
 
         self._results['fmri_prep'] = [file.path for file in fmri_prep]
         if self.inputs.ica_aroma:
@@ -341,9 +344,7 @@ class BIDSDataSink(IOBase):
 # --- TESTS
 if __name__ == '__main__':
 
-    bids_dir = "./../../tests/interfaces/bids_grab/decidenet_fmriprep_dummy"
-    task = ['prlrew']
-    subject = ['m03', 'm04']
+    bids_dir = "./../../tests/interfaces/bids_grab/ds000003-00001_dummy"
 
     grabber = BIDSGrab(bids_dir=bids_dir)
     result = grabber.run()
