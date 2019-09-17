@@ -201,7 +201,6 @@ class BIDSGrab(SimpleInterface):  # TODO: update documentation
             validate=True,
             index_metadata=False
         )
-        print(*layout.get(), sep='\n')
 
         # Validate optional arguments
         filter_base = {}
@@ -223,12 +222,14 @@ class BIDSGrab(SimpleInterface):  # TODO: update documentation
         filter_fmri = {
             'extension': ['nii', 'nii.gz'],
             'suffix': 'bold',
-            'desc': 'preproc'
+            'desc': 'preproc',
+            'space': 'MNI152NLin2009cAsym'
         }
         filter_fmri_aroma = {
             'extension': ['nii', 'nii.gz'],
             'suffix': 'bold',
             'desc': 'smoothAROMAnonaggr',
+            'space': 'MNI152NLin2009cAsym'
         }
         filter_conf = {
             'extension': 'tsv',
@@ -251,6 +252,9 @@ class BIDSGrab(SimpleInterface):  # TODO: update documentation
             fmri_prep_aroma = layout.get(scope=scope, **filter_fmri_aroma)
         conf_raw = layout.get(scope=scope, **filter_conf)
         conf_json = layout.get(scope=scope, **filter_conf_json)
+
+        print('fmri_prep', fmri_prep)
+        print('conf_raw', conf_raw)
 
         # Validate correspondence between queried files
         entities = []
