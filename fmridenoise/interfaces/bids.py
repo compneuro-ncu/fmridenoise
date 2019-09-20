@@ -253,9 +253,6 @@ class BIDSGrab(SimpleInterface):  # TODO: update documentation
         conf_raw = layout.get(scope=scope, **filter_conf)
         conf_json = layout.get(scope=scope, **filter_conf_json)
 
-        print('fmri_prep', fmri_prep)
-        print('conf_raw', conf_raw)
-
         # Validate correspondence between queried files
         entities = []
         for i, fmri_file in enumerate(fmri_prep):
