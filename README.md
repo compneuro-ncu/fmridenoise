@@ -43,7 +43,7 @@ Execution
                     [-ses SESSIONS [SESSIONS ...]] [-t TASKS [TASKS ...]]
                     [-p PIPELINES [PIPELINES ...]]
                     [-d DERIVATIVES [DERIVATIVES ...]] [--high-pass HIGH_PASS]
-                    [--low-pass LOW_PASS] [--MultiProc] [--profiler PROFILER]
+                    [--low-pass LOW_PASS] [--use-aroma] [--MultiProc] [--profiler PROFILER]
                     [-g] [--graph GRAPH] [--dry]
                     bids_dir
 
@@ -69,6 +69,7 @@ Execution
     --high-pass HIGH_PASS
                             High pass filter value, deafult 0.008.
     --low-pass LOW_PASS     Low pass filter value, default 0.08
+    --use-aroma             Run denoising pipelines based on ICA-AROMA, default False
     --MultiProc             Run script on multiple processors, default False
     --profiler PROFILER     Run profiler along workflow execution to estimate
                             resources usage PROFILER is path to output log file.
