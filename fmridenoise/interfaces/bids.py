@@ -345,7 +345,7 @@ class BIDSDataSink(IOBase):
 # --- TESTS
 if __name__ == '__main__':
 
-    bids_dir = "./../../tests/interfaces/bids_grab/ds000003-00001_dummy"
+    bids_dir = "/media/finc/Elements/fMRIDenoise_data/BIDS_LearningBrain_short_no_ICA/"
 
     grabber = BIDSGrab(bids_dir=bids_dir)
     result = grabber.run()

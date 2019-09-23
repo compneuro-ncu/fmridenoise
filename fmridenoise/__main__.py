@@ -17,6 +17,7 @@ from fmridenoise.pipelines import (get_pipelines_paths,
 HIGH_PASS_DEFAULT = 0.008
 LOW_PASS_DEFAULT = 0.08
 
+
 def get_parser() -> argparse.ArgumentParser:
     """
     Creates parser for main script.
@@ -54,6 +55,10 @@ def get_parser() -> argparse.ArgumentParser:
                         type=float,
                         default=LOW_PASS_DEFAULT,
                         help=f"Low pass filter value, default {LOW_PASS_DEFAULT}")
+    parser.add_argument("--no-ica-aroma",
+                        help="Skip ICA-AROMA pipelines, default True",
+                        action="store_false",
+                        default=True)
     parser.add_argument("--MultiProc",
                         help="Run script on multiple processors, default False",
                         action="store_true",
@@ -145,7 +150,8 @@ def main() -> None:
                                    task=args.tasks,
                                    pipelines_paths=pipelines,
                                    high_pass=args.high_pass,
-                                   low_pass=args.low_pass)
+                                   low_pass=args.low_pass,
+                                   ica_aroma=args.no_ica_aroma)
     # creating graph from workflow
     if args.graph is not None:
         try:  # TODO: Look for pydot/dot and add to requirements

@@ -77,6 +77,14 @@ def init_fmridenoise_wf(bids_dir,
     # 4) --- Denoising
 
     # Inputs: conf_prep, low_pass, high_pass
+
+    iterate = ['fmri_prep', 'conf_prep', 'entities']
+
+    if not ica_aroma:
+        iterate = iterate
+    else:
+        iterate.append('fmri_prep_aroma')
+
     denoise = pe.MapNode(
         Denoise(
             smoothing=smoothing,
@@ -85,7 +93,7 @@ def init_fmridenoise_wf(bids_dir,
             ica_aroma=ica_aroma,
             output_dir=temps.mkdtemp('denoise')
         ),
-        iterfield=['fmri_prep', 'fmri_prep_aroma', 'conf_prep', 'entities'],
+        iterfield=iterate,
         name="Denoiser", mem_gb=6)
 
     # Outputs: fmri_denoised
