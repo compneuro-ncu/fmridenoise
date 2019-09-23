@@ -7,10 +7,6 @@ import os
 
 class PipelineSelectorInputSpecification(BaseInterfaceInputSpec):
     pipeline_path = File(exists=True)
-    ica_aroma = traits.Bool(
-        mandatory=False,
-        desc='Select ICA-AROMA pipeline'
-    )
 
 
 class PipelineSelectorOutPutSpecification(TraitedSpec):
