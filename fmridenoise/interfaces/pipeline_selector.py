@@ -7,13 +7,15 @@ import os
 
 class PipelineSelectorInputSpecification(BaseInterfaceInputSpec):
     pipeline_path = File(exists=True)
+    ica_aroma = traits.Bool(
+        mandatory=False,
+        desc='Select ICA-AROMA pipeline'
+    )
 
 
 class PipelineSelectorOutPutSpecification(TraitedSpec):
     pipeline = Dict(items=True)
     pipeline_name = Str(desc="Name of denoising strategy")
-    #high_pass = Float(desc="High-pass filter")
-    #low_pass = Float(desc="Low-pass filter")
 
 
 class PipelineSelector(SimpleInterface):
@@ -27,10 +29,9 @@ class PipelineSelector(SimpleInterface):
             Json file {} is not a valid pipeline, 
             check schema at fmridenoise.utils.json_validator.py
             """.format(os.path.basename(self.inputs.pipeline_path)))
+
         self._results['pipeline'] = js
         self._results['pipeline_name'] = js['name']
-        #self._results['high_pass'] = js['filter']['high_pass']
-        #self._results['low_pass'] = js['filter']['low_pass']
 
         return runtime
 

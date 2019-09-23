@@ -82,10 +82,12 @@ class Denoise(SimpleInterface):
         pipeline_aroma = self.inputs.pipeline['aroma']
         img = nb.load(self.inputs.fmri_prep)
 
-        if self.inputs.ica_aroma:
+        if pipeline_aroma:
+            if not self.inputs.fmri_prep_aroma:
+                raise ValueError("No ICA-AROMA files found")
+
             img_aroma = nb.load(self.inputs.fmri_prep_aroma)
-            if pipeline_aroma:
-                img = img_aroma
+            img = img_aroma
 
         # Handle possibility of null pipeline
         try:
