@@ -55,10 +55,10 @@ def get_parser() -> argparse.ArgumentParser:
                         type=float,
                         default=LOW_PASS_DEFAULT,
                         help=f"Low pass filter value, default {LOW_PASS_DEFAULT}")
-    parser.add_argument("--no-ica-aroma",
-                        help="Skip ICA-AROMA pipelines, default True",
-                        action="store_false",
-                        default=True)
+    parser.add_argument("--use-aroma",
+                        help="Skip ICA-AROMA pipelines, default False",
+                        action="store_true",
+                        default=False)
     parser.add_argument("--MultiProc",
                         help="Run script on multiple processors, default False",
                         action="store_true",
@@ -151,7 +151,7 @@ def main() -> None:
                                    pipelines_paths=pipelines,
                                    high_pass=args.high_pass,
                                    low_pass=args.low_pass,
-                                   ica_aroma=args.no_ica_aroma)
+                                   ica_aroma=args.use_aroma)
     # creating graph from workflow
     if args.graph is not None:
         try:  # TODO: Look for pydot/dot and add to requirements

@@ -34,7 +34,7 @@ def validate_derivatives(bids_dir, derivatives):
 
     # Create full paths to derivatives folders
     derivatives_valid = [os.path.join(bids_dir, 'derivatives', d)
-                    for d in derivatives_valid]
+                         for d in derivatives_valid]
 
     # Establish right scope keyword for arbitrary packages
     scope = []
@@ -119,7 +119,8 @@ class BIDSGrabInputSpec(BaseInterfaceInputSpec):
         default='fmriprep',
         usedefault=True,
         mandatory=False,
-        desc='Specifies which derivatives to to index')
+        desc='Specifies which derivatives to to index'
+    )
     task = InputMultiObject(
         Str,
         mandatory=False,
@@ -250,6 +251,9 @@ class BIDSGrab(SimpleInterface):  # TODO: update documentation
         fmri_prep = layout.get(scope=scope, **filter_fmri)
         if self.inputs.ica_aroma:
             fmri_prep_aroma = layout.get(scope=scope, **filter_fmri_aroma)
+            if not fmri_prep_aroma:
+                raise MissingFile("ICA-AROMA files not found in BIDS directory")
+
         conf_raw = layout.get(scope=scope, **filter_conf)
         conf_json = layout.get(scope=scope, **filter_conf_json)
 
@@ -258,7 +262,7 @@ class BIDSGrab(SimpleInterface):  # TODO: update documentation
         for i, fmri_file in enumerate(fmri_prep):
 
             # reference common entities for preprocessed files
-            if self.inputs.ica_aroma:
+            if self.inputs.ica_aroma and fmri_prep_aroma:
                 compare_common_entities(fmri_file, fmri_prep_aroma[i])
             compare_common_entities(fmri_file, conf_raw[i])
             compare_common_entities(fmri_file, conf_json[i])
@@ -289,6 +293,7 @@ class BIDSGrab(SimpleInterface):  # TODO: update documentation
             tr_dict[t] = layout_for_tr.get_metadata(example_file.path)['RepetitionTime']
 
         self._results['fmri_prep'] = [file.path for file in fmri_prep]
+
         if self.inputs.ica_aroma:
             self._results['fmri_prep_aroma'] = [file.path for file in fmri_prep_aroma]
         self._results['conf_raw'] = [file.path for file in conf_raw]
@@ -346,8 +351,9 @@ class BIDSDataSink(IOBase):
 if __name__ == '__main__':
 
     bids_dir = "/media/finc/Elements/fMRIDenoise_data/BIDS_LearningBrain_short_no_ICA/"
+    ica_aroma = True
 
-    grabber = BIDSGrab(bids_dir=bids_dir)
+    grabber = BIDSGrab(bids_dir=bids_dir, ica_aroma=ica_aroma)
     result = grabber.run()
 
     print(result.outputs)

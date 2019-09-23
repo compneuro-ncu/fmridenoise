@@ -21,6 +21,8 @@ logger = logging.getLogger("runtime")
 handler = logging.FileHandler("./runtime.log")
 logger.setLevel(logging.DEBUG)
 logger.addHandler(handler)
+
+
 def init_fmridenoise_wf(bids_dir,
                         derivatives='fmriprep',
                         task=[],
@@ -28,12 +30,11 @@ def init_fmridenoise_wf(bids_dir,
                         subject=[],
                         pipelines_paths=get_pipelines_paths(),
                         smoothing=True,
-                        ica_aroma=True,
+                        ica_aroma=False,
                         high_pass=0.008,
                         low_pass=0.08,
                         # desc=None,
                         # ignore=None, force_index=None,
-                        # model=None, participants=None,
                         base_dir='/tmp/fmridenoise', name='fmridenoise_wf'
                         ):
     workflow = pe.Workflow(name=name, base_dir=base_dir)
@@ -77,9 +78,7 @@ def init_fmridenoise_wf(bids_dir,
     # 4) --- Denoising
 
     # Inputs: conf_prep, low_pass, high_pass
-
     iterate = ['fmri_prep', 'conf_prep', 'entities']
-
     if not ica_aroma:
         iterate = iterate
     else:
@@ -95,7 +94,6 @@ def init_fmridenoise_wf(bids_dir,
         ),
         iterfield=iterate,
         name="Denoiser", mem_gb=6)
-
     # Outputs: fmri_denoised
 
     # 5) --- Connectivity estimation
