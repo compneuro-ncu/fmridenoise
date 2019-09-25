@@ -92,7 +92,7 @@ def parse_pipelines(pipelines_args: str or set = "all", use_aroma=False) -> set:
         if pipelines_args != "all":
             raise ValueError("Only valid string argument is 'all'")
         elif pipelines_args == 'all' and use_aroma == False: 
-            return set([p for p in get_pipelines_names() if 'ICA-AROMA' not in p])
+            return set([p for p in get_pipelines_paths() if 'ICA-AROMA' not in p])
         else:
             return get_pipelines_paths()
     known_pipelines = get_pipelines_names()
