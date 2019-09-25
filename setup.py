@@ -10,7 +10,7 @@ with open("README.md", "r") as fh:
 
 def get_requirements() -> list:
     return ['nibabel>=2.0',
-            'seaborn>=0.7.1',
+            'seaborn>=0.9.0',
             'numpy>=1.11',
             'nilearn>=0.4.0',
             'pandas>=0.19',
