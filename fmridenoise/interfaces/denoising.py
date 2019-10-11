@@ -59,11 +59,6 @@ class DenoiseInputSpec(BaseInterfaceInputSpec):
         desc='Optional smoothing'
     )
 
-    ica_aroma = traits.Bool(
-        mandatory=False,
-        desc='ICA-Aroma files exists'
-    )
-
 class DenoiseOutputSpec(TraitedSpec):
     fmri_denoised = File(
         exists=True,
