@@ -19,7 +19,19 @@ class DenoiseInputSpec(BaseInterfaceInputSpec):
         mandatory=False,
         exists=True,
         desc='ICA-Aroma preprocessed fMRI file',
+<<<<<<< HEAD
         )
+=======
+        mandatory=False
+    )
+
+    # fmri_mask = ImageFile(
+    #     exists=True,
+    #     desc='Brain mask',
+    #     mandatory=True
+    # )
+
+>>>>>>> 9419e0c (Denoising TODOs)
     conf_prep = File(
         mandatory=True,
         exists=True,
