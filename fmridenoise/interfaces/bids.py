@@ -350,7 +350,7 @@ class BIDSDataSink(IOBase):
 # --- TESTS
 if __name__ == '__main__':
 
-    bids_dir = "/media/finc/Elements/fMRIDenoise_data/BIDS_LearningBrain_short_no_ICA/"
+    bids_dir = "/media/finc/Elements/fMRIDenoise_data/BIDS_LearningBrain_short/"
     ica_aroma = True
 
     grabber = BIDSGrab(bids_dir=bids_dir, ica_aroma=ica_aroma)

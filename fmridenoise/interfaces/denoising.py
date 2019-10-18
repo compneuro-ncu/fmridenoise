@@ -21,6 +21,12 @@ class DenoiseInputSpec(BaseInterfaceInputSpec):
         mandatory=False
     )
 
+    # fmri_mask = ImageFile(
+    #     exists=True,
+    #     desc='Brain mask',
+    #     mandatory=True
+    # )
+
     conf_prep = File(
         exists=True,
         desc="Confound file",
@@ -59,12 +65,14 @@ class DenoiseInputSpec(BaseInterfaceInputSpec):
         desc='Optional smoothing'
     )
 
+
 class DenoiseOutputSpec(TraitedSpec):
     fmri_denoised = File(
         exists=True,
         desc='Denoised fMRI file',
         mandatory=True
     )
+
 
 class Denoise(SimpleInterface):
     input_spec = DenoiseInputSpec
@@ -112,7 +120,7 @@ class Denoise(SimpleInterface):
             high_pass=self.inputs.high_pass,
             low_pass=self.inputs.low_pass,
             t_r=tr
-        )
+        ) # TODO: Add masking: mask_img
 
         _, base, _ = split_filename(self.inputs.fmri_prep)
         denoised_file = f'{self.inputs.output_dir}/{base}_denoised_pipeline-{pipeline_name}.nii.gz'
