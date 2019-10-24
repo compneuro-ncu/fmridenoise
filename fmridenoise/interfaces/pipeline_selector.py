@@ -1,5 +1,5 @@
 from nipype.interfaces.base import SimpleInterface, BaseInterfaceInputSpec, TraitedSpec
-from traits.trait_types import List, Dict, File, Str, Float
+from traits.trait_types import List, Dict, File, Str, Float, Bool
 from fmridenoise.utils.utils import load_pipeline_from_json
 from fmridenoise.utils.json_validator import is_valid
 import os
@@ -7,7 +7,6 @@ import os
 
 class PipelineSelectorInputSpecification(BaseInterfaceInputSpec):
     pipeline_path = File(exists=True)
-
 
 class PipelineSelectorOutPutSpecification(TraitedSpec):
     pipeline = Dict(items=True)

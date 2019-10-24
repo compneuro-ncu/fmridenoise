@@ -22,8 +22,8 @@ class ConfoundsInputSpec(BaseInterfaceInputSpec):
     entities = traits.Dict(
         usedefault=True,
         desc='Per-file entities to include in filename')
-    output_dir = File(          # needed to save data in other directory
-        desc="Output path")     # TODO: Implement temp dir
+    output_dir = File(          
+        desc="Output path")
 
 
 class ConfoundsOutputSpec(TraitedSpec):

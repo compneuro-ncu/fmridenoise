@@ -1,6 +1,7 @@
 from nipype.pipeline import engine as pe
-
-from fmridenoise.interfaces.bids import BIDSGrab, BIDSDataSink
+from nipype import Node, SelectFiles, IdentityInterface, Function
+from fmridenoise.interfaces.smoothing import Smooth
+from fmridenoise.interfaces.bids import BIDSGrab, BIDSDataSink, BIDSSelect
 from fmridenoise.interfaces.confounds import Confounds, GroupConfounds
 from fmridenoise.interfaces.denoising import Denoise
 from fmridenoise.interfaces.connectivity import Connectivity, GroupConnectivity
@@ -33,14 +34,19 @@ def init_fmridenoise_wf(bids_dir,
                         ica_aroma=False,
                         high_pass=0.008,
                         low_pass=0.08,
-                        # desc=None,
-                        # ignore=None, force_index=None,
-                        base_dir='/tmp/fmridenoise', name='fmridenoise_wf'
-                        ):
+                        base_dir='/tmp/fmridenoise', 
+                        name='fmridenoise_wf'):
+
+    bids_select = BIDSSelect(bids_dir=bids_dir,
+                             derivatives=derivatives,
+                             task=task,
+                             session=session,
+                             subject=subject,
+                             ica_aroma=ica_aroma)
     workflow = pe.Workflow(name=name, base_dir=base_dir)
     temps.base_dir = base_dir
 
-    # 1) --- Selecting pipeline
+    # 1) --- Itersources for all further processing
 
     # Inputs: fulfilled
     pipelineselector = pe.Node(
@@ -49,51 +55,72 @@ def init_fmridenoise_wf(bids_dir,
     pipelineselector.iterables = ('pipeline_path', pipelines_paths)
     # Outputs: pipeline, pipeline_name, low_pass, high_pass
 
-    # 2) --- Loading BIDS structure
+    # Inputs: fulfilled
+    subjectselector = Node(
+        IdentityInterface(
+            fields=['subject']),
+        name="SubjectSelector")
+    subjectselector.iterables = ('subject', bids_select.subject)
+    # Outputs: subject
 
-    # Inputs: directory, task, derivatives
-    grabbing_bids = pe.Node(
+    # Inputs: fulfilled
+    taskselector = Node(
+        IdentityInterface(
+            fields=['task']),
+        name="TaskSelector")
+    taskselector.iterables = ('task', bids_select.task)
+    # Outputs: task
+
+    # Inputs: fulfilled
+    sessionselector = Node(
+        IdentityInterface(
+            fields=['session']),
+        name="SessionSelector")
+    sessionselector.iterables = ('session', bids_select.session)
+    # Outputs: session
+
+    # 2) --- Loading BIDS files
+
+    # Inputs: subject, session, task
+    bidsgrabber = Node(
         BIDSGrab(
-            bids_dir=bids_dir,
-            derivatives=derivatives,
-            task=task,
-            session=session,
-            subject=subject,
-            ica_aroma=ica_aroma
-        ),
+            layout=bids_select.layout,
+            scope=bids_select.scope,
+            tr_dict=bids_select.tr_dict),
         name="BidsGrabber")
-    # Outputs: fmri_prep, conf_raw, conf_json, entities, tr_dict
+    # Outputs: fmri_prep, fmri_prep_aroma, conf_raw, conf_json, entity
+
+    # 3) --- Smoothing
+
+    # Inputs: fmri_prep
+    smooth_signal = Node(
+        Smooth(
+            output_directory=temps.mkdtemp('smoothing'),
+            is_file_mandatory=False), 
+        name="Smoother")
+    # Outputs: fmri_smoothed
 
     # 3) --- Confounds preprocessing
 
     # Inputs: pipeline, conf_raw, conf_json
-    prep_conf = pe.MapNode(
+    prep_conf = Node(
         Confounds(
             output_dir=temps.mkdtemp('prep_conf')
-        ),
-        iterfield=['conf_raw', 'conf_json', 'entities'],
-        name="ConfPrep")
-    # Outputs: conf_prep, low_pass, high_pass
+        ), name="ConfPrep")
+    # Outputs: conf_prep, conf_summary, pipeline_name
+
+    
 
     # 4) --- Denoising
-
-    # Inputs: conf_prep, low_pass, high_pass
-    iterate = ['fmri_prep', 'conf_prep', 'entities']
-    if not ica_aroma:
-        iterate = iterate
-    else:
-        iterate.append('fmri_prep_aroma')
-
-    denoise = pe.MapNode(
+    # Inputs: fmri_prep, fmri_prep_aroma, conf_prep, pipeline, entity, tr_dict
+    denoise = Node(
         Denoise(
-            smoothing=smoothing,
             high_pass=high_pass,
             low_pass=low_pass,
-            ica_aroma=ica_aroma,
-            output_dir=temps.mkdtemp('denoise')
-        ),
-        iterfield=iterate,
-        name="Denoiser", mem_gb=6)
+            tr_dict=bids_select.tr_dict,
+            output_dir=temps.mkdtemp('denoise')),
+        name="Denoiser", 
+        mem_gb=6)
     # Outputs: fmri_denoised
 
     # 5) --- Connectivity estimation
@@ -208,64 +235,18 @@ def init_fmridenoise_wf(bids_dir,
 # --- Connecting nodes
 
     workflow.connect([
-        (grabbing_bids, denoise, [('tr_dict', 'tr_dict')]),
-        (grabbing_bids, denoise, [('fmri_prep', 'fmri_prep'),
-                                  ('fmri_prep_aroma', 'fmri_prep_aroma')]),
-        (grabbing_bids, denoise, [('entities', 'entities')]),
-        (grabbing_bids, prep_conf, [('conf_raw', 'conf_raw'),
-                                    ('conf_json', 'conf_json'),
-                                    ('entities', 'entities')]),
-        (grabbing_bids, ds_confounds, [('entities', 'entities')]),
-        (grabbing_bids, ds_denoise, [('entities', 'entities')]),
-        (grabbing_bids, ds_connectivity, [('entities', 'entities')]),
-        (grabbing_bids, ds_carpet_plot, [('entities', 'entities')]),
-        (grabbing_bids, ds_matrix_plot, [('entities', 'entities')]),
-
+        (sessionselector, bidsgrabber, [('session', 'session')]),
+        (subjectselector, bidsgrabber, [('subject', 'subject')]),
+        (taskselector, bidsgrabber, [('task', 'task')]),
+        (bidsgrabber, smooth_signal, [('fmri_prep', 'fmri_prep')]),
+        (smooth_signal, denoise, [('fmri_smoothed', 'fmri_prep')]),
         (pipelineselector, prep_conf, [('pipeline', 'pipeline')]),
-        (pipelineselector, denoise, [('pipeline', 'pipeline')]),
-        (prep_conf, group_conf_summary, [('conf_summary', 'conf_summary'),
-                                        ('pipeline_name', 'pipeline_name')]),
-
-        (pipelineselector, ds_denoise, [('pipeline_name', 'pipeline_name')]),
-        (pipelineselector, ds_connectivity, [('pipeline_name', 'pipeline_name')]),
-        (pipelineselector, ds_confounds, [('pipeline_name', 'pipeline_name')]),
-        (pipelineselector, ds_carpet_plot, [('pipeline_name', 'pipeline_name')]),
-        (pipelineselector, ds_matrix_plot, [('pipeline_name', 'pipeline_name')]),
-
+        (bidsgrabber, prep_conf, [('conf_raw', 'conf_raw'), 
+                                  ('conf_json', 'conf_json')]),
         (prep_conf, denoise, [('conf_prep', 'conf_prep')]),
-        (denoise, connectivity, [('fmri_denoised', 'fmri_denoised')]),
-
-        (prep_conf, group_connectivity, [('pipeline_name', 'pipeline_name')]),
-        (connectivity, group_connectivity, [('corr_mat', 'corr_mat')]),
-
-        (prep_conf, ds_confounds, [('conf_prep', 'in_file')]),
-        (denoise, ds_denoise, [('fmri_denoised', 'in_file')]),
-        (connectivity, ds_connectivity, [('corr_mat', 'in_file')]),
-        (connectivity, ds_carpet_plot, [('carpet_plot', 'in_file')]),
-        (connectivity, ds_matrix_plot, [('matrix_plot', 'in_file')]),
-
-        (group_connectivity, quality_measures, [('pipeline_name', 'pipeline_name'),
-                                                ('group_corr_mat', 'group_corr_mat')]),
-        (group_conf_summary, quality_measures, [('group_conf_summary', 'group_conf_summary')]),
-        (quality_measures, merge_quality_measures, [('fc_fd_summary', 'fc_fd_summary'),
-                                                    ('edges_weight', 'edges_weight'),
-                                                    ('edges_weight_clean', 'edges_weight_clean'),
-                                                    ('exclude_list', 'exclude_list')]),
-        (merge_quality_measures, pipelines_quality_measures,
-            [('fc_fd_summary', 'fc_fd_summary'),
-             ('edges_weight', 'edges_weight'),
-             ('edges_weight_clean', 'edges_weight_clean')]),
-        (merge_quality_measures, report_creator,
-            [('exclude_list', 'excluded_subjects')]),
-        (pipelines_quality_measures, report_creator,
-            [('plot_pipeline_edges_density', 'plot_pipeline_edges_density'),
-             ('plot_pipelines_edges_density_no_high_motion', 'plot_pipelines_edges_density_no_high_motion'),
-             ('plot_pipelines_fc_fd_pearson', 'plot_pipelines_fc_fd_pearson'),
-             ('plot_pipelines_fc_fd_uncorr', 'plot_pipelines_fc_fd_uncorr'),
-             ('plot_pipelines_distance_dependence', 'plot_pipelines_distance_dependence')]),
-        (pipelineselector, report_creator,
-            [('pipeline', 'pipelines'),
-             ('pipeline_name', 'pipelines_names')])
+        (pipelineselector, denoise, [('pipeline', 'pipeline')]),
+        (bidsgrabber, denoise, [('fmri_prep_aroma', 'fmri_prep_aroma'),
+                               ('entity', 'entity')])
     ])
 
     return workflow

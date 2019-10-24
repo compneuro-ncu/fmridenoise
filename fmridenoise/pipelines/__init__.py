@@ -1,5 +1,6 @@
 import glob
 import os
+from fmridenoise.utils.utils import cast_bool
 
 def get_pipeline_path(name: str) -> str:
     dirname = os.path.dirname(__file__)
@@ -34,3 +35,5 @@ def get_pipelines_names() -> set:
 def is_valid_name(name: str) -> bool:
     return True if name in get_pipelines_names() else False
 
+def is_IcaAROMA(pipeline: dict) -> bool:
+    return cast_bool(pipeline["aroma"])

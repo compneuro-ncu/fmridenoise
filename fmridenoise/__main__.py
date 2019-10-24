@@ -43,8 +43,8 @@ def get_parser() -> argparse.ArgumentParser:
                         help='Name of pipelines used for denoising, can be both paths to json files with pipeline or name of pipelines from package.',
                         default="all")
     parser.add_argument("-d", "--derivatives",
-                        nargs="+",
-                        default=['fmriprep'],
+                        type= str,
+                        default='fmriprep',
                         help="Name (or list) of derivatives for which fmridenoise should be run.\
                         By default workflow looks for fmriprep dataset.")
     parser.add_argument("--high-pass",
@@ -157,7 +157,7 @@ def main() -> None:
     # creating graph from workflow
     if args.graph is not None:
         try:  # TODO: Look for pydot/dot and add to requirements
-            workflow.write_graph(args.graph)
+            workflow.write_graph(args.graph, graph2use='flat')
         except OSError as err:
             print('OSError: ' + err.args[0])
             print("         Graph file was not generated.")

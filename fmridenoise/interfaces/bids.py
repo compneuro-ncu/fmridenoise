@@ -2,13 +2,14 @@
 from bids import BIDSLayout
 from nipype.interfaces.io import IOBase
 from nipype.utils.filemanip import split_filename, copyfile
-from nipype.interfaces.base import (
-    BaseInterfaceInputSpec, SimpleInterface,
+from nipype.interfaces.base import (BaseInterfaceInputSpec, SimpleInterface,
     traits, isdefined, TraitedSpec,
     Directory, File, Str, ImageFile,
     InputMultiObject, OutputMultiObject, OutputMultiPath, InputMultiPath)
+from traits.trait_types import Any, Dict, List
 import json
 import os
+import re
 
 
 def validate_derivatives(bids_dir, derivatives):
@@ -103,101 +104,138 @@ def compare_common_entities(file1, file2) -> None:
         raise MissingFile(f"{file1.path} has no corresponding file. "
                           f"Entities {entity_f1} and {entity_f2} should match.")
 
+def create_template(path: str, 
+                    patterns: dict = 
+                    {'sub-{sub_id}': 'sub-\d{1,}',
+                    'ses-{ses_id}': 'ses-\d{1,}',
+                    'task-{task_id}': 'task-[^_/.]*'}) -> str:
+    for replacement, pattern in patterns.items():
+        path, number = re.subn(pattern, replacement, path)
+    return path
 
 class MissingFile(IOError):
     pass
 
 
 class BIDSGrabInputSpec(BaseInterfaceInputSpec):
-    bids_dir = Directory(
-        exists=True,
-        mandatory=True,
-        desc='BIDS dataset root directory'
-    )
-    derivatives = traits.Either(
-        traits.Str, traits.List(Str),
-        default='fmriprep',
-        usedefault=True,
-        mandatory=False,
-        desc='Specifies which derivatives to to index'
-    )
-    task = InputMultiObject(
-        Str,
-        mandatory=False,
-        desc='Names of tasks to denoise'
-    )
-    session = InputMultiObject(
-        Str,
-        mandatory=False,
-        desc='Names of sessions to denoise'
-    )
-    subject = InputMultiObject(
-        Str,
-        mandatory=False,
-        desc='Labels of subjects to denoise'
-    )
-    ica_aroma = traits.Bool(
-        mandatory=False,
-        desc='ICA-Aroma files'
-    )
+    layout = Any(required=True) # todo strict type checking
+    scope = List(Str(), required=True)
+    tr_dict = Dict(required=True)
+    subject = Str()
+    task = Str()
+    session = Str()
+
 
 
 class BIDSGrabOutputSpec(TraitedSpec):
-    fmri_prep = OutputMultiPath(ImageFile)
-    fmri_prep_aroma = OutputMultiPath(ImageFile)
-    conf_raw = OutputMultiPath(File)
-    conf_json = OutputMultiPath(File)
-    entities = OutputMultiObject(traits.Dict)
-    tr_dict = traits.Dict()
+    fmri_prep = ImageFile()
+    fmri_prep_aroma = ImageFile()
+    conf_raw = File(exists=True)
+    conf_json = File(exists=True)
+    entity = Dict()
 
-
-class BIDSGrab(SimpleInterface):  # TODO: update documentation
-    """
-    Read a BIDS dataset and grabs:
-        (1) preprocessed imaging files,
-        (2) confound regressor tables,
-        (3) entities for corresponding files,
-        (4) TR values for available tasks.
-
-    Returns:
-        fmri_prep: list of files
-            List containing all paths to available preprocessed functional files.
-            Files are searched using BIDSLayout.get() method with filters specifying
-            extensions ".nii" or ".nii.gz", suffix "bold" and extension "prep"
-            corresponding to preprocessed images.
-
-        fmri_prep_aroma: ...
-
-        conf_raw: list of files
-            List containing paths to confound regressors files. Elements of conf_raw
-            list correspond to fmri_prep elements such that each regressor file is
-            related to one imaging file.
-
-        conf_json: ...
-
-        entities: list of dictionaries
-            The entities list contains a list of entity dictionaries. Elements of
-            entities list correspond to fmri_prep elements such that each entity
-            describe one imaging files. Entities provide BIDS specific information
-            about subject, session (if there is more than one), task and datatype.
-
-        tr_dict: dictionary
-            Contains information about TR setting for each requested task. If task
-            are not specified, all tasks found are included.
-    """
+class BIDSGrab(SimpleInterface):
     input_spec = BIDSGrabInputSpec
     output_spec = BIDSGrabOutputSpec
 
     def _run_interface(self, runtime):
+        fmri_prep = self.inputs.layout.get(
+            scope=self.inputs.scope,
+            **{
+            'subject': self.inputs.subject,
+            'session': self.inputs.session,
+            'task': self.inputs.task,
+            'extension': ['nii', 'nii.gz'],
+            'suffix': 'bold',
+            'desc': 'smoothAROMAnonaggr',
+            'space': 'MNI152NLin2009cAsym'
+            })
+        fmri_aroma = self.inputs.layout.get(
+            scope=self.inputs.scope,
+            **{
+            'subject': self.inputs.subject,
+            'session': self.inputs.session,
+            'task': self.inputs.task,
+            'extension': ['nii', 'nii.gz'],
+            'suffix': 'bold',
+            'desc': 'smoothAROMAnonaggr',
+            'space': 'MNI152NLin2009cAsym'
+        })
+        conf = self.layout.get(
+            scope=self.inputs.scope,
+            **{
+            'subject': self.inputs.subject,
+            'session': self.inputs.session,
+            'task': self.inputs.task,
+            'extension': 'tsv',
+            'suffix': 'regressors',
+            'desc': 'confounds',
+        })
+        conf_json = self.layout.get(
+            scope=self.inputs.scope,
+            **{
+            'subject': self.inputs.subject,
+            'session': self.inputs.session,
+            'task': self.inputs.task,
+            'extension': 'json',
+            'suffix': 'regressors',
+            'desc': 'confounds',
+        })
+        # sanity check
+        if len(fmri_prep) > 1:
+            raise ValueError(f"Expected single or none fmri_prep file, but got: {fmri_prep}")
+        if len(fmri_aroma) > 1:
+            raise ValueError(f"Expected single or none fmri_prep aroma file, but got: {fmri_aroma}")
+        if len(conf) != 1:
+            raise ValueError(f"Expected single confounds file, but got: {conf}")
+        if len(conf_json) != 1:
+            raise ValueError(f"Expected single confounds_json file, but got: {conf_json}")
+        
+        self._results.fmri_prep = fmri_prep[0].path
+        self._results.fmri_aroma = fmri_aroma[0].path
+        self._results.conf_raw = conf[0].path
+        self._results.conf_json = conf_json[0].path
+        self._results
 
+
+class BIDSSelect(traits.HasRequiredTraits):
+    bids_dir = Directory(
+        exists=True,
+        required=True,
+        desc='BIDS dataset root directory'
+    )
+    derivatives = traits.List(
+        desc='Specifies which derivatives to to index'
+    )
+    task = traits.List(
+        Str,
+        desc='Names of tasks to denoise'
+    )
+    session = traits.List(
+        Str,
+        desc='Names of sessions to denoise'
+    )
+    subject = traits.List(
+        Str,
+        desc='Labels of subjects to denoise'
+    )
+    ica_aroma = traits.Bool(
+        desc='ICA-Aroma files'
+    )
+    _templates = traits.DictStrStr()
+    _layout = traits.Any()
+    _tr_dict = traits.Dict()
+    scope = traits.Any()
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
         # Validate derivatives argument
-        derivatives, scope = validate_derivatives(
-            bids_dir=self.inputs.bids_dir,
-            derivatives=self.inputs.derivatives
+        derivatives, self.scope = validate_derivatives(
+            bids_dir=self.bids_dir,
+            derivatives=self.derivatives
         )
 
-        layout = BIDSLayout(
-            root=self.inputs.bids_dir,
+        self._layout = BIDSLayout(
+            root=self.bids_dir,
             derivatives=derivatives,
             validate=True,
             index_metadata=False
@@ -205,20 +243,25 @@ class BIDSGrab(SimpleInterface):  # TODO: update documentation
 
         # Validate optional arguments
         filter_base = {}
-        if isdefined(self.inputs.task):
-            task = validate_option(layout, self.inputs.task, kind='task')
+        if self.task != []:
+            task = validate_option(self.layout, self.task, kind='task')
             filter_base['task'] = task
         else:
-            task = layout.get_tasks()
-        if isdefined(self.inputs.session):
-            session = validate_option(layout, self.inputs.session,
+            self.task = self.layout.get_tasks()
+        if self.session != []:
+            session = validate_option(self.layout, 
+                                      self.session,
                                       kind='session')
             filter_base['session'] = session
-        if isdefined(self.inputs.subject):
-            subject = validate_option(layout, self.inputs.subject,
+        else:
+            self.session = self.layout.get_sessions()
+        if self.subject != []:
+            subject = validate_option(self.layout, 
+                                      self.subject,
                                       kind='subject')
             filter_base['subject'] = subject
-
+        else:
+            self.subject = self.layout.get_subjects()
         # Define query filters
         filter_fmri = {
             'extension': ['nii', 'nii.gz'],
@@ -247,22 +290,20 @@ class BIDSGrab(SimpleInterface):  # TODO: update documentation
         filter_conf.update(filter_base)
         filter_conf_json.update(filter_base)
 
+        
         # Grab all requested files
-        fmri_prep = layout.get(scope=scope, **filter_fmri)
-        if self.inputs.ica_aroma:
-            fmri_prep_aroma = layout.get(scope=scope, **filter_fmri_aroma)
-            if not fmri_prep_aroma:
-                raise MissingFile("ICA-AROMA files not found in BIDS directory")
+        fmri_prep = self.layout.get(scope=self.scope, **filter_fmri)
+        fmri_prep_aroma = self.layout.get(scope=self.scope, **filter_fmri_aroma) # check type
 
-        conf_raw = layout.get(scope=scope, **filter_conf)
-        conf_json = layout.get(scope=scope, **filter_conf_json)
+        conf_raw = self.layout.get(scope=self.scope, **filter_conf)
+        conf_json = self.layout.get(scope=self.scope, **filter_conf_json)
 
         # Validate correspondence between queried files
         entities = []
         for i, fmri_file in enumerate(fmri_prep):
 
             # reference common entities for preprocessed files
-            if self.inputs.ica_aroma and fmri_prep_aroma:
+            if fmri_prep_aroma:
                 compare_common_entities(fmri_file, fmri_prep_aroma[i])
             compare_common_entities(fmri_file, conf_raw[i])
             compare_common_entities(fmri_file, conf_json[i])
@@ -270,19 +311,18 @@ class BIDSGrab(SimpleInterface):  # TODO: update documentation
             entities.append({key: value for key, value in
                              fmri_file.get_entities().items()
                              if key in ['task', 'session', 'subject', 'datatype']})
-
         # Extract TRs
         tr_dict = {}
 
         #TODO: this is just a funny workaround, look for better solution later
         layout_for_tr = BIDSLayout(
-            root=self.inputs.bids_dir,
+            root=self.bids_dir,
             derivatives=derivatives,
             validate=True,
             index_metadata=True
         )
 
-        for t in task:
+        for t in self.task:
             filter_fmri_tr = filter_fmri.copy()
             filter_fmri_tr['task'] = t
 
@@ -291,19 +331,17 @@ class BIDSGrab(SimpleInterface):  # TODO: update documentation
             except IndexError:
                 raise MissingFile(f"no imaging file found for task {t}")
             tr_dict[t] = layout_for_tr.get_metadata(example_file.path)['RepetitionTime']
+        # Create templates based on found files
 
-        self._results['fmri_prep'] = [file.path for file in fmri_prep]
+        self._tr_dict = tr_dict
 
-        if self.inputs.ica_aroma:
-            self._results['fmri_prep_aroma'] = [file.path for file in fmri_prep_aroma]
-        self._results['conf_raw'] = [file.path for file in conf_raw]
-        self._results['conf_json'] = [file.path for file in conf_json]
-        self._results['entities'] = entities
-        self._results['tr_dict'] = tr_dict
+    @property
+    def layout(self):
+        return self._layout
 
-        return runtime
-
-
+    @property
+    def tr_dict(self) -> dict:
+        return self._tr_dict.copy()
 class BIDSDataSinkInputSpec(BaseInterfaceInputSpec):
     base_directory = Directory(
         mandatory=True,
