@@ -168,8 +168,10 @@ def compare(args: argparse.Namespace) -> None:
         logger.addHandler(handler)
         config.enable_resource_monitor()
     # derivatives
-    derivatives = args.derivatives if type(args.derivatives) in (list, bool) else [args.derivatives]
-    derivatives = list(map(lambda x: join(input_dir, 'derivatives', x), derivatives))
+    derivatives = args.derivatives if type(
+        args.derivatives) in (list, bool) else [args.derivatives]
+    derivatives = list(
+        map(lambda x: join(input_dir, 'derivatives', x), derivatives))
     # pipelines
     pipelines = parse_pipelines(args.pipelines)
     temps.base_dir = args.workdir
