@@ -77,6 +77,9 @@ def get_parser() -> argparse.ArgumentParser:
                         help="Perform everything except actually running workflow",
                         action="store_true",
                         default=False)
+    parser.add_argument("-w", "--work_dir",
+                        help="Path where intermediate results should be stored, default /tmp/fmridenoise/",
+                        default="/tmp/fmridenoise/")
     return parser
 
 
@@ -92,7 +95,7 @@ def parse_pipelines(pipelines_args: str or set = "all", use_aroma=False) -> set:
     if type(pipelines_args) is str:
         if pipelines_args != "all":
             raise ValueError("Only valid string argument is 'all'")
-        elif pipelines_args == 'all' and use_aroma == False: 
+        elif pipelines_args == 'all' and use_aroma == False:
             return set([p for p in get_pipelines_paths() if 'ICA-AROMA' not in p])
         else:
             return get_pipelines_paths()
@@ -103,7 +106,7 @@ def parse_pipelines(pipelines_args: str or set = "all", use_aroma=False) -> set:
     ret = set()
     for p in pipelines_args:
         if p in known_pipelines:
-            ret.add(get_pipeline_path(p))    
+            ret.add(get_pipeline_path(p))
         elif p not in known_pipelines and is_valid(ut.load_pipeline_from_json(p)):
             ret.add(p)
         else:
@@ -140,12 +143,14 @@ def main() -> None:
         logger.addHandler(handler)
         config.enable_resource_monitor()
     # derivatives
-    derivatives = args.derivatives if type(args.derivatives) in (list, bool) else [args.derivatives]
-    derivatives = list(map(lambda x: join(input_dir, 'derivatives', x), derivatives))
+    derivatives = args.derivatives if type(
+        args.derivatives) in (list, bool) else [args.derivatives]
+    derivatives = list(
+        map(lambda x: join(input_dir, 'derivatives', x), derivatives))
     # pipelines
     pipelines = parse_pipelines(args.pipelines, args.use_aroma)
     # creating workflow
-    workflow = init_fmridenoise_wf(input_dir, 
+    workflow = init_fmridenoise_wf(input_dir,
                                    derivatives=derivatives,
                                    subject=args.subjects,
                                    session=args.sessions,
@@ -153,7 +158,8 @@ def main() -> None:
                                    pipelines_paths=pipelines,
                                    high_pass=args.high_pass,
                                    low_pass=args.low_pass,
-                                   ica_aroma=args.use_aroma)
+                                   ica_aroma=args.use_aroma,
+                                   base_dir=args.work_dir)
     # creating graph from workflow
     if args.graph is not None:
         try:  # TODO: Look for pydot/dot and add to requirements
@@ -161,7 +167,7 @@ def main() -> None:
         except OSError as err:
             print('OSError: ' + err.args[0])
             print("         Graph file was not generated.")
-    
+
     # dry
     if not args.dry:
         # linear/multiproc
@@ -171,6 +177,7 @@ def main() -> None:
         else:
             workflow.run()
     return 0
+
 
 if __name__ == "__main__":
     main()
