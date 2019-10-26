@@ -35,7 +35,7 @@ def init_fmridenoise_wf(bids_dir,
                         low_pass=0.08,
                         # desc=None,
                         # ignore=None, force_index=None,
-                        base_dir='/tmp/fmridenoise', name='fmridenoise_wf'
+                        base_dir='/tmp/fmridenoise/', name='fmridenoise_wf'
                         ):
     workflow = pe.Workflow(name=name, base_dir=base_dir)
     temps.base_dir = base_dir
@@ -69,7 +69,7 @@ def init_fmridenoise_wf(bids_dir,
     # Inputs: pipeline, conf_raw, conf_json
     prep_conf = pe.MapNode(
         Confounds(
-            output_dir=temps.mkdtemp('prep_conf')
+            output_dir=temps.mkdtemp(base_dir + 'prep_conf')
         ),
         iterfield=['conf_raw', 'conf_json', 'entities'],
         name="ConfPrep")
@@ -90,7 +90,7 @@ def init_fmridenoise_wf(bids_dir,
             high_pass=high_pass,
             low_pass=low_pass,
             ica_aroma=ica_aroma,
-            output_dir=temps.mkdtemp('denoise')
+            output_dir=temps.mkdtemp(base_dir + 'denoise')
         ),
         iterfield=iterate,
         name="Denoiser", mem_gb=6)
@@ -102,7 +102,7 @@ def init_fmridenoise_wf(bids_dir,
     parcellation_path = get_parcelation_file_path()
     connectivity = pe.MapNode(
         Connectivity(
-            output_dir=temps.mkdtemp('connectivity'),
+            output_dir=temps.mkdtemp(base_dir + 'connectivity'),
             parcellation=parcellation_path
         ),
         iterfield=['fmri_denoised'],
