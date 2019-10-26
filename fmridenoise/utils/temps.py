@@ -10,8 +10,7 @@ base_dir = '/tmp'
 def mkdtemp(name: str) -> str:
     global temp_dirs
     try:
-        ret = os.path.join(name)
-        os.makedirs(ret, exist_ok=True) # May be unsafe?
+        os.makedirs(name, exist_ok=True) # May be unsafe?
     except OSError:
         ret = tempfile.mkdtemp()
     temp_dirs.append(ret)

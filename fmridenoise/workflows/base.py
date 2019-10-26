@@ -67,9 +67,10 @@ def init_fmridenoise_wf(bids_dir,
     # 3) --- Confounds preprocessing
 
     # Inputs: pipeline, conf_raw, conf_json
+    temppath = os.path.join(base_dir, 'prep_conf')
     prep_conf = pe.MapNode(
         Confounds(
-            output_dir=temps.mkdtemp(base_dir + 'prep_conf')
+            output_dir=temps.mkdtemp(temppath)
         ),
         iterfield=['conf_raw', 'conf_json', 'entities'],
         name="ConfPrep")
@@ -84,13 +85,14 @@ def init_fmridenoise_wf(bids_dir,
     else:
         iterate.append('fmri_prep_aroma')
 
+    temppath = os.path.join(base_dir, 'denoise')
     denoise = pe.MapNode(
         Denoise(
             smoothing=smoothing,
             high_pass=high_pass,
             low_pass=low_pass,
             ica_aroma=ica_aroma,
-            output_dir=temps.mkdtemp(base_dir + 'denoise')
+            output_dir=temps.mkdtemp(temppath)
         ),
         iterfield=iterate,
         name="Denoiser", mem_gb=6)
@@ -99,10 +101,11 @@ def init_fmridenoise_wf(bids_dir,
     # 5) --- Connectivity estimation
 
     # Inputs: fmri_denoised
+    temppath = os.path.join(base_dir, 'connectivity')
     parcellation_path = get_parcelation_file_path()
     connectivity = pe.MapNode(
         Connectivity(
-            output_dir=temps.mkdtemp(base_dir + 'connectivity'),
+            output_dir=temps.mkdtemp(temppath),
             parcellation=parcellation_path
         ),
         iterfield=['fmri_denoised'],
