@@ -55,6 +55,18 @@ class DenoiseInputSpec(BaseInterfaceInputSpec):
         desc='High cut-off frequency in Hertz'
     )
     low_pass = traits.Float(
+<<<<<<< HEAD
+=======
+        desc="Low-pass filter"
+    )
+
+    ica_aroma = traits.Bool(
+        mandatory=False,
+        desc='ICA-Aroma files exists'
+    )
+
+    smoothing = traits.Bool(
+>>>>>>> 9a85874 (uncommenting ica_aroma input)
         mandatory=False,
         desc='Low cut-off frequency in Hertz'
     )
