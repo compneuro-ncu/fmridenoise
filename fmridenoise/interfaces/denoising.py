@@ -60,6 +60,11 @@ class DenoiseInputSpec(BaseInterfaceInputSpec):
         desc="Low-pass filter"
     )
 
+    ica_aroma = traits.Bool(
+        mandatory=False,
+        desc='ICA-Aroma files exists'
+    )
+
     smoothing = traits.Bool(
         mandatory=False,
         desc='Optional smoothing'
@@ -84,7 +89,6 @@ class Denoise(SimpleInterface):
         pipeline_name = self.inputs.pipeline['name']
         pipeline_aroma = self.inputs.pipeline['aroma']
         img = nb.load(self.inputs.fmri_prep)
-
         if pipeline_aroma:
             if not self.inputs.fmri_prep_aroma:
                 raise ValueError("No ICA-AROMA files found")
@@ -109,7 +113,6 @@ class Denoise(SimpleInterface):
             tr = self.inputs.tr_dict[task]
         else:
             raise KeyError(f'{task} TR not found in tr_dict')
-
 
         if smoothing and not pipeline_aroma:
            img = smooth_img(img, fwhm=6)
