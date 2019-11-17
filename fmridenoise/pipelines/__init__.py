@@ -12,7 +12,6 @@ def get_pipeline_path(name: str) -> str:
     else:
         raise ValueError(f"File '{path}' is not part of fmridenoise valid pipelines!")
 
-
 def get_pipeline_name(path: str) -> str:
     dirname = os.path.dirname(__file__)
     if os.path.dirname(path) != dirname or not os.path.exists(path):

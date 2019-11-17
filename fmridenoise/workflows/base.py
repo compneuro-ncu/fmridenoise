@@ -1,7 +1,7 @@
 from nipype.pipeline import engine as pe
 from nipype import Node, SelectFiles, IdentityInterface, Function
 from fmridenoise.interfaces.smoothing import Smooth
-from fmridenoise.interfaces.bids import BIDSGrab, BIDSDataSink, BIDSSelect
+from fmridenoise.interfaces.bids import BIDSGrab, BIDSDataSink, BIDSValidate
 from fmridenoise.interfaces.confounds import Confounds, GroupConfounds
 from fmridenoise.interfaces.denoising import Denoise
 from fmridenoise.interfaces.connectivity import Connectivity, GroupConnectivity
@@ -32,25 +32,23 @@ def init_fmridenoise_wf(bids_dir,
                         subject=[],
                         pipelines_paths=get_pipelines_paths(),
                         smoothing=True,
-                        ica_aroma=False,
+                        #ica_aroma=False, TODO: delete this later
                         high_pass=0.008,
                         low_pass=0.08,
                         base_dir='/tmp/fmridenoise', 
                         name='fmridenoise_wf'):
-
-    bids_select = BIDSSelect(bids_dir=bids_dir,
-                             derivatives=derivatives,
-                             task=task,
-                             session=session,
-                             subject=subject,
-                             ica_aroma=ica_aroma)
+    pipelines_paths = list(pipelines_paths)
+    bids_validate = Node(BIDSValidate(bids_dir=bids_dir,
+                               derivatives=derivatives,
+                               tasks=task,
+                               sessions=session,
+                               subjects=subject,
+                               pipelines=pipelines_paths),
+                         name='BidsValidate')
+    result = bids_validate.run()
 
     temps.base_dir = base_dir
     workflow = pe.Workflow(name=name, base_dir=base_dir)
-    db_path = join(temps.mkdtemp('layout_db'), 'layout_db')
-    bids_select.layout.save(db_path, replace_connection=False) # TODO: remove
-
-
     # 1) --- Itersources for all further processing
 
     # Inputs: fulfilled
@@ -65,7 +63,7 @@ def init_fmridenoise_wf(bids_dir,
         IdentityInterface(
             fields=['subject']),
         name="SubjectSelector")
-    subjectselector.iterables = ('subject', bids_select.subject)
+    subjectselector.iterables = ('subject', result.outputs.subjects)
     # Outputs: subject
 
     # Inputs: fulfilled
@@ -73,7 +71,7 @@ def init_fmridenoise_wf(bids_dir,
         IdentityInterface(
             fields=['task']),
         name="TaskSelector")
-    taskselector.iterables = ('task', bids_select.task)
+    taskselector.iterables = ('task', result.outputs.tasks)
     # Outputs: task
 
     # Inputs: fulfilled
@@ -81,7 +79,7 @@ def init_fmridenoise_wf(bids_dir,
         IdentityInterface(
             fields=['session']),
         name="SessionSelector")
-    sessionselector.iterables = ('session', bids_select.session)
+    sessionselector.iterables = ('session', result.outputs.sessions)
     # Outputs: session
 
     # 2) --- Loading BIDS files
@@ -89,10 +87,10 @@ def init_fmridenoise_wf(bids_dir,
     # Inputs: subject, session, task
     bidsgrabber = Node(
         BIDSGrab(
-            bids_dir=bids_dir,
-            layout_db=db_path,
-            scope=bids_select.scope,
-            tr_dict=bids_select.tr_dict),
+            fmri_prep_files=result.outputs.fmri_prep,
+            fmri_prep_aroma_files=result.outputs.fmri_prep_aroma,
+            conf_raw_files=result.outputs.conf_raw,
+            conf_json_files=result.outputs.conf_json),
         name="BidsGrabber")
     # Outputs: fmri_prep, fmri_prep_aroma, conf_raw, conf_json
 
@@ -123,7 +121,7 @@ def init_fmridenoise_wf(bids_dir,
         Denoise(
             high_pass=high_pass,
             low_pass=low_pass,
-            tr_dict=bids_select.tr_dict,
+            tr_dict=result.outputs.tr_dict,
             output_dir=temps.mkdtemp('denoise')),
         name="Denoiser", 
         mem_gb=6)

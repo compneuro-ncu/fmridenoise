@@ -55,10 +55,10 @@ def get_parser() -> argparse.ArgumentParser:
                         type=float,
                         default=LOW_PASS_DEFAULT,
                         help=f"Low pass filter value, default {LOW_PASS_DEFAULT}")
-    parser.add_argument("--use-aroma",
-                        help="Skip ICA-AROMA pipelines, default False",
-                        action="store_true",
-                        default=False)
+    # parser.add_argument("--use-aroma",
+    #                     help="Skip ICA-AROMA pipelines, default False",
+    #                     action="store_true",
+    #                     default=False)
     parser.add_argument("--MultiProc",
                         help="Run script on multiple processors, default False",
                         action="store_true",
@@ -80,7 +80,7 @@ def get_parser() -> argparse.ArgumentParser:
     return parser
 
 
-def parse_pipelines(pipelines_args: str or set = "all", use_aroma=False) -> set:
+def parse_pipelines(pipelines_args: str or set = "all") -> set:
     """
     Parses all possible pipeline options:
     :param pipelines_args: set or str, only valid string argument is 'all'.
@@ -92,8 +92,6 @@ def parse_pipelines(pipelines_args: str or set = "all", use_aroma=False) -> set:
     if type(pipelines_args) is str:
         if pipelines_args != "all":
             raise ValueError("Only valid string argument is 'all'")
-        elif pipelines_args == 'all' and use_aroma == False: 
-            return set([p for p in get_pipelines_paths() if 'ICA-AROMA' not in p])
         else:
             return get_pipelines_paths()
     known_pipelines = get_pipelines_names()
@@ -143,7 +141,7 @@ def main() -> None:
     derivatives = args.derivatives if type(args.derivatives) in (list, bool) else [args.derivatives]
     derivatives = list(map(lambda x: join(input_dir, 'derivatives', x), derivatives))
     # pipelines
-    pipelines = parse_pipelines(args.pipelines, args.use_aroma)
+    pipelines = parse_pipelines(args.pipelines)
     # creating workflow
     workflow = init_fmridenoise_wf(input_dir, 
                                    derivatives=derivatives,
@@ -152,8 +150,7 @@ def main() -> None:
                                    task=args.tasks,
                                    pipelines_paths=pipelines,
                                    high_pass=args.high_pass,
-                                   low_pass=args.low_pass,
-                                   ica_aroma=args.use_aroma)
+                                   low_pass=args.low_pass)
     # creating graph from workflow
     if args.graph is not None:
         try:  # TODO: Look for pydot/dot and add to requirements

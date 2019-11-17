@@ -10,12 +10,8 @@ class TestPipelinesParser(ut.TestCase):
     noicaaroma_pipelines_valid = set([p for p in all_pipelines_valid if 'ICA-AROMA' not in p])
 
     def test_parse_pipelines_without_custom(self):
-        paths = parse_pipelines("all", True)
+        paths = parse_pipelines("all")
         self.assertSetEqual(self.all_pipelines_valid, paths)
-
-    def test_parse_pipelines_without_custom_noicaaroma(self):
-        paths = parse_pipelines("all", False)
-        self.assertSetEqual(self.noicaaroma_pipelines_valid, paths)
 
     def test_parse_pipelines_custom(self):
         custom = {join(dirname(__file__), "custom_pipeline.json")}
