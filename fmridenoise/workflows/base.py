@@ -31,7 +31,7 @@ def init_fmridenoise_wf(bids_dir,
                         subject=[],
                         pipelines_paths=get_pipelines_paths(),
                         smoothing=True,
-                        ica_aroma=False,
+                        #ica_aroma=False, TODO: delete this later
                         high_pass=0.008,
                         low_pass=0.08,
                         base_dir='/tmp/fmridenoise', 

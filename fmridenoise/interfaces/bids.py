@@ -83,12 +83,11 @@ def validate_option(layout, option, kind='task'):
     else:
         raise ValueError("kind should be either 'task', 'session' or 'subject'")
 
-    option_ = option
-    for option_item in option_:
+    for option_item in option:
         if option_item not in option_all:
             raise ValueError(f'{kind} {option_item} is not found')
 
-    return option_
+    return option
 
 
 def compare_common_entities(file1, file2) -> None:
@@ -104,14 +103,6 @@ def compare_common_entities(file1, file2) -> None:
         raise MissingFile(f"{file1.path} has no corresponding file. "
                           f"Entities {entity_f1} and {entity_f2} should match.")
 
-def create_template(path: str, 
-                    patterns: dict = 
-                    {'sub-{sub_id}': 'sub-\d{1,}',
-                    'ses-{ses_id}': 'ses-\d{1,}',
-                    'task-{task_id}': 'task-[^_/.]*'}) -> str:
-    for replacement, pattern in patterns.items():
-        path, number = re.subn(pattern, replacement, path)
-    return path
 
 class MissingFile(IOError):
     pass
@@ -125,8 +116,6 @@ class BIDSGrabInputSpec(BaseInterfaceInputSpec):
     task = Str()
     session = Str()
 
-
-
 class BIDSGrabOutputSpec(TraitedSpec):
     fmri_prep = ImageFile()
     fmri_prep_aroma = ImageFile()
@@ -139,6 +128,9 @@ class BIDSGrab(SimpleInterface):
     output_spec = BIDSGrabOutputSpec
 
     def _run_interface(self, runtime):
+
+        print(self._results)
+
         fmri_prep = self.inputs.layout.get(
             scope=self.inputs.scope,
             **{
@@ -198,150 +190,318 @@ class BIDSGrab(SimpleInterface):
         self._results
 
 
-class BIDSSelect(traits.HasRequiredTraits):
+class BIDSValidateInputSpec(BaseInterfaceInputSpec):
+
+    # Root directory only required argument
     bids_dir = Directory(
         exists=True,
         required=True,
         desc='BIDS dataset root directory'
     )
-    derivatives = traits.List(
-        desc='Specifies which derivatives to to index'
+
+    # Default: 'fmriprep'
+    derivatives = traits.List(desc='Specifies name of derivatives directory')
+
+    # Separate queries from user
+    tasks = traits.List(Str, desc='Names of tasks to denoise')
+    sessions = traits.List(Str, desc='Labels of sessions to denoise')
+    subjects = traits.List(Str, desc='Labels of subjects to denoise')
+
+    # Pipelines from user or default
+    pipelines = traits.List(
+        File,
+        desc='List of paths to selected pipelines'
     )
-    task = traits.List(
-        Str,
-        desc='Names of tasks to denoise'
-    )
-    session = traits.List(
-        Str,
-        desc='Names of sessions to denoise'
-    )
-    subject = traits.List(
-        Str,
-        desc='Labels of subjects to denoise'
-    )
-    ica_aroma = traits.Bool(
-        desc='ICA-Aroma files'
-    )
-    _templates = traits.DictStrStr()
-    _layout = traits.Any()
-    _tr_dict = traits.Dict()
-    scope = traits.Any()
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
+
+
+class BIDSValidateOutputSpec(TraitedSpec):
+
+    # Goes to BIDSGrab (whole lists)
+    fmri_prep = traits.List(File)
+    fmri_prep_aroma = traits.List(File)
+    conf_raw = traits.List(File)
+    conf_json = traits.List(File)
+
+    # Goes to BIDSGrab (one-by-one)
+    tasks = traits.List(Str)
+    sessions = traits.List(Str)
+    subjects = traits.List(Str)
+
+    # Outputs pipelines loaded as dicts
+    pipelines = traits.List(Dict)
+
+    # Goes to Denoiser
+    tr_dict = traits.Dict()
+
+
+class BIDSValidate(SimpleInterface):
+    '''
+    Interface responsible for calling BIDSLayout and validating file structure.
+
+    It should output to:
+    - layout (-> BIDSGrab)
+    - task, session, subject  (-> iterNodes)
+    - pipeline (-> ?)
+    - tr_dict (-> Denoiser)
+
+    It should raise exception when:
+    - user specified incorrect flags (there are no matching files)
+    - some files are missing e.g. these for AROMA pipeline, when it is required
+
+    '''
+    input_spec = BIDSValidateInputSpec
+    output_spec = BIDSValidateOutputSpec
+
+    @staticmethod
+    def validate_derivatives(bids_dir, derivatives):
+        """ Validate derivatives argument provided by the user before calling
+        layout. It creates required full path for derivatives directory. Also
+        returns scope required for queries.
+
+        Args:
+            bids_dir: list
+                Path to bids root directory.
+            derivatives: str or list(str)
+                Derivatives to use for denoising.
+
+        Returns:
+            derivatives_valid: list
+                Validated derivatives list.
+            scope: list
+                Right scope keyword used in pybids query.
+        """
+
+        if isinstance(derivatives, str):
+            derivatives_valid = [derivatives]
+        else:
+            derivatives_valid = derivatives
+
+        # Create full paths to derivatives folders
+        derivatives_valid = [os.path.join(bids_dir, 'derivatives', d)
+                             for d in derivatives_valid]
+
+        # Establish right scope keyword for arbitrary packages
+        scope = []
+        for derivative_path in derivatives_valid:
+            dataset_desc_path = os.path.join(derivative_path,
+                                             'dataset_description.json')
+            try:
+                with open(dataset_desc_path, 'r') as f:
+                    dataset_desc = json.load(f)
+                scope.append(dataset_desc['PipelineDescription']['Name'])
+            except FileNotFoundError as e:
+                raise Exception(f"{derivative_path} should contain" +
+                                " dataset_description.json file") from e
+            except KeyError as e:
+                raise Exception(f"Key 'PipelineDescription.Name' is " +
+                                "required in {dataset_desc_path} file") from e
+
+        return derivatives_valid, scope
+
+    @staticmethod
+    def validate_files(layout, tasks, sessions, subjects, include_aroma):
+        '''...'''
+
+        def fill_empty_lists(subjects: list, tasks: list, sessions: list):
+            '''If filters are not provided by the user, load them from layout.'''
+
+            if not subjects:    subjects = layout.get_subjects()
+            if not tasks:       tasks = layout.get_tasks()
+            if not sessions:    sessions = layout.get_sessions()
+
+            return subjects, tasks, sessions
+
+        def lists_to_entities(subjects: list, tasks: list, sessions: list):
+            '''Convert lists of subjects, tasks and sessions into list of dictionaries
+            (entities). It handles empty session list.'''
+
+            keys = ('subject', 'task', 'session')
+            entities = []
+
+            if not sessions:
+                entities_list = product(subjects, tasks)
+            else:
+                entities_list = product(subjects, tasks, sessions)
+
+            for entity in entities_list:
+                entities.append(
+                    {key: value for key, value in zip(keys, entity)})
+
+            return entities
+
+        def get_entity_files(include_aroma: bool, entity: dict) -> tuple:
+            '''Checks if all required files are present for single entity defined by
+            subject, session and task labels. If include_aroma is True also checks for
+            AROMA file. Note that session argument can be undefined.
+
+            Args:
+
+            Returns:
+                (missing: bool, dict)
+
+            '''
+            filter_fmri = {
+                'extension': ['nii', 'nii.gz'],
+                'suffix': 'bold',
+                'desc': 'preproc',
+                'space': 'MNI152NLin2009cAsym'
+            }
+            filter_fmri_aroma = {
+                'extension': ['nii', 'nii.gz'],
+                'suffix': 'bold',
+                'desc': 'smoothAROMAnonaggr',
+                # 'space': 'MNI152NLin2009cAsym'
+            }
+            filter_conf = {
+                'extension': 'tsv',
+                'suffix': 'regressors',
+                'desc': 'confounds',
+            }
+            filter_conf_json = {
+                'extension': 'json',
+                'suffix': 'regressors',
+                'desc': 'confounds',
+            }
+
+            filters_names = ['fmri_prep', 'conf_raw', 'conf_json']
+            filters = [filter_fmri, filter_conf, filter_conf_json]
+            if include_aroma:
+                filters.append(filter_fmri_aroma)
+                filters_names.append('fmri_prep_aroma')
+
+            entity_files = {}
+
+            for filter, filter_name in zip(filters, filters_names):
+                files = layout.get(**entity, **filter)
+                if len(files) != 1:
+                    return True, None
+                entity_files[filter_name] = files[0]
+
+            return False, entity_files
+
+        # Select interface behavior depending on user behavior
+        if not tasks and not sessions and not subjects:
+            raise_missing = False
+            subjects_to_exclude = []
+        else:
+            raise_missing = True
+
+        subjects, tasks, sessions = fill_empty_lists(subjects, tasks, sessions)
+        entities = lists_to_entities(subjects, tasks, sessions)
+        entities_files = []
+
+        if raise_missing:
+            # Raise error if there are missing files
+            for entity in entities:
+
+                missing, entity_files = get_entity_files(include_aroma, entity)
+                entities_files.append(entity_files)
+
+                if missing:
+                    raise MissingFile(
+                        f'missing file(s) for {entity} (check if you are using AROMA pipelines)')
+        else:
+            # Log missing files and exclude subjects for missing files
+            for entity in entities:
+
+                missing, entity_files = get_entity_files(include_aroma, entity)
+                entities_files.append(entity_files)
+
+                if missing:
+                    subjects_to_exclude.append(entity['subject'])
+                    print(f'missing file(s) for {entity}')  # TODO: proper logging
+
+            subjects = [subject for subject in subjects if
+                        subject not in subjects_to_exclude]
+
+        return entities_files, (tasks, sessions, subjects)
+
+    def _run_interface(self, runtime):
+
         # Validate derivatives argument
-        derivatives, self.scope = validate_derivatives(
-            bids_dir=self.bids_dir,
-            derivatives=self.derivatives
+        derivatives, scope = BIDSValidate.validate_derivatives(
+            bids_dir=self.inputs.bids_dir,
+            derivatives=self.inputs.derivatives
         )
 
-        self._layout = BIDSLayout(
-            root=self.bids_dir,
+        # Load layout
+        layout = BIDSLayout(
+            root=self.inputs.bids_dir,
             derivatives=derivatives,
             validate=True,
             index_metadata=False
         )
 
-        # Validate optional arguments
-        filter_base = {}
-        if self.task != []:
-            task = validate_option(self.layout, self.task, kind='task')
-            filter_base['task'] = task
+        # Load pipelines
+        pipelines_dicts = []
+        for pipeline in pipelines:
+            with open(pipeline, 'r') as f:
+                pipelines_dicts.append(json.load(f))
+
+        # Check if there is at least one pipeline requiring aroma
+        include_aroma = any(map(lambda p: p['aroma'] == 'True', pipelines_dicts))
+        # include_aroma = False
+
+        # Check missing files and act accordingly
+        entities_files, (tasks, sessions, subjects) = BIDSValidate.validate_files(
+            layout=layout,
+            tasks=self.inputs.tasks,
+            sessions=self.inputs.sessions,
+            subjects=self.inputs.subjects,
+            include_aroma=include_aroma
+        )
+
+        # Convert entities_files into separate lists of BIDSImageFile Objects
+        fmri_prep = list(map(lambda d: d['fmri_prep'].path, entities_files))
+        conf_raw = list(map(lambda d: d['conf_raw'].path, entities_files))
+        conf_json = list(map(lambda d: d['conf_json'].path, entities_files))
+        if include_aroma:
+            fmri_prep_aroma = list(
+                map(lambda d: d['fmri_prep_aroma'].path, entities_files))
         else:
-            self.task = self.layout.get_tasks()
-        if self.session != []:
-            session = validate_option(self.layout, 
-                                      self.session,
-                                      kind='session')
-            filter_base['session'] = session
-        else:
-            self.session = self.layout.get_sessions()
-        if self.subject != []:
-            subject = validate_option(self.layout, 
-                                      self.subject,
-                                      kind='subject')
-            filter_base['subject'] = subject
-        else:
-            self.subject = self.layout.get_subjects()
-        # Define query filters
-        filter_fmri = {
-            'extension': ['nii', 'nii.gz'],
-            'suffix': 'bold',
-            'desc': 'preproc',
-            'space': 'MNI152NLin2009cAsym'
-        }
-        filter_fmri_aroma = {
-            'extension': ['nii', 'nii.gz'],
-            'suffix': 'bold',
-            'desc': 'smoothAROMAnonaggr',
-            'space': 'MNI152NLin2009cAsym'
-        }
-        filter_conf = {
-            'extension': 'tsv',
-            'suffix': 'regressors',
-            'desc': 'confounds',
-        }
-        filter_conf_json = {
-            'extension': 'json',
-            'suffix': 'regressors',
-            'desc': 'confounds',
-        }
-        filter_fmri.update(filter_base)
-        filter_fmri_aroma.update(filter_base)
-        filter_conf.update(filter_base)
-        filter_conf_json.update(filter_base)
+            fmri_prep_aroma = []
 
-        
-        # Grab all requested files
-        fmri_prep = self.layout.get(scope=self.scope, **filter_fmri)
-        fmri_prep_aroma = self.layout.get(scope=self.scope, **filter_fmri_aroma) # check type
-
-        conf_raw = self.layout.get(scope=self.scope, **filter_conf)
-        conf_json = self.layout.get(scope=self.scope, **filter_conf_json)
-
-        # Validate correspondence between queried files
-        entities = []
-        for i, fmri_file in enumerate(fmri_prep):
-
-            # reference common entities for preprocessed files
-            if fmri_prep_aroma:
-                compare_common_entities(fmri_file, fmri_prep_aroma[i])
-            compare_common_entities(fmri_file, conf_raw[i])
-            compare_common_entities(fmri_file, conf_json[i])
-
-            entities.append({key: value for key, value in
-                             fmri_file.get_entities().items()
-                             if key in ['task', 'session', 'subject', 'datatype']})
-        # Extract TRs
+        # Extract TR for specific tasks
         tr_dict = {}
 
-        #TODO: this is just a funny workaround, look for better solution later
+        # TODO: this is just a funny workaround, look for better solution later
         layout_for_tr = BIDSLayout(
-            root=self.bids_dir,
+            root=self.inputs.bids_dir,
             derivatives=derivatives,
             validate=True,
             index_metadata=True
         )
 
-        for t in self.task:
-            filter_fmri_tr = filter_fmri.copy()
-            filter_fmri_tr['task'] = t
+        for task in tasks:
+            filter_fmri_tr = {
+                'extension': ['nii', 'nii.gz'],
+                'suffix': 'bold',
+                'desc': 'preproc',
+                'space': 'MNI152NLin2009cAsym',
+                'task': task
+            }
 
             try:
                 example_file = layout_for_tr.get(**filter_fmri_tr)[0]
             except IndexError:
-                raise MissingFile(f"no imaging file found for task {t}")
-            tr_dict[t] = layout_for_tr.get_metadata(example_file.path)['RepetitionTime']
-        # Create templates based on found files
+                raise MissingFile(f'no imaging file found for task {task}')
+            tr_dict[task] = layout_for_tr.get_metadata(example_file.path)[
+                'RepetitionTime']
 
-        self._tr_dict = tr_dict
+        # Prepare outputs
+        self._results['fmri_prep'] = fmri_prep
+        self._results['fmri_prep_aroma'] = fmri_prep_aroma
+        self._results['conf_raw'] = conf_raw
+        self._results['conf_json'] = conf_json
+        self._results['tasks'] = tasks
+        self._results['sessions'] = sessions
+        self._results['subjects'] = subjects
+        self._results['pipelines'] = pipelines_dicts
+        self._results['tr_dict'] = tr_dict
 
-    @property
-    def layout(self):
-        return self._layout
+        return runtime
 
-    @property
-    def tr_dict(self) -> dict:
-        return self._tr_dict.copy()
+
 class BIDSDataSinkInputSpec(BaseInterfaceInputSpec):
     base_directory = Directory(
         mandatory=True,

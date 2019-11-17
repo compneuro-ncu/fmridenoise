@@ -55,10 +55,10 @@ def get_parser() -> argparse.ArgumentParser:
                         type=float,
                         default=LOW_PASS_DEFAULT,
                         help=f"Low pass filter value, default {LOW_PASS_DEFAULT}")
-    parser.add_argument("--use-aroma",
-                        help="Skip ICA-AROMA pipelines, default False",
-                        action="store_true",
-                        default=False)
+    # parser.add_argument("--use-aroma",
+    #                     help="Skip ICA-AROMA pipelines, default False",
+    #                     action="store_true",
+    #                     default=False)
     parser.add_argument("--MultiProc",
                         help="Run script on multiple processors, default False",
                         action="store_true",
