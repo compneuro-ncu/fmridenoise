@@ -32,8 +32,7 @@ class DenoiseInputSpec(BaseInterfaceInputSpec):
         desc="Denoising pipeline",
         mandatory=True)
 
-    entity = traits.Dict(
-        desc="entities dictionary",
+    task = traits.Str(
         mandatory=True
     )
 
@@ -90,11 +89,10 @@ class Denoise(SimpleInterface):
             conf = None
 
         # Determine proper TR
-        task = self.inputs.entities['task']
-        if task in self.inputs.tr_dict:
-            tr = self.inputs.tr_dict[task]
+        if self.inputs.task in self.inputs.tr_dict:
+            tr = self.inputs.tr_dict[self.inputs.task]
         else:
-            raise KeyError(f'{task} TR not found in tr_dict')
+            raise KeyError(f'{self.inputs.task} TR not found in tr_dict')
 
         denoised_img = clean_img(
             img,

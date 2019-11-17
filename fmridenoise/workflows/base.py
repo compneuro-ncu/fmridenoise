@@ -14,6 +14,7 @@ from fmridenoise.parcellation import get_parcelation_file_path, get_distance_mat
 from nipype import config
 import fmridenoise
 import os
+from os.path import join
 import glob
 from fmridenoise.pipelines import get_pipelines_paths
 
@@ -43,8 +44,12 @@ def init_fmridenoise_wf(bids_dir,
                              session=session,
                              subject=subject,
                              ica_aroma=ica_aroma)
-    workflow = pe.Workflow(name=name, base_dir=base_dir)
+
     temps.base_dir = base_dir
+    workflow = pe.Workflow(name=name, base_dir=base_dir)
+    db_path = join(temps.mkdtemp('layout_db'), 'layout_db')
+    bids_select.layout.save(db_path, replace_connection=False) # TODO: remove
+
 
     # 1) --- Itersources for all further processing
 
@@ -84,11 +89,12 @@ def init_fmridenoise_wf(bids_dir,
     # Inputs: subject, session, task
     bidsgrabber = Node(
         BIDSGrab(
-            layout=bids_select.layout,
+            bids_dir=bids_dir,
+            layout_db=db_path,
             scope=bids_select.scope,
             tr_dict=bids_select.tr_dict),
         name="BidsGrabber")
-    # Outputs: fmri_prep, fmri_prep_aroma, conf_raw, conf_json, entity
+    # Outputs: fmri_prep, fmri_prep_aroma, conf_raw, conf_json
 
     # 3) --- Smoothing
 
@@ -107,7 +113,7 @@ def init_fmridenoise_wf(bids_dir,
         Confounds(
             output_dir=temps.mkdtemp('prep_conf')
         ), name="ConfPrep")
-    # Outputs: conf_prep, conf_summary, pipeline_name
+    # Outputs: conf_prep, conf_summary
 
     
 
@@ -144,10 +150,12 @@ def init_fmridenoise_wf(bids_dir,
     # Group nodes write to bids dir insted of tmp and let files be grabbed by datasink
     os.makedirs(os.path.join(bids_dir, 'derivatives', 'fmridenoise'), exist_ok=True)
     # FIXME END
-    group_conf_summary = pe.Node(
+    group_conf_summary = pe.JoinNode(
         GroupConfounds(
             output_dir=os.path.join(bids_dir, 'derivatives', 'fmridenoise'),
         ),
+        joinfield=["conf_summary_json_files"],
+        joinsource=subjectselector,
         name="GroupConf")
 
     # Outputs: group_conf_summary
@@ -235,18 +243,30 @@ def init_fmridenoise_wf(bids_dir,
 # --- Connecting nodes
 
     workflow.connect([
+        # bidsgrabber
         (sessionselector, bidsgrabber, [('session', 'session')]),
         (subjectselector, bidsgrabber, [('subject', 'subject')]),
         (taskselector, bidsgrabber, [('task', 'task')]),
+        # smooth_signal
         (bidsgrabber, smooth_signal, [('fmri_prep', 'fmri_prep')]),
-        (smooth_signal, denoise, [('fmri_smoothed', 'fmri_prep')]),
+        # prep_conf
         (pipelineselector, prep_conf, [('pipeline', 'pipeline')]),
+        (subjectselector, prep_conf, [('subject', 'subject')]),
+        (taskselector, prep_conf, [('task', 'task')]),
+        (sessionselector, prep_conf, [('session', 'session')]),
         (bidsgrabber, prep_conf, [('conf_raw', 'conf_raw'), 
                                   ('conf_json', 'conf_json')]),
+        # denoise
+        (smooth_signal, denoise, [('fmri_smoothed', 'fmri_prep')]),
         (prep_conf, denoise, [('conf_prep', 'conf_prep')]),
         (pipelineselector, denoise, [('pipeline', 'pipeline')]),
-        (bidsgrabber, denoise, [('fmri_prep_aroma', 'fmri_prep_aroma'),
-                               ('entity', 'entity')])
+        (bidsgrabber, denoise, [('fmri_prep_aroma', 'fmri_prep_aroma')]),
+        (taskselector, denoise, [('task', 'task')])
+        # group conf summary
+        # (prep_conf, group_conf_summary, [('conf_summary_json_file', 'conf_summary_json_files')]),
+        # (sessionselector, group_conf_summary, [('session', 'session')]),
+        # (taskselector, group_conf_summary, [('task', 'task')]),
+        # (pipelineselector, group_conf_summary, ['pipeline', 'pipeline'])
     ])
 
     return workflow

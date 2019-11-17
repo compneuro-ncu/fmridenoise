@@ -1,14 +1,16 @@
 import pandas as pd
+from traits.trait_types import Dict, File, Str, List
 from nipype.interfaces.base import BaseInterface, \
-    BaseInterfaceInputSpec, traits, File, TraitedSpec, SimpleInterface, \
+    BaseInterfaceInputSpec, File, TraitedSpec, SimpleInterface, \
     InputMultiObject
 from nipype.utils.filemanip import split_filename
 from fmridenoise.utils.confound_prep import prep_conf_df
 from os.path import join
 import json
+import pickle
 
 class ConfoundsInputSpec(BaseInterfaceInputSpec):
-    pipeline = traits.Dict(
+    pipeline = Dict(
         desc="Denoising pipeline",
         mandatory=True)
     conf_raw = File(
@@ -19,9 +21,9 @@ class ConfoundsInputSpec(BaseInterfaceInputSpec):
         exist=True,
         desc="Details aCompCor",
         mandatory=True)
-    entities = traits.Dict(
-        usedefault=True,
-        desc='Per-file entities to include in filename')
+    subject = Str()
+    task = Str()
+    session = Str()
     output_dir = File(          
         desc="Output path")
 
@@ -30,10 +32,9 @@ class ConfoundsOutputSpec(TraitedSpec):
     conf_prep = File(
         exists=True,
         desc="Preprocessed confounds table")
-    conf_summary = traits.Dict(
+    conf_summary_json_file = File(
         exists=True,
         desc="Confounds summary")
-    pipeline_name = traits.Str(desc="Name of denoising strategy")
 
 
 class Confounds(SimpleInterface):
@@ -79,26 +80,23 @@ class Confounds(SimpleInterface):
         max_fd = conf_df_raw["framewise_displacement"].max()
         n_timepoints = len(conf_df_raw)
 
-        try:
-            session = self.inputs.entities['session']
-        except KeyError:
-            session = 0
-
-        conf_summary = {
-                        "subject": [self.inputs.entities['subject']],
-                        "session": [session],
-                        "task": [self.inputs.entities['task']],
-                        "mean_fd": [mean_fd],
-                        "max_fd": [max_fd],
-                        "n_spikes": [n_spikes],
-                        "perc_spikes": [(n_spikes/n_timepoints)*100],
-                        "n_conf": [len(conf_df_prep.columns)],
-                        "include": [inclusion_check(n_timepoints, mean_fd, max_fd, n_spikes, 0.2)]
+        conf_summary = { # TODO: Why there are lists in this dict and not a simple types?
+                        "subject": [str(self.inputs.subject)],
+                        "session": [str(self.inputs.session)],
+                        "task": [str(self.inputs.subject)],
+                        "mean_fd": [float(mean_fd)],
+                        "max_fd": [float(max_fd)],
+                        "n_spikes": [float(n_spikes)],
+                        "perc_spikes": [float((n_spikes/n_timepoints)*100)],
+                        "n_conf": [float(len(conf_df_prep.columns))],
+                        "include": [float(inclusion_check(n_timepoints, mean_fd, max_fd, n_spikes, 0.2))]
                         }
-
+        conf_summary_json_file_name = join(self.inputs.output_dir,
+                                           f"{base}_prep_pipeline-{pipeline_name}_summary_dict.json")
+        with open(conf_summary_json_file_name, 'w') as f:
+            json.dump(conf_summary, f)
         self._results['conf_prep'] = fname_prep
-        self._results['conf_summary'] = conf_summary
-        self._results['pipeline_name'] = self.inputs.pipeline['name']
+        self._results['conf_summary_json_file'] = conf_summary_json_file_name
 
         return runtime
 
@@ -135,14 +133,16 @@ def inclusion_check(n_timepoints, mean_fd, max_fd, n_spikes, fd_th):
 
 
 class GroupConfoundsInputSpec(BaseInterfaceInputSpec):
-    conf_summary = traits.List(
+    conf_summary_json_files = List(File(),
         exists=True,
         desc="Confounds summary")
 
     output_dir = File(          # needed to save data in other directory
         desc="Output path")     # TODO: Implement temp dir
 
-    pipeline_name = traits.List(mandatory=True)
+    task = Str()
+    session = Str(mandatory=True)
+    pipeline_name = Str(mandatory=True)
 
 
 class GroupConfoundsOutputSpec(TraitedSpec):
@@ -158,9 +158,9 @@ class GroupConfounds(SimpleInterface):
     def _run_interface(self, runtime):
         group_conf_summary = pd.DataFrame()
 
-        for summary, pipeline_name in zip(self.inputs.conf_summary, self.inputs.pipeline_name):
+        for summary in self.inputs.conf_summary:
             group_conf_summary = group_conf_summary.append(pd.DataFrame.from_dict(summary))
-        fname = join(self.inputs.output_dir, f"{pipeline_name}_group_conf_summary.tsv")
+        fname = join(self.inputs.output_dir, f"ses-{self.inputs.session}_task-{self.inputs.task}_pipeline-{self.inputs.pipeline_name}_group_conf_summary.tsv")
         group_conf_summary.to_csv(fname, sep='\t', index=False)
         self._results['group_conf_summary'] = fname
         return runtime

@@ -4,12 +4,12 @@ from nipype.interfaces.io import IOBase
 from nipype.utils.filemanip import split_filename, copyfile
 from nipype.interfaces.base import (BaseInterfaceInputSpec, SimpleInterface,
     traits, isdefined, TraitedSpec,
-    Directory, File, Str, ImageFile,
+    Directory, Str, ImageFile,
     InputMultiObject, OutputMultiObject, OutputMultiPath, InputMultiPath)
-from traits.trait_types import Any, Dict, List
+from traits.trait_types import Any, Dict, List, Either, File
 import json
 import os
-import re
+import pickle
 
 
 def validate_derivatives(bids_dir, derivatives):
@@ -104,27 +104,19 @@ def compare_common_entities(file1, file2) -> None:
         raise MissingFile(f"{file1.path} has no corresponding file. "
                           f"Entities {entity_f1} and {entity_f2} should match.")
 
-def create_template(path: str, 
-                    patterns: dict = 
-                    {'sub-{sub_id}': 'sub-\d{1,}',
-                    'ses-{ses_id}': 'ses-\d{1,}',
-                    'task-{task_id}': 'task-[^_/.]*'}) -> str:
-    for replacement, pattern in patterns.items():
-        path, number = re.subn(pattern, replacement, path)
-    return path
-
 class MissingFile(IOError):
     pass
 
 
 class BIDSGrabInputSpec(BaseInterfaceInputSpec):
-    layout = Any(required=True) # todo strict type checking
-    scope = List(Str(), required=True)
-    tr_dict = Dict(required=True)
+
+    fmri_prep_files = List()
+    fmri_prep_aroma_files = Either(List(ImageFile()), File())
+    conf_raw_files = Either(List(File(exists=True)), File())
+    conf_json_files = Either(List(File(exists=True)), File())
     subject = Str()
     task = Str()
     session = Str()
-
 
 
 class BIDSGrabOutputSpec(TraitedSpec):
@@ -132,70 +124,36 @@ class BIDSGrabOutputSpec(TraitedSpec):
     fmri_prep_aroma = ImageFile()
     conf_raw = File(exists=True)
     conf_json = File(exists=True)
-    entity = Dict()
+
 
 class BIDSGrab(SimpleInterface):
     input_spec = BIDSGrabInputSpec
     output_spec = BIDSGrabOutputSpec
 
     def _run_interface(self, runtime):
-        fmri_prep = self.inputs.layout.get(
-            scope=self.inputs.scope,
-            **{
-            'subject': self.inputs.subject,
-            'session': self.inputs.session,
-            'task': self.inputs.task,
-            'extension': ['nii', 'nii.gz'],
-            'suffix': 'bold',
-            'desc': 'smoothAROMAnonaggr',
-            'space': 'MNI152NLin2009cAsym'
-            })
-        fmri_aroma = self.inputs.layout.get(
-            scope=self.inputs.scope,
-            **{
-            'subject': self.inputs.subject,
-            'session': self.inputs.session,
-            'task': self.inputs.task,
-            'extension': ['nii', 'nii.gz'],
-            'suffix': 'bold',
-            'desc': 'smoothAROMAnonaggr',
-            'space': 'MNI152NLin2009cAsym'
-        })
-        conf = self.layout.get(
-            scope=self.inputs.scope,
-            **{
-            'subject': self.inputs.subject,
-            'session': self.inputs.session,
-            'task': self.inputs.task,
-            'extension': 'tsv',
-            'suffix': 'regressors',
-            'desc': 'confounds',
-        })
-        conf_json = self.layout.get(
-            scope=self.inputs.scope,
-            **{
-            'subject': self.inputs.subject,
-            'session': self.inputs.session,
-            'task': self.inputs.task,
-            'extension': 'json',
-            'suffix': 'regressors',
-            'desc': 'confounds',
-        })
-        # sanity check
-        if len(fmri_prep) > 1:
-            raise ValueError(f"Expected single or none fmri_prep file, but got: {fmri_prep}")
-        if len(fmri_aroma) > 1:
-            raise ValueError(f"Expected single or none fmri_prep aroma file, but got: {fmri_aroma}")
-        if len(conf) != 1:
-            raise ValueError(f"Expected single confounds file, but got: {conf}")
-        if len(conf_json) != 1:
-            raise ValueError(f"Expected single confounds_json file, but got: {conf_json}")
-        
-        self._results.fmri_prep = fmri_prep[0].path
-        self._results.fmri_aroma = fmri_aroma[0].path
-        self._results.conf_raw = conf[0].path
-        self._results.conf_json = conf_json[0].path
-        self._results
+
+        self._results['fmri_prep'] = self.select_one(self.inputs.fmri_prep_files)
+        self._results['fmri_prep_aroma'] = self.select_one(self.inputs.fmri_prep_aroma_files)
+        self._results['conf_raw'] = self.select_one(self.inputs.conf_raw_files)
+        self._results['conf_json'] = self.select_one(self.inputs.conf_json)
+        return runtime
+
+    def select_one(self, _list: list) -> str:
+        return self._select_one(_list,
+                                self.inputs.subject,
+                                self.inputs.session,
+                                self.inputs.task)
+
+    @staticmethod
+    def _select_one(_list: list, subject: str, session: str, task: str) -> str:
+        query = lambda data_list: list(
+            filter(lambda x: f"sub-{subject}" in x,
+            filter(lambda x: f"ses-{session}" in x,
+            filter(lambda x: f"task-{task}" in x, data_list))))
+        result = query(_list)
+        if len(result) != 1:
+            raise ValueError(f"Unambiguous number of querried files, expected 1 but got {len(result)}")
+        return result[0]
 
 
 class BIDSSelect(traits.HasRequiredTraits):
@@ -383,15 +341,3 @@ class BIDSDataSink(IOBase):
             copyfile(in_file, out_fname, copy=True)
             out_files.append(out_fname)
         return {'out_file': out_files}
-
-
-# --- TESTS
-if __name__ == '__main__':
-
-    bids_dir = "/media/finc/Elements/fMRIDenoise_data/BIDS_LearningBrain_short_no_ICA/"
-    ica_aroma = True
-
-    grabber = BIDSGrab(bids_dir=bids_dir, ica_aroma=ica_aroma)
-    result = grabber.run()
-
-    print(result.outputs)

@@ -2,7 +2,9 @@
 import sys
 import os
 try :
-    import fmridenoise
+    pass
+    #import fmridenoise
+    #del fmridenoise
 except ModuleNotFoundError:
     sys.path.insert(0, os.path.dirname((__file__)))
 
