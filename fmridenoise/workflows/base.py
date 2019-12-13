@@ -125,12 +125,11 @@ def init_fmridenoise_wf(bids_dir,
 
     # Inputs: fmri_denoised
     parcellation_path = get_parcelation_file_path()
-    connectivity = pe.MapNode(
+    connectivity = Node(
         Connectivity(
             output_dir=temps.mkdtemp('connectivity'),
             parcellation=parcellation_path
         ),
-        iterfield=['fmri_denoised'],
         name='ConnCalc')
     # Outputs: conn_mat, carpet_plot
 
@@ -210,23 +209,19 @@ def init_fmridenoise_wf(bids_dir,
         name='ReportCreator')
 
     # 12) --- Save derivatives
-    ds_confounds = pe.MapNode(BIDSDataSink(base_directory=bids_dir),
-                    iterfield=['in_file', 'entities'],
+    ds_confounds = Node(BIDSDataSink(base_directory=bids_dir),
                     name="ds_confounds")
 
     ds_denoise = Node(BIDSDataSink(base_directory=bids_dir),
                     name="ds_denoise")
 
-    ds_connectivity = pe.MapNode(BIDSDataSink(base_directory=bids_dir),
-                    iterfield=['in_file', 'entities'],
+    ds_connectivity_corr_mat = Node(BIDSDataSink(base_directory=bids_dir),
                     name="ds_connectivity")
 
-    ds_carpet_plot = pe.MapNode(BIDSDataSink(base_directory=bids_dir),
-                                 iterfield=['in_file', 'entities'],
+    ds_connectivity_carpet_plot = Node(BIDSDataSink(base_directory=bids_dir),
                                  name="ds_carpet_plot")
 
-    ds_matrix_plot = pe.MapNode(BIDSDataSink(base_directory=bids_dir),
-                                 iterfield=['in_file', 'entities'],
+    ds_connectivity_matrix_plot = Node(BIDSDataSink(base_directory=bids_dir),
                                  name="ds_matrix_plot")
 
 
@@ -260,9 +255,24 @@ def init_fmridenoise_wf(bids_dir,
         # connectivity
         (denoise, connectivity, [('fmri_denoised', 'fmri_denoised')]),
         # all datasinks
+        ## ds_denoise
         (subjectselector, ds_denoise, [("subject", "subject")]),
         (sessionselector, ds_denoise, [("session", "session")]),
-        (denoise, ds_denoise, [("fmri_denoised", "in_file")])
+        (denoise, ds_denoise, [("fmri_denoised", "in_file")]),
+        ## ds_connectivity
+        (subjectselector, ds_connectivity_corr_mat, [("subject", "subject")]),
+        (sessionselector, ds_connectivity_corr_mat, [("session", "session")]),
+        (connectivity, ds_connectivity_corr_mat, [("corr_mat", "in_file")]),
+        (subjectselector, ds_connectivity_matrix_plot, [("subject", "subject")]),
+        (sessionselector, ds_connectivity_matrix_plot, [("session", "session")]),
+        (connectivity, ds_connectivity_matrix_plot, [("matrix_plot", "in_file")]),
+        (subjectselector, ds_connectivity_carpet_plot, [("subject", "subject")]),
+        (sessionselector, ds_connectivity_carpet_plot, [("session", "session")]),
+        (connectivity, ds_connectivity_carpet_plot, [("carpet_plot", "in_file")]),
+        ## ds_confounds
+        (subjectselector, ds_confounds, [("subject", "subject")]),
+        (sessionselector, ds_confounds, [("session", "session")]),
+        (prep_conf, ds_confounds, [("conf_prep", "in_file")]),
     ])
 
     return workflow

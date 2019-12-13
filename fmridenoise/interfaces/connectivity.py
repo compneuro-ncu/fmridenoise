@@ -80,7 +80,6 @@ class GroupConnectivityOutputSpec(TraitedSpec):
     group_corr_mat = File(exists=True,
                     desc='Connectivity matrix',
                     mandatory=True)
-    # pipeline_name = traits.Str(mandatory=True)
 
 
 class GroupConnectivity(SimpleInterface):
