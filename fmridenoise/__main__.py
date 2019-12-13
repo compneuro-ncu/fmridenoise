@@ -6,7 +6,8 @@ import sys
 # asure that fmridenoise is in path
 # if dirname(dirname(abspath(__file__))) not in sys.path:
 #         sys.path.append(dirname(dirname(abspath(__file__))))
-from fmridenoise.workflows.base import init_fmridenoise_wf, config
+from nipype import config
+from fmridenoise.workflows.base import init_fmridenoise_wf
 from fmridenoise.utils import profiler_callback
 from fmridenoise.utils.json_validator import is_valid
 import fmridenoise.utils.utils as ut

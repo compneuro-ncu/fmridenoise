@@ -20,6 +20,7 @@ def get_requirements() -> list:
             'sklearn>=0.0',
             'pydot>=1.4.1',
             'pybids>=0.9.1',
+            'psutil>=5.0',
             'jinja2>=2.10.1']
 
 def relative_paths(paths: list) -> list:

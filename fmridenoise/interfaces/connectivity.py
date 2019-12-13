@@ -72,7 +72,7 @@ class GroupConnectivityInputSpec(BaseInterfaceInputSpec):
                     mandatory=True)
 
     output_dir = File(desc='Output path')
-    pipeline_name = traits.List(mandatory=True)
+    pipeline_name = traits.Any(mandatory=True) # FIXME
 
 
 
@@ -80,7 +80,7 @@ class GroupConnectivityOutputSpec(TraitedSpec):
     group_corr_mat = File(exists=True,
                     desc='Connectivity matrix',
                     mandatory=True)
-    pipeline_name = traits.Str(mandatory=True)
+    # pipeline_name = traits.Str(mandatory=True)
 
 
 class GroupConnectivity(SimpleInterface):
@@ -94,12 +94,12 @@ class GroupConnectivity(SimpleInterface):
         for i, file in enumerate(self.inputs.corr_mat):
             group_corr_mat[i, :, :] = np.load(file)
 
-        pipeline_name = self.inputs.pipeline_name[0]
+        pipeline_name = self.inputs.pipeline_name
 
         group_corr_file = join(self.inputs.output_dir, f'{pipeline_name}_group_corr_mat.npy')
         np.save(group_corr_file, group_corr_mat)
 
         self._results['group_corr_mat'] = group_corr_file
-        self._results['pipeline_name'] = pipeline_name
+        # self._results['pipeline_name'] = pipeline_name
 
         return runtime

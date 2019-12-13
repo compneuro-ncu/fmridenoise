@@ -62,6 +62,7 @@ class DenoiseOutputSpec(TraitedSpec):
         mandatory=True
     )
 
+
 class Denoise(SimpleInterface):
     input_spec = DenoiseInputSpec
     output_spec = DenoiseOutputSpec

@@ -11,6 +11,7 @@ import json
 import os
 import pickle
 from itertools import product
+from os.path import  join
 
 def validate_derivatives(bids_dir, derivatives):
     """ Validate derivatives argument provided by the user.
@@ -471,10 +472,9 @@ class BIDSDataSinkInputSpec(BaseInterfaceInputSpec):
     base_directory = Directory(
         mandatory=True,
         desc='Path to BIDS (or derivatives) root directory')
-    in_file = InputMultiPath(File(exists=True), mandatory=True)
-    pipeline_name = traits.Str(mandatory=True)
-    entities = InputMultiPath(traits.Dict, usedefault=True,
-                              desc='Per-file entities to include in filename')
+    in_file = File(exists=True)
+    subject = traits.Str(mandatory=True, default_value="")
+    session = traits.Str(default_value="")
 
 
 class BIDSDataSinkOutputSpec(TraitedSpec):
@@ -482,29 +482,22 @@ class BIDSDataSinkOutputSpec(TraitedSpec):
 
 
 class BIDSDataSink(IOBase):
+    """
+    Copies files created by workflow to bids-like folder.
+    """
     input_spec = BIDSDataSinkInputSpec
     output_spec = BIDSDataSinkOutputSpec
 
     _always_run = True
 
     def _list_outputs(self):
-        base_dir = self.inputs.base_directory
-        os.makedirs(base_dir, exist_ok=True)
-
-        out_files = []
-        for entity, in_file in zip(self.inputs.entities, self.inputs.in_file):
-            sub_num = entity['subject']
-            basedir, basename, ext = split_filename(in_file)
-            sub_deriv_dir = f"/derivatives/fmridenoise/sub-{sub_num}/"
-
-            try:
-                session_num = entity['session']
-                path = f"{base_dir}{sub_deriv_dir}ses-{session_num}"
-            except KeyError:
-                path = f"{base_dir}/{sub_deriv_dir}"
-
-            os.makedirs(path, exist_ok=True)
-            out_fname = f"{path}/{basename}{ext}"
-            copyfile(in_file, out_fname, copy=True)
-            out_files.append(out_fname)
-        return {'out_file': out_files}
+        path = join(self.inputs.base_directory, "derivatives", "fmridenoise")
+        if self.inputs.subject != "":
+            path = join(path, f"sub-{self.inputs.subject}")
+        if self.inputs.session != "":
+            path = join(path, f"ses-{self.inputs.session}")
+        os.makedirs(path, exist_ok=True)
+        basedir, basename, ext = split_filename(self.inputs.in_file)
+        path = join(path, basename)
+        copyfile(self.inputs.in_file, path, copy=True)
+        return {'out_file': path}

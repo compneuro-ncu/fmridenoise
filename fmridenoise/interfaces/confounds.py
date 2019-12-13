@@ -158,8 +158,9 @@ class GroupConfounds(SimpleInterface):
     def _run_interface(self, runtime):
         group_conf_summary = pd.DataFrame()
 
-        for summary in self.inputs.conf_summary:
-            group_conf_summary = group_conf_summary.append(pd.DataFrame.from_dict(summary))
+        for summary_json_file in self.inputs.conf_summary_json_files:
+            with open(summary_json_file, 'r') as f:
+                group_conf_summary.append((pd.DataFrame.from_dict((json.load(f)))))
         fname = join(self.inputs.output_dir, f"ses-{self.inputs.session}_task-{self.inputs.task}_pipeline-{self.inputs.pipeline_name}_group_conf_summary.tsv")
         group_conf_summary.to_csv(fname, sep='\t', index=False)
         self._results['group_conf_summary'] = fname

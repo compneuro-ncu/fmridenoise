@@ -1,5 +1,5 @@
 from nipype.pipeline import engine as pe
-from nipype import Node, SelectFiles, IdentityInterface, Function
+from nipype import Node, IdentityInterface
 from fmridenoise.interfaces.smoothing import Smooth
 from fmridenoise.interfaces.bids import BIDSGrab, BIDSDataSink, BIDSValidate
 from fmridenoise.interfaces.confounds import Confounds, GroupConfounds
@@ -10,14 +10,8 @@ from fmridenoise.interfaces.quality_measures import QualityMeasures, PipelinesQu
 from fmridenoise.interfaces.report_creator import ReportCreator
 import fmridenoise.utils.temps as temps
 from fmridenoise.parcellation import get_parcelation_file_path, get_distance_matrix_file_path
-
-from nipype import config
-import fmridenoise
-import os
-from os.path import join
-import glob
 from fmridenoise.pipelines import get_pipelines_paths
-
+import os
 import logging
 logger = logging.getLogger("runtime")
 handler = logging.FileHandler("./runtime.log")
@@ -216,13 +210,11 @@ def init_fmridenoise_wf(bids_dir,
         name='ReportCreator')
 
     # 12) --- Save derivatives
-    # TODO: Fill missing in/out
     ds_confounds = pe.MapNode(BIDSDataSink(base_directory=bids_dir),
                     iterfield=['in_file', 'entities'],
                     name="ds_confounds")
 
-    ds_denoise = pe.MapNode(BIDSDataSink(base_directory=bids_dir),
-                    iterfield=['in_file', 'entities'],
+    ds_denoise = Node(BIDSDataSink(base_directory=bids_dir),
                     name="ds_denoise")
 
     ds_connectivity = pe.MapNode(BIDSDataSink(base_directory=bids_dir),
@@ -259,12 +251,18 @@ def init_fmridenoise_wf(bids_dir,
         (prep_conf, denoise, [('conf_prep', 'conf_prep')]),
         (pipelineselector, denoise, [('pipeline', 'pipeline')]),
         (bidsgrabber, denoise, [('fmri_prep_aroma', 'fmri_prep_aroma')]),
-        (taskselector, denoise, [('task', 'task')])
+        (taskselector, denoise, [('task', 'task')]),
         # group conf summary
-        # (prep_conf, group_conf_summary, [('conf_summary_json_file', 'conf_summary_json_files')]),
-        # (sessionselector, group_conf_summary, [('session', 'session')]),
-        # (taskselector, group_conf_summary, [('task', 'task')]),
-        # (pipelineselector, group_conf_summary, ['pipeline', 'pipeline'])
+        (prep_conf, group_conf_summary, [('conf_summary_json_file', 'conf_summary_json_files')]),
+        (sessionselector, group_conf_summary, [('session', 'session')]),
+        (taskselector, group_conf_summary, [('task', 'task')]),
+        (pipelineselector, group_conf_summary, [('pipeline_name', 'pipeline_name')]),
+        # connectivity
+        (denoise, connectivity, [('fmri_denoised', 'fmri_denoised')]),
+        # all datasinks
+        (subjectselector, ds_denoise, [("subject", "subject")]),
+        (sessionselector, ds_denoise, [("session", "session")]),
+        (denoise, ds_denoise, [("fmri_denoised", "in_file")])
     ])
 
     return workflow
