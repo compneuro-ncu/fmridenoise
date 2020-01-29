@@ -72,7 +72,9 @@ class GroupConnectivityInputSpec(BaseInterfaceInputSpec):
                     mandatory=True)
 
     output_dir = File(desc='Output path')
-    pipeline_name = traits.Any(mandatory=True) # FIXME
+    pipeline_name = traits.Str(mandatory=True)
+    session = traits.Str(mandatory=True)
+    task = traits.Str(mandatory=True)
 
 
 
@@ -94,8 +96,10 @@ class GroupConnectivity(SimpleInterface):
             group_corr_mat[i, :, :] = np.load(file)
 
         pipeline_name = self.inputs.pipeline_name
-
-        group_corr_file = join(self.inputs.output_dir, f'{pipeline_name}_group_corr_mat.npy')
+        ses = self.inputs.session
+        task = self.inputs.task
+        group_corr_file = join(self.inputs.output_dir,
+                               f'pieline-{pipeline_name}_ses-{ses}_task-{task}_group_corr_mat.npy')
         np.save(group_corr_file, group_corr_mat)
 
         self._results['group_corr_mat'] = group_corr_file

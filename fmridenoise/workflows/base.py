@@ -46,7 +46,7 @@ def init_fmridenoise_wf(bids_dir,
     # 1) --- Itersources for all further processing
 
     # Inputs: fulfilled
-    pipelineselector = pe.Node(
+    pipelineselector = Node(
        PipelineSelector(),
        name="PipelineSelector")
     pipelineselector.iterables = ('pipeline_path', pipelines_paths)
@@ -155,10 +155,12 @@ def init_fmridenoise_wf(bids_dir,
 
     # Inputs: corr_mat, pipeline_name
 
-    group_connectivity = pe.Node(
+    group_connectivity = pe.JoinNode(
         GroupConnectivity(
             output_dir=os.path.join(bids_dir, 'derivatives', 'fmridenoise'),
         ),
+        joinfield=["corr_mat"],
+        joinsource=subjectselector,
         name="GroupConn")
 
     # Outputs: group_corr_mat
@@ -254,6 +256,13 @@ def init_fmridenoise_wf(bids_dir,
         (pipelineselector, group_conf_summary, [('pipeline_name', 'pipeline_name')]),
         # connectivity
         (denoise, connectivity, [('fmri_denoised', 'fmri_denoised')]),
+        # group connectivity
+        (connectivity, group_connectivity, [("corr_mat", "corr_mat")]),
+        (pipelineselector, group_connectivity, [("pipeline_name", "pipeline_name")]),
+        (taskselector, group_connectivity, [('task', 'task')]),
+        (sessionselector, group_connectivity, [('session', 'session')]),
+        # quality measures
+
         # all datasinks
         ## ds_denoise
         (subjectselector, ds_denoise, [("subject", "subject")]),
