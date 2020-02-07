@@ -1,4 +1,4 @@
-from nilearn.image import clean_img, smooth_img
+from nilearn.image import clean_img
 from nipype.utils.filemanip import split_filename
 from nipype.interfaces.base import (
     BaseInterfaceInputSpec, TraitedSpec, SimpleInterface,
@@ -8,6 +8,7 @@ import nibabel as nb
 import pandas as pd
 import os
 from os.path import exists
+
 
 class DenoiseInputSpec(BaseInterfaceInputSpec):
     fmri_prep = ImageFile(
@@ -68,7 +69,8 @@ class Denoise(SimpleInterface):
     output_spec = DenoiseOutputSpec
 
     def _run_interface(self, runtime):
-        assert(self.inputs.fmri_prep is not None or self.inputs.fmri_prep_aroma is not None, "Both fmri_prep and fmri_prep_aroma is missing")
+        assert(self.inputs.fmri_prep is not None or self.inputs.fmri_prep_aroma is not None,
+               "Both fmri_prep and fmri_prep_aroma is missing")
         pipeline_name = self.inputs.pipeline['name']
         pipeline_aroma = self.inputs.pipeline['aroma']
         if pipeline_aroma:

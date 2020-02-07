@@ -146,10 +146,15 @@ class BIDSGrab(SimpleInterface):
 
     @staticmethod
     def _select_one(_list: list, subject: str, session: str, task: str) -> str:
-        query = lambda data_list: list(
-            filter(lambda x: f"sub-{subject}" in x,
-            filter(lambda x: f"ses-{session}" in x,
-            filter(lambda x: f"task-{task}" in x, data_list))))
+        if session:
+            query = lambda data_list: list(
+                filter(lambda x: f"sub-{subject}" in x,
+                filter(lambda x: f"ses-{session}" in x,
+                filter(lambda x: f"task-{task}" in x, data_list))))
+        else:
+            query = lambda data_list: list(
+                filter(lambda x: f"sub-{subject}" in x,
+                filter(lambda x: f"task-{task}" in x, data_list)))
         result = query(_list)
         if not len(result) <= 1:
             raise ValueError(f"Unambiguous number of querried files, expected 1 or 0 but got {len(result)}")

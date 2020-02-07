@@ -1,30 +1,37 @@
 import pandas as pd
-from traits.trait_types import Dict, File, Str, List
-from nipype.interfaces.base import BaseInterface, \
-    BaseInterfaceInputSpec, File, TraitedSpec, SimpleInterface, \
-    InputMultiObject
+from traits.trait_types import Dict, Str, List, Directory
+from nipype.interfaces.base import BaseInterfaceInputSpec, File, TraitedSpec, SimpleInterface
 from nipype.utils.filemanip import split_filename
 from fmridenoise.utils.confound_prep import prep_conf_df
 from os.path import join
 import json
-import pickle
+import os
+
 
 class ConfoundsInputSpec(BaseInterfaceInputSpec):
     pipeline = Dict(
-        desc="Denoising pipeline",
-        mandatory=True)
+        mandatory=True,
+        desc="Denoising pipeline")
     conf_raw = File(
         exist=True,
-        desc="Confounds table",
-        mandatory=True)
+        mandatory=True,
+        desc="Confounds table")
     conf_json = File(
         exist=True,
-        desc="Details aCompCor",
-        mandatory=True)
-    subject = Str()
-    task = Str()
-    session = Str()
-    output_dir = File(          
+        mandatory=True,
+        desc="Details aCompCor")
+    subject = Str(
+        mandatory=True,
+        desc="Subject name")
+    task = Str(
+        mandatory=True,
+        desc="Task name")
+    session = Str(
+        mandatory=False,
+        desc="Session name")
+    output_dir = Directory(
+        exists=True,
+        mandatory=True,
         desc="Output path")
 
 
@@ -82,7 +89,6 @@ class Confounds(SimpleInterface):
 
         conf_summary = { # TODO: Why there are lists in this dict and not a simple types?
                         "subject": [str(self.inputs.subject)],
-                        "session": [str(self.inputs.session)],
                         "task": [str(self.inputs.subject)],
                         "mean_fd": [float(mean_fd)],
                         "max_fd": [float(max_fd)],
@@ -91,8 +97,11 @@ class Confounds(SimpleInterface):
                         "n_conf": [float(len(conf_df_prep.columns))],
                         "include": [float(inclusion_check(n_timepoints, mean_fd, max_fd, n_spikes, 0.2))]
                         }
+        if self.inputs.session:
+            conf_summary["session"] = [str(self.inputs.session)]
         conf_summary_json_file_name = join(self.inputs.output_dir,
                                            f"{base}_prep_pipeline-{pipeline_name}_summary_dict.json")
+        assert not os.path.exists(conf_summary_json_file_name)
         with open(conf_summary_json_file_name, 'w') as f:
             json.dump(conf_summary, f)
         self._results['conf_prep'] = fname_prep
@@ -133,16 +142,23 @@ def inclusion_check(n_timepoints, mean_fd, max_fd, n_spikes, fd_th):
 
 
 class GroupConfoundsInputSpec(BaseInterfaceInputSpec):
-    conf_summary_json_files = List(File(),
-        exists=True,
+    conf_summary_json_files = List(
+        File(exists=True),
+        mandatory=True,
         desc="Confounds summary")
 
-    output_dir = File(          # needed to save data in other directory
+    output_dir = Directory(          # needed to save data in other directory
+        mandatory=True,
         desc="Output path")     # TODO: Implement temp dir
 
-    task = Str()
-    session = Str(mandatory=True)
-    pipeline_name = Str(mandatory=True)
+    task = Str(
+        mandatory=True,
+        desc="Task name")
+    session = Str(
+        mandatory=False,
+        desc="Session name")
+    pipeline_name = Str(mandatory=True,
+                        desc="Pipeline name")
 
 
 class GroupConfoundsOutputSpec(TraitedSpec):
@@ -161,7 +177,12 @@ class GroupConfounds(SimpleInterface):
         for summary_json_file in self.inputs.conf_summary_json_files:
             with open(summary_json_file, 'r') as f:
                 group_conf_summary.append((pd.DataFrame.from_dict((json.load(f)))))
-        fname = join(self.inputs.output_dir, f"ses-{self.inputs.session}_task-{self.inputs.task}_pipeline-{self.inputs.pipeline_name}_group_conf_summary.tsv")
+        if self.inputs.session:
+            base =  f"ses-{self.inputs.session}_task-{self.inputs.task}_pipeline-{self.inputs.pipeline_name}_group_conf_summary.tsv"
+        else:
+            base =  f"task-{self.inputs.task}_pipeline-{self.inputs.pipeline_name}_group_conf_summary.tsv"
+        fname = join(self.inputs.output_dir, base)
+        assert not os.path.exists(fname)
         group_conf_summary.to_csv(fname, sep='\t', index=False)
         self._results['group_conf_summary'] = fname
         return runtime
