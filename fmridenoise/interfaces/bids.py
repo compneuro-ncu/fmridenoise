@@ -477,9 +477,16 @@ class BIDSDataSinkInputSpec(BaseInterfaceInputSpec):
     base_directory = Directory(
         mandatory=True,
         desc='Path to BIDS (or derivatives) root directory')
-    in_file = File(exists=True)
-    subject = traits.Str(mandatory=True, default_value="")
-    session = traits.Str(default_value="")
+    in_file = File(
+        exists=True,
+        mandatory=True,
+        desc="File from tmp to save in BIDS directory")
+    subject = Str(
+        mandatory=False,
+        desc="Subject name")
+    session = Str(
+        mandatory=False,
+        desc="Session name")
 
 
 class BIDSDataSinkOutputSpec(TraitedSpec):
@@ -497,12 +504,13 @@ class BIDSDataSink(IOBase):
 
     def _list_outputs(self):
         path = join(self.inputs.base_directory, "derivatives", "fmridenoise")
-        if self.inputs.subject != "":
+        if self.inputs.subject:
             path = join(path, f"sub-{self.inputs.subject}")
-        if self.inputs.session != "":
+        if self.inputs.session:
             path = join(path, f"ses-{self.inputs.session}")
         os.makedirs(path, exist_ok=True)
         basedir, basename, ext = split_filename(self.inputs.in_file)
-        path = join(path, basename)
+        path = join(path, basename+ext)
+        assert not os.path.exists(path)
         copyfile(self.inputs.in_file, path, copy=True)
         return {'out_file': path}

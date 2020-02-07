@@ -115,8 +115,12 @@ class GroupConnectivity(SimpleInterface):
         pipeline_name = self.inputs.pipeline_name
         ses = self.inputs.session
         task = self.inputs.task
-        group_corr_file = join(self.inputs.output_dir,
-                               f'pieline-{pipeline_name}_ses-{ses}_task-{task}_group_corr_mat.npy')
+        if ses:
+            group_corr_file = join(self.inputs.output_dir,
+                                   f'pieline-{pipeline_name}_ses-{ses}_task-{task}_group_corr_mat.npy')
+        else:
+            group_corr_file = join(self.inputs.output_dir,
+                                   f'pieline-{pipeline_name}_task-{task}_group_corr_mat.npy')
         np.save(group_corr_file, group_corr_mat)
 
         self._results['group_corr_mat'] = group_corr_file

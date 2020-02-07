@@ -19,7 +19,7 @@ logger.setLevel(logging.DEBUG)
 logger.addHandler(handler)
 
 class BaseWorkflow(pe.Workflow):
-    def __init__(self, name, base_dir, bids_validate_result, pipelines_paths, high_pass, low_pass):
+    def __init__(self, name, base_dir, bids_dir, bids_validate_result, pipelines_paths, high_pass, low_pass):
         super().__init__(name, base_dir)
         temps.base_dir = base_dir
         # 1) --- Itersources for all further processing
@@ -87,7 +87,7 @@ class BaseWorkflow(pe.Workflow):
                 tr_dict=bids_validate_result.outputs.tr_dict,
                 output_dir=temps.mkdtemp('denoise')),
             name="Denoiser",
-            mem_gb=6)
+            mem_gb=8)
         # Outputs: fmri_denoised
 
         # 5) --- Connectivity estimation
@@ -108,11 +108,11 @@ class BaseWorkflow(pe.Workflow):
         # FIXME BEGIN
         # This is part of temporary solution.
         # Group nodes write to bids dir insted of tmp and let files be grabbed by datasink
-        os.makedirs(os.path.join(base_dir, 'derivatives', 'fmridenoise'), exist_ok=True)
+        os.makedirs(os.path.join(bids_dir, 'derivatives', 'fmridenoise'), exist_ok=True)
         # FIXME END
         self.group_conf_summary = pe.JoinNode(
             GroupConfounds(
-                output_dir=os.path.join(base_dir, 'derivatives', 'fmridenoise'),
+                output_dir=os.path.join(bids_dir, 'derivatives', 'fmridenoise'),
             ),
             joinfield=["conf_summary_json_files"],
             joinsource=self.subjectselector,
@@ -126,7 +126,7 @@ class BaseWorkflow(pe.Workflow):
 
         self.group_connectivity = pe.JoinNode(
             GroupConnectivity(
-                output_dir=os.path.join(base_dir, 'derivatives', 'fmridenoise'),
+                output_dir=os.path.join(bids_dir, 'derivatives', 'fmridenoise'),
             ),
             joinfield=["corr_mat"],
             joinsource=self.subjectselector,
@@ -140,7 +140,7 @@ class BaseWorkflow(pe.Workflow):
 
         quality_measures = pe.MapNode(
             QualityMeasures(
-                output_dir=os.path.join(base_dir, 'derivatives', 'fmridenoise'),
+                output_dir=os.path.join(bids_dir, 'derivatives', 'fmridenoise'),
                 distance_matrix=get_distance_matrix_file_path()
             ),
             iterfield=['group_corr_mat', 'group_conf_summary'],
@@ -163,7 +163,7 @@ class BaseWorkflow(pe.Workflow):
 
         pipelines_quality_measures = pe.Node(
             PipelinesQualityMeasures(
-                output_dir=os.path.join(base_dir, 'derivatives', 'fmridenoise'),
+                output_dir=os.path.join(bids_dir, 'derivatives', 'fmridenoise'),
             ),
             name="PipelinesQC")
 
@@ -173,26 +173,26 @@ class BaseWorkflow(pe.Workflow):
 
         report_creator = pe.JoinNode(
             ReportCreator(
-                group_data_dir=os.path.join(base_dir, 'derivatives', 'fmridenoise')
+                group_data_dir=os.path.join(bids_dir, 'derivatives', 'fmridenoise')
             ),
             joinsource=self.pipelineselector,
             joinfield=['pipelines', 'pipelines_names'],
             name='ReportCreator')
 
         # 12) --- Save derivatives
-        self.ds_confounds = Node(BIDSDataSink(base_directory=base_dir),
+        self.ds_confounds = Node(BIDSDataSink(base_directory=bids_dir),
                             name="ds_confounds")
 
-        self.ds_denoise = Node(BIDSDataSink(base_directory=base_dir),
+        self.ds_denoise = Node(BIDSDataSink(base_directory=bids_dir),
                           name="ds_denoise")
 
-        self.ds_connectivity_corr_mat = Node(BIDSDataSink(base_directory=base_dir),
+        self.ds_connectivity_corr_mat = Node(BIDSDataSink(base_directory=bids_dir),
                                         name="ds_connectivity")
 
-        self.ds_connectivity_carpet_plot = Node(BIDSDataSink(base_directory=base_dir),
+        self.ds_connectivity_carpet_plot = Node(BIDSDataSink(base_directory=bids_dir),
                                            name="ds_carpet_plot")
 
-        self.ds_connectivity_matrix_plot = Node(BIDSDataSink(base_directory=base_dir),
+        self.ds_connectivity_matrix_plot = Node(BIDSDataSink(base_directory=bids_dir),
                                            name="ds_matrix_plot")
 
         # --- Connecting nodes
@@ -244,8 +244,8 @@ class BaseWorkflow(pe.Workflow):
         ])
 
 class BaseWorkflowWithSessions(BaseWorkflow):
-    def __init__(self, name, base_dir, bids_validate_result, pipelines_paths, high_pass, low_pass):
-        super().__init__(name, base_dir, bids_validate_result, pipelines_paths, high_pass, low_pass)
+    def __init__(self, name, base_dir, bids_dir, bids_validate_result, pipelines_paths, high_pass, low_pass):
+        super().__init__(name, base_dir, bids_dir, bids_validate_result, pipelines_paths, high_pass, low_pass)
         # Inputs: fulfilled
         self.sessionselector = Node(
             IdentityInterface(
@@ -290,12 +290,14 @@ def init_fmridenoise_wf(bids_dir,
     if result.outputs.sessions:
         return BaseWorkflowWithSessions(name=name,
                                         base_dir=base_dir,
+                                        bids_dir=bids_dir,
                                         bids_validate_result=result,
                                         pipelines_paths=pipelines_paths,
                                         high_pass=high_pass,
                                         low_pass=low_pass)
     else:
         return BaseWorkflow(name=name,
+                            bids_dir=bids_dir,
                             base_dir=base_dir,
                             bids_validate_result=result,
                             pipelines_paths=pipelines_paths,
