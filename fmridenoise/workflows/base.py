@@ -18,6 +18,253 @@ handler = logging.FileHandler("./runtime.log")
 logger.setLevel(logging.DEBUG)
 logger.addHandler(handler)
 
+class BaseWorkflow(pe.Workflow):
+    def __init__(self, name, base_dir, bids_dir, bids_validate_result, pipelines_paths, high_pass, low_pass):
+        super().__init__(name, base_dir)
+        temps.base_dir = base_dir
+        # 1) --- Itersources for all further processing
+
+        # Inputs: fulfilled
+        self.pipelineselector = Node(
+            PipelineSelector(),
+            name="PipelineSelector")
+        self.pipelineselector.iterables = ('pipeline_path', pipelines_paths)
+        # Outputs: pipeline, pipeline_name, low_pass, high_pass
+
+        # Inputs: fulfilled
+        self.subjectselector = Node(
+            IdentityInterface(
+                fields=['subject']),
+            name="SubjectSelector")
+        self.subjectselector.iterables = ('subject', bids_validate_result.outputs.subjects)
+        # Outputs: subject
+
+        # Inputs: fulfilled
+        self.taskselector = Node(
+            IdentityInterface(
+                fields=['task']),
+            name="TaskSelector")
+        self.taskselector.iterables = ('task', bids_validate_result.outputs.tasks)
+        # Outputs: task
+
+        # 2) --- Loading BIDS files
+
+        # Inputs: subject, session, task
+        self.bidsgrabber = Node(
+            BIDSGrab(
+                fmri_prep_files=bids_validate_result.outputs.fmri_prep,
+                fmri_prep_aroma_files=bids_validate_result.outputs.fmri_prep_aroma,
+                conf_raw_files=bids_validate_result.outputs.conf_raw,
+                conf_json_files=bids_validate_result.outputs.conf_json),
+            name="BidsGrabber")
+        # Outputs: fmri_prep, fmri_prep_aroma, conf_raw, conf_json
+
+        # 3) --- Smoothing
+
+        # Inputs: fmri_prep
+        self.smooth_signal = Node(
+            Smooth(
+                output_directory=temps.mkdtemp('smoothing'),
+                is_file_mandatory=False),
+            name="Smoother")
+        # Outputs: fmri_smoothed
+
+        # 3) --- Confounds preprocessing
+
+        # Inputs: pipeline, conf_raw, conf_json
+        self.prep_conf = Node(
+            Confounds(
+                output_dir=temps.mkdtemp('prep_conf')
+            ), name="ConfPrep")
+        # Outputs: conf_prep, conf_summary
+
+        # 4) --- Denoising
+        # Inputs: fmri_prep, fmri_prep_aroma, conf_prep, pipeline, entity, tr_dict
+        self.denoise = Node(
+            Denoise(
+                high_pass=high_pass,
+                low_pass=low_pass,
+                tr_dict=bids_validate_result.outputs.tr_dict,
+                output_dir=temps.mkdtemp('denoise')),
+            name="Denoiser",
+            mem_gb=8)
+        # Outputs: fmri_denoised
+
+        # 5) --- Connectivity estimation
+
+        # Inputs: fmri_denoised
+        parcellation_path = get_parcelation_file_path()
+        self.connectivity = Node(
+            Connectivity(
+                output_dir=temps.mkdtemp('connectivity'),
+                parcellation=parcellation_path
+            ),
+            name='ConnCalc')
+        # Outputs: conn_mat, carpet_plot
+
+        # 6) --- Group confounds
+
+        # Inputs: conf_summary, pipeline_name
+        # FIXME BEGIN
+        # This is part of temporary solution.
+        # Group nodes write to bids dir insted of tmp and let files be grabbed by datasink
+        os.makedirs(os.path.join(bids_dir, 'derivatives', 'fmridenoise'), exist_ok=True)
+        # FIXME END
+        self.group_conf_summary = pe.JoinNode(
+            GroupConfounds(
+                output_dir=os.path.join(bids_dir, 'derivatives', 'fmridenoise'),
+            ),
+            joinfield=["conf_summary_json_files"],
+            joinsource=self.subjectselector,
+            name="GroupConf")
+
+        # Outputs: group_conf_summary
+
+        # 7) --- Group connectivity
+
+        # Inputs: corr_mat, pipeline_name
+
+        self.group_connectivity = pe.JoinNode(
+            GroupConnectivity(
+                output_dir=os.path.join(bids_dir, 'derivatives', 'fmridenoise'),
+            ),
+            joinfield=["corr_mat"],
+            joinsource=self.subjectselector,
+            name="GroupConn")
+
+        # Outputs: group_corr_mat
+
+        # 8) --- Quality measures
+
+        # Inputs: group_corr_mat, group_conf_summary, pipeline_name
+
+        quality_measures = pe.MapNode(
+            QualityMeasures(
+                output_dir=os.path.join(bids_dir, 'derivatives', 'fmridenoise'),
+                distance_matrix=get_distance_matrix_file_path()
+            ),
+            iterfield=['group_corr_mat', 'group_conf_summary'],
+            name="QualityMeasures")
+        # Outputs: fc_fd_summary, edges_weight, edges_weight_clean
+
+        # 9) --- Merge quality measures into lists for further processing
+
+        # Inputs: fc_fd_summary, edges_weight, edges_weight_clean
+
+        merge_quality_measures = pe.JoinNode(MergeGroupQualityMeasures(),
+                                             joinsource=self.pipelineselector,
+                                             name="Merge")
+
+        # Outputs: fc_fd_summary, edges_weight
+
+        # 10) --- Quality measures across pipelines
+
+        # Inputs: fc_fd_summary, edges_weight
+
+        pipelines_quality_measures = pe.Node(
+            PipelinesQualityMeasures(
+                output_dir=os.path.join(bids_dir, 'derivatives', 'fmridenoise'),
+            ),
+            name="PipelinesQC")
+
+        # Outputs: pipelines_fc_fd_summary, pipelines_edges_weight
+
+        # 11) --- Report from data
+
+        report_creator = pe.JoinNode(
+            ReportCreator(
+                group_data_dir=os.path.join(bids_dir, 'derivatives', 'fmridenoise')
+            ),
+            joinsource=self.pipelineselector,
+            joinfield=['pipelines', 'pipelines_names'],
+            name='ReportCreator')
+
+        # 12) --- Save derivatives
+        self.ds_confounds = Node(BIDSDataSink(base_directory=bids_dir),
+                            name="ds_confounds")
+
+        self.ds_denoise = Node(BIDSDataSink(base_directory=bids_dir),
+                          name="ds_denoise")
+
+        self.ds_connectivity_corr_mat = Node(BIDSDataSink(base_directory=bids_dir),
+                                        name="ds_connectivity")
+
+        self.ds_connectivity_carpet_plot = Node(BIDSDataSink(base_directory=bids_dir),
+                                           name="ds_carpet_plot")
+
+        self.ds_connectivity_matrix_plot = Node(BIDSDataSink(base_directory=bids_dir),
+                                           name="ds_matrix_plot")
+
+        # --- Connecting nodes
+
+        self.connect([
+            # bidsgrabber
+            (self.subjectselector, self.bidsgrabber, [('subject', 'subject')]),
+            (self.taskselector, self.bidsgrabber, [('task', 'task')]),
+            # smooth_signal
+            (self.bidsgrabber, self.smooth_signal, [('fmri_prep', 'fmri_prep')]),
+            # prep_conf
+            (self.pipelineselector, self.prep_conf, [('pipeline', 'pipeline')]),
+            (self.subjectselector, self.prep_conf, [('subject', 'subject')]),
+            (self.taskselector, self.prep_conf, [('task', 'task')]),
+            (self.bidsgrabber, self.prep_conf, [('conf_raw', 'conf_raw'),
+                                      ('conf_json', 'conf_json')]),
+            # denoise
+            (self.smooth_signal, self.denoise, [('fmri_smoothed', 'fmri_prep')]),
+            (self.prep_conf, self.denoise, [('conf_prep', 'conf_prep')]),
+            (self.pipelineselector, self.denoise, [('pipeline', 'pipeline')]),
+            (self.bidsgrabber, self.denoise, [('fmri_prep_aroma', 'fmri_prep_aroma')]),
+            (self.taskselector, self.denoise, [('task', 'task')]),
+            # group conf summary
+            (self.prep_conf, self.group_conf_summary, [('conf_summary_json_file', 'conf_summary_json_files')]),
+            (self.taskselector, self.group_conf_summary, [('task', 'task')]),
+            (self.pipelineselector, self.group_conf_summary, [('pipeline_name', 'pipeline_name')]),
+            # connectivity
+            (self.denoise, self.connectivity, [('fmri_denoised', 'fmri_denoised')]),
+            # group connectivity
+            (self.connectivity, self.group_connectivity, [("corr_mat", "corr_mat")]),
+            (self.pipelineselector, self.group_connectivity, [("pipeline_name", "pipeline_name")]),
+            (self.taskselector, self.group_connectivity, [('task', 'task')]),
+            # quality measures
+
+            # all datasinks
+            ## ds_denoise
+            (self.subjectselector, self.ds_denoise, [("subject", "subject")]),
+            (self.denoise, self.ds_denoise, [("fmri_denoised", "in_file")]),
+            ## ds_connectivity
+            (self.subjectselector, self.ds_connectivity_corr_mat, [("subject", "subject")]),
+            (self.connectivity, self.ds_connectivity_corr_mat, [("corr_mat", "in_file")]),
+            (self.subjectselector, self.ds_connectivity_matrix_plot, [("subject", "subject")]),
+            (self.connectivity, self.ds_connectivity_matrix_plot, [("matrix_plot", "in_file")]),
+            (self.subjectselector, self.ds_connectivity_carpet_plot, [("subject", "subject")]),
+            (self.connectivity, self.ds_connectivity_carpet_plot, [("carpet_plot", "in_file")]),
+            ## ds_confounds
+            (self.subjectselector, self.ds_confounds, [("subject", "subject")]),
+            (self.prep_conf, self.ds_confounds, [("conf_prep", "in_file")]),
+        ])
+
+class BaseWorkflowWithSessions(BaseWorkflow):
+    def __init__(self, name, base_dir, bids_dir, bids_validate_result, pipelines_paths, high_pass, low_pass):
+        super().__init__(name, base_dir, bids_dir, bids_validate_result, pipelines_paths, high_pass, low_pass)
+        # Inputs: fulfilled
+        self.sessionselector = Node(
+            IdentityInterface(
+                fields=['session']),
+            name="SessionSelector")
+        self.sessionselector.iterables = ('session', bids_validate_result.outputs.sessions)
+        # Outputs: session
+
+        self.connect([
+            (self.sessionselector, self.bidsgrabber, [('session', 'session')]),
+            (self.sessionselector, self.prep_conf, [('session', 'session')]),
+            (self.sessionselector, self.group_conf_summary, [('session', 'session')]),
+            (self.sessionselector, self.group_connectivity, [('session', 'session')]),
+            (self.sessionselector, self.ds_denoise, [("session", "session")]),
+            (self.sessionselector, self.ds_connectivity_corr_mat, [("session", "session")]),
+            (self.sessionselector, self.ds_connectivity_matrix_plot, [("session", "session")]),
+            (self.sessionselector, self.ds_connectivity_carpet_plot, [("session", "session")]),
+            (self.sessionselector, self.ds_confounds, [("session", "session")]),
+        ])
 
 def init_fmridenoise_wf(bids_dir,
                         derivatives='fmriprep',
@@ -40,251 +287,22 @@ def init_fmridenoise_wf(bids_dir,
                                pipelines=pipelines_paths),
                          name='BidsValidate')
     result = bids_validate.run()
-
-    temps.base_dir = base_dir
-    workflow = pe.Workflow(name=name, base_dir=base_dir)
-    # 1) --- Itersources for all further processing
-
-    # Inputs: fulfilled
-    pipelineselector = Node(
-       PipelineSelector(),
-       name="PipelineSelector")
-    pipelineselector.iterables = ('pipeline_path', pipelines_paths)
-    # Outputs: pipeline, pipeline_name, low_pass, high_pass
-
-    # Inputs: fulfilled
-    subjectselector = Node(
-        IdentityInterface(
-            fields=['subject']),
-        name="SubjectSelector")
-    subjectselector.iterables = ('subject', result.outputs.subjects)
-    # Outputs: subject
-
-    # Inputs: fulfilled
-    taskselector = Node(
-        IdentityInterface(
-            fields=['task']),
-        name="TaskSelector")
-    taskselector.iterables = ('task', result.outputs.tasks)
-    # Outputs: task
-
-    # Inputs: fulfilled
-    sessionselector = Node(
-        IdentityInterface(
-            fields=['session']),
-        name="SessionSelector")
-    sessionselector.iterables = ('session', result.outputs.sessions)
-    # Outputs: session
-
-    # 2) --- Loading BIDS files
-
-    # Inputs: subject, session, task
-    bidsgrabber = Node(
-        BIDSGrab(
-            fmri_prep_files=result.outputs.fmri_prep,
-            fmri_prep_aroma_files=result.outputs.fmri_prep_aroma,
-            conf_raw_files=result.outputs.conf_raw,
-            conf_json_files=result.outputs.conf_json),
-        name="BidsGrabber")
-    # Outputs: fmri_prep, fmri_prep_aroma, conf_raw, conf_json
-
-    # 3) --- Smoothing
-
-    # Inputs: fmri_prep
-    smooth_signal = Node(
-        Smooth(
-            output_directory=temps.mkdtemp('smoothing'),
-            is_file_mandatory=False), 
-        name="Smoother")
-    # Outputs: fmri_smoothed
-
-    # 3) --- Confounds preprocessing
-
-    # Inputs: pipeline, conf_raw, conf_json
-    prep_conf = Node(
-        Confounds(
-            output_dir=temps.mkdtemp('prep_conf')
-        ), name="ConfPrep")
-    # Outputs: conf_prep, conf_summary
-
-    
-
-    # 4) --- Denoising
-    # Inputs: fmri_prep, fmri_prep_aroma, conf_prep, pipeline, entity, tr_dict
-    denoise = Node(
-        Denoise(
-            high_pass=high_pass,
-            low_pass=low_pass,
-            tr_dict=result.outputs.tr_dict,
-            output_dir=temps.mkdtemp('denoise')),
-        name="Denoiser", 
-        mem_gb=6)
-    # Outputs: fmri_denoised
-
-    # 5) --- Connectivity estimation
-
-    # Inputs: fmri_denoised
-    parcellation_path = get_parcelation_file_path()
-    connectivity = Node(
-        Connectivity(
-            output_dir=temps.mkdtemp('connectivity'),
-            parcellation=parcellation_path
-        ),
-        name='ConnCalc')
-    # Outputs: conn_mat, carpet_plot
-
-    # 6) --- Group confounds
-
-    # Inputs: conf_summary, pipeline_name
-    # FIXME BEGIN
-    # This is part of temporary solution.
-    # Group nodes write to bids dir insted of tmp and let files be grabbed by datasink
-    os.makedirs(os.path.join(bids_dir, 'derivatives', 'fmridenoise'), exist_ok=True)
-    # FIXME END
-    group_conf_summary = pe.JoinNode(
-        GroupConfounds(
-            output_dir=os.path.join(bids_dir, 'derivatives', 'fmridenoise'),
-        ),
-        joinfield=["conf_summary_json_files"],
-        joinsource=subjectselector,
-        name="GroupConf")
-
-    # Outputs: group_conf_summary
-
-    # 7) --- Group connectivity
-
-    # Inputs: corr_mat, pipeline_name
-
-    group_connectivity = pe.JoinNode(
-        GroupConnectivity(
-            output_dir=os.path.join(bids_dir, 'derivatives', 'fmridenoise'),
-        ),
-        joinfield=["corr_mat"],
-        joinsource=subjectselector,
-        name="GroupConn")
-
-    # Outputs: group_corr_mat
-
-    # 8) --- Quality measures
-
-    # Inputs: group_corr_mat, group_conf_summary, pipeline_name
-
-    quality_measures = pe.MapNode(
-        QualityMeasures(
-            output_dir=os.path.join(bids_dir, 'derivatives', 'fmridenoise'),
-            distance_matrix=get_distance_matrix_file_path()
-        ),
-        iterfield=['group_corr_mat', 'group_conf_summary'],
-        name="QualityMeasures")
-    # Outputs: fc_fd_summary, edges_weight, edges_weight_clean
-
-    # 9) --- Merge quality measures into lists for further processing
-
-    # Inputs: fc_fd_summary, edges_weight, edges_weight_clean
-
-    merge_quality_measures = pe.JoinNode(MergeGroupQualityMeasures(),
-                                         joinsource=pipelineselector,
-                                         name="Merge")
-
-    # Outputs: fc_fd_summary, edges_weight
-
-    # 10) --- Quality measures across pipelines
-
-    # Inputs: fc_fd_summary, edges_weight
-
-    pipelines_quality_measures = pe.Node(
-        PipelinesQualityMeasures(
-            output_dir=os.path.join(bids_dir, 'derivatives', 'fmridenoise'),
-        ),
-        name="PipelinesQC")
-
-    # Outputs: pipelines_fc_fd_summary, pipelines_edges_weight
-
-    # 11) --- Report from data
-
-    report_creator = pe.JoinNode(
-        ReportCreator(
-            group_data_dir=os.path.join(bids_dir, 'derivatives', 'fmridenoise')
-        ),
-        joinsource=pipelineselector,
-        joinfield=['pipelines', 'pipelines_names'],
-        name='ReportCreator')
-
-    # 12) --- Save derivatives
-    ds_confounds = Node(BIDSDataSink(base_directory=bids_dir),
-                    name="ds_confounds")
-
-    ds_denoise = Node(BIDSDataSink(base_directory=bids_dir),
-                    name="ds_denoise")
-
-    ds_connectivity_corr_mat = Node(BIDSDataSink(base_directory=bids_dir),
-                    name="ds_connectivity")
-
-    ds_connectivity_carpet_plot = Node(BIDSDataSink(base_directory=bids_dir),
-                                 name="ds_carpet_plot")
-
-    ds_connectivity_matrix_plot = Node(BIDSDataSink(base_directory=bids_dir),
-                                 name="ds_matrix_plot")
-
-
-# --- Connecting nodes
-
-    workflow.connect([
-        # bidsgrabber
-        (sessionselector, bidsgrabber, [('session', 'session')]),
-        (subjectselector, bidsgrabber, [('subject', 'subject')]),
-        (taskselector, bidsgrabber, [('task', 'task')]),
-        # smooth_signal
-        (bidsgrabber, smooth_signal, [('fmri_prep', 'fmri_prep')]),
-        # prep_conf
-        (pipelineselector, prep_conf, [('pipeline', 'pipeline')]),
-        (subjectselector, prep_conf, [('subject', 'subject')]),
-        (taskselector, prep_conf, [('task', 'task')]),
-        (sessionselector, prep_conf, [('session', 'session')]),
-        (bidsgrabber, prep_conf, [('conf_raw', 'conf_raw'), 
-                                  ('conf_json', 'conf_json')]),
-        # denoise
-        (smooth_signal, denoise, [('fmri_smoothed', 'fmri_prep')]),
-        (prep_conf, denoise, [('conf_prep', 'conf_prep')]),
-        (pipelineselector, denoise, [('pipeline', 'pipeline')]),
-        (bidsgrabber, denoise, [('fmri_prep_aroma', 'fmri_prep_aroma')]),
-        (taskselector, denoise, [('task', 'task')]),
-        # group conf summary
-        (prep_conf, group_conf_summary, [('conf_summary_json_file', 'conf_summary_json_files')]),
-        (sessionselector, group_conf_summary, [('session', 'session')]),
-        (taskselector, group_conf_summary, [('task', 'task')]),
-        (pipelineselector, group_conf_summary, [('pipeline_name', 'pipeline_name')]),
-        # connectivity
-        (denoise, connectivity, [('fmri_denoised', 'fmri_denoised')]),
-        # group connectivity
-        (connectivity, group_connectivity, [("corr_mat", "corr_mat")]),
-        (pipelineselector, group_connectivity, [("pipeline_name", "pipeline_name")]),
-        (taskselector, group_connectivity, [('task', 'task')]),
-        (sessionselector, group_connectivity, [('session', 'session')]),
-        # quality measures
-
-        # all datasinks
-        ## ds_denoise
-        (subjectselector, ds_denoise, [("subject", "subject")]),
-        (sessionselector, ds_denoise, [("session", "session")]),
-        (denoise, ds_denoise, [("fmri_denoised", "in_file")]),
-        ## ds_connectivity
-        (subjectselector, ds_connectivity_corr_mat, [("subject", "subject")]),
-        (sessionselector, ds_connectivity_corr_mat, [("session", "session")]),
-        (connectivity, ds_connectivity_corr_mat, [("corr_mat", "in_file")]),
-        (subjectselector, ds_connectivity_matrix_plot, [("subject", "subject")]),
-        (sessionselector, ds_connectivity_matrix_plot, [("session", "session")]),
-        (connectivity, ds_connectivity_matrix_plot, [("matrix_plot", "in_file")]),
-        (subjectselector, ds_connectivity_carpet_plot, [("subject", "subject")]),
-        (sessionselector, ds_connectivity_carpet_plot, [("session", "session")]),
-        (connectivity, ds_connectivity_carpet_plot, [("carpet_plot", "in_file")]),
-        ## ds_confounds
-        (subjectselector, ds_confounds, [("subject", "subject")]),
-        (sessionselector, ds_confounds, [("session", "session")]),
-        (prep_conf, ds_confounds, [("conf_prep", "in_file")]),
-    ])
-
-    return workflow
+    if result.outputs.sessions:
+        return BaseWorkflowWithSessions(name=name,
+                                        base_dir=base_dir,
+                                        bids_dir=bids_dir,
+                                        bids_validate_result=result,
+                                        pipelines_paths=pipelines_paths,
+                                        high_pass=high_pass,
+                                        low_pass=low_pass)
+    else:
+        return BaseWorkflow(name=name,
+                            bids_dir=bids_dir,
+                            base_dir=base_dir,
+                            bids_validate_result=result,
+                            pipelines_paths=pipelines_paths,
+                            high_pass=high_pass,
+                            low_pass=low_pass)
 
 
 # --- TESTING
