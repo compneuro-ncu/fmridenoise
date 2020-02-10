@@ -11,8 +11,10 @@ from fmridenoise.interfaces.report_creator import ReportCreator
 import fmridenoise.utils.temps as temps
 from fmridenoise.parcellation import get_parcelation_file_path, get_distance_matrix_file_path
 from fmridenoise.pipelines import get_pipelines_paths
-import os
+from fmridenoise.interfaces.mocks import Denoise
 import logging
+import os
+from fmridenoise.interfaces.mocks import bids_dir as mock_bids_dir
 logger = logging.getLogger("runtime")
 handler = logging.FileHandler("./runtime.log")
 logger.setLevel(logging.DEBUG)
@@ -21,6 +23,7 @@ logger.addHandler(handler)
 class BaseWorkflow(pe.Workflow):
     def __init__(self, name, base_dir, bids_dir, bids_validate_result, pipelines_paths, high_pass, low_pass):
         super().__init__(name, base_dir)
+        mock_bids_dir = bids_dir
         temps.base_dir = base_dir
         # 1) --- Itersources for all further processing
 
