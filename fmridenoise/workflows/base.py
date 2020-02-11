@@ -11,18 +11,23 @@ from fmridenoise.interfaces.report_creator import ReportCreator
 import fmridenoise.utils.temps as temps
 from fmridenoise.parcellation import get_parcelation_file_path, get_distance_matrix_file_path
 from fmridenoise.pipelines import get_pipelines_paths
-from fmridenoise.interfaces.mocks import Denoise
 import logging
 import os
-from fmridenoise.interfaces.mocks import bids_dir as mock_bids_dir
+from fmridenoise.interfaces.mocks import denoising, settings
 logger = logging.getLogger("runtime")
 handler = logging.FileHandler("./runtime.log")
 logger.setLevel(logging.DEBUG)
 logger.addHandler(handler)
 
+
 class BaseWorkflow(pe.Workflow):
     def __init__(self, name, base_dir, bids_dir, bids_validate_result, pipelines_paths, high_pass, low_pass):
         super().__init__(name, base_dir)
+        self._create_nodes(base_dir, bids_dir, bids_validate_result, pipelines_paths, high_pass, low_pass)
+        self._create_connections()
+
+    def _create_nodes(self, base_dir, bids_dir, bids_validate_result, pipelines_paths, high_pass, low_pass):
+
         mock_bids_dir = bids_dir
         temps.base_dir = base_dir
         # 1) --- Itersources for all further processing
@@ -198,8 +203,8 @@ class BaseWorkflow(pe.Workflow):
         self.ds_connectivity_matrix_plot = Node(BIDSDataSink(base_directory=bids_dir),
                                            name="ds_matrix_plot")
 
+    def _create_connections(self):
         # --- Connecting nodes
-
         self.connect([
             # bidsgrabber
             (self.subjectselector, self.bidsgrabber, [('subject', 'subject')]),
@@ -247,9 +252,9 @@ class BaseWorkflow(pe.Workflow):
         ])
 
 class BaseWorkflowWithSessions(BaseWorkflow):
-    def __init__(self, name, base_dir, bids_dir, bids_validate_result, pipelines_paths, high_pass, low_pass):
-        super().__init__(name, base_dir, bids_dir, bids_validate_result, pipelines_paths, high_pass, low_pass)
-        # Inputs: fulfilled
+
+    def _create_nodes(self, base_dir, bids_dir, bids_validate_result, pipelines_paths, high_pass, low_pass):
+        super()._create_nodes(base_dir, bids_dir, bids_validate_result, pipelines_paths, high_pass, low_pass)
         self.sessionselector = Node(
             IdentityInterface(
                 fields=['session']),
@@ -257,6 +262,8 @@ class BaseWorkflowWithSessions(BaseWorkflow):
         self.sessionselector.iterables = ('session', bids_validate_result.outputs.sessions)
         # Outputs: session
 
+    def _create_connections(self):
+        super()._create_connections()
         self.connect([
             (self.sessionselector, self.bidsgrabber, [('session', 'session')]),
             (self.sessionselector, self.prep_conf, [('session', 'session')]),
@@ -268,6 +275,7 @@ class BaseWorkflowWithSessions(BaseWorkflow):
             (self.sessionselector, self.ds_connectivity_carpet_plot, [("session", "session")]),
             (self.sessionselector, self.ds_confounds, [("session", "session")]),
         ])
+
 
 def init_fmridenoise_wf(bids_dir,
                         derivatives='fmriprep',
@@ -291,7 +299,7 @@ def init_fmridenoise_wf(bids_dir,
                          name='BidsValidate')
     result = bids_validate.run()
     if result.outputs.sessions:
-        return BaseWorkflowWithSessions(name=name,
+        return BaseWorkflow(name=name,
                                         base_dir=base_dir,
                                         bids_dir=bids_dir,
                                         bids_validate_result=result,
@@ -306,36 +314,3 @@ def init_fmridenoise_wf(bids_dir,
                             pipelines_paths=pipelines_paths,
                             high_pass=high_pass,
                             low_pass=low_pass)
-
-
-# --- TESTING
-
-if __name__ == '__main__':  # TODO Move parser to module __main__
-
-    import argparse
-    import os
-    import logging
-
-    logging.critical("Please invoke fmridenoise at module level by using: \n \
-        python -m fmridenoise \n \
-        python fmridenoise \n \
-        python ${path_to_directory}/fmridenoise/__main__.py \n \
-        This __main__ will be removed soon." )
-
-    parser = argparse.ArgumentParser("Base workflow")
-    parser.add_argument("--bids_dir")
-    parser.add_argument("--output_dir")
-    args = parser.parse_args()
-
-    bids_dir = '/media/finc/Elements/fMRIDenoise_data/BIDS_LearningBrain_short'
-    #pipelines_paths={'/home/finc/Dropbox/Projects/fMRIDenoise/fmridenoise/fmridenoise/pipelines/pipeline-24HMP_8Phys_SpikeReg.json'}
-
-    if args.bids_dir is not None:
-        bids_dir = args.bids_dir
-    if args.output_dir is not None:
-        output_dir = args.output_dir
-
-    wf = init_fmridenoise_wf(bids_dir, subject=['01', '02'], task=['rest'], session=['1'], smoothing=True, ica_aroma=True)
-
-    wf.run()
-    wf.write_graph("workflow_graph.dot")

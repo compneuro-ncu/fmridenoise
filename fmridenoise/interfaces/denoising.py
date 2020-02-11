@@ -5,6 +5,7 @@ from nipype.interfaces.base import (
     ImageFile, File, Directory, traits)
 import nibabel as nb
 import pandas as pd
+from fmridenoise.utils.utils import split_suffix
 from os.path import exists
 
 
@@ -110,7 +111,8 @@ class Denoise(SimpleInterface):
         )
 
         _, base, _ = split_filename(self.inputs.fmri_prep)
-        denoised_file = f'{self.inputs.output_dir}/{base}_denoised_pipeline-{pipeline_name}.nii.gz'
+        base, _ = split_suffix(base)
+        denoised_file = f'{self.inputs.output_dir}/pipeline-{pipeline_name}_{base}_Denoised.nii.gz'
 
         nb.save(denoised_img, denoised_file)
 

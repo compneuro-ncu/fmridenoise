@@ -3,6 +3,7 @@ from traits.trait_types import Dict, Str, List, Directory
 from nipype.interfaces.base import BaseInterfaceInputSpec, File, TraitedSpec, SimpleInterface
 from nipype.utils.filemanip import split_filename
 from fmridenoise.utils.confound_prep import prep_conf_df
+from fmridenoise.utils.utils import split_suffix
 from os.path import join
 import json
 import os
@@ -78,7 +79,8 @@ class Confounds(SimpleInterface):
 
         # Create new filename and save
         path, base, _ = split_filename(fname)  # Path can be removed later
-        fname_prep = join(self.inputs.output_dir, f"{base}_prep_pipeline-{pipeline_name}.tsv")  # use output path
+        base, suffix = split_suffix(base)
+        fname_prep = join(self.inputs.output_dir, f"{base}_pipeline-{pipeline_name}_conf.tsv")  # use output path
         conf_df_prep.to_csv(fname_prep, sep='\t', index=False)
 
         # Creates dictionary with summary measures
@@ -100,7 +102,7 @@ class Confounds(SimpleInterface):
         if self.inputs.session:
             conf_summary["session"] = [str(self.inputs.session)]
         conf_summary_json_file_name = join(self.inputs.output_dir,
-                                           f"{base}_prep_pipeline-{pipeline_name}_summary_dict.json")
+                                           f"{base}_pipeline-{pipeline_name}_summaryDict.json")
         assert not os.path.exists(conf_summary_json_file_name)
         with open(conf_summary_json_file_name, 'w') as f:
             json.dump(conf_summary, f)
@@ -178,9 +180,9 @@ class GroupConfounds(SimpleInterface):
             with open(summary_json_file, 'r') as f:
                 group_conf_summary.append((pd.DataFrame.from_dict((json.load(f)))))
         if self.inputs.session:
-            base =  f"ses-{self.inputs.session}_task-{self.inputs.task}_pipeline-{self.inputs.pipeline_name}_group_conf_summary.tsv"
+            base =  f"ses-{self.inputs.session}_task-{self.inputs.task}_pipeline-{self.inputs.pipeline_name}_groupConfSummary.tsv"
         else:
-            base =  f"task-{self.inputs.task}_pipeline-{self.inputs.pipeline_name}_group_conf_summary.tsv"
+            base =  f"task-{self.inputs.task}_pipeline-{self.inputs.pipeline_name}_groupConfSummary.tsv"
         fname = join(self.inputs.output_dir, base)
         assert not os.path.exists(fname)
         group_conf_summary.to_csv(fname, sep='\t', index=False)

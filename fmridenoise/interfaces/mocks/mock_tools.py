@@ -1,6 +1,6 @@
 import re
 from nipype.utils.filemanip import split_filename
-from ..mocks import bids_dir
+
 
 class EntityDict(dict):
     """
@@ -21,13 +21,11 @@ class EntityDict(dict):
 
     def overwrite(self, key, value):
         """
-        Overwrites existing value at key with new value.
+        Sets value no matter what previous value was
         Args:
-            key: Existing dictionary key
+            key: Dictionary key
             value: New Value
         """
-        if key not in self.keys():
-            raise ValueError(f"Key: {key} is not in EntityDict")
         super().__setitem__(key, value)
 
 
@@ -45,8 +43,6 @@ def explode_into_entities(path: str) -> EntityDict:
     if deriv:
         ret['derivatives'] = deriv.string[deriv.regs[0][0]:deriv.regs[0][1]].strip(r'/derivatives')
         ret['dataset_directory'] = deriv.string[0:deriv.regs[0][0]]
-    else:
-        raise ValueError(f"Regex failed to search derivatives directory and dataset directory in {path}")
     _, basename, ext = split_filename(path)
     ret["extension"] = ext
     entities = list(map(lambda x: str.split(x, "-"), basename.split("_")))

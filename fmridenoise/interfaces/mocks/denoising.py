@@ -1,8 +1,9 @@
 from fmridenoise.interfaces.denoising import Denoise, DenoiseInputSpec
 from traits.trait_types import Dict, Str, Float, Directory, File
 from .mock_tools import *
+from .settings import MockSettings
 from os.path import join
-from glob import  glob
+from glob import glob
 
 
 class DenoiseMockInputSpec(DenoiseInputSpec):
@@ -31,6 +32,10 @@ class DenoiseMockInputSpec(DenoiseInputSpec):
 
 class Denoise(Denoise):
 
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.mockSettings = MockSettings()
+
     input_spec = DenoiseMockInputSpec
 
     def _run_interface(self, runtime):
@@ -47,16 +52,19 @@ class Denoise(Denoise):
             path = self.inputs.fmri_prep
 
         entities = explode_into_entities(path)
-        files = self.queery_for_denoised_file_path(entities, self.inputs.pipeline["name"])
-        assert len(files) == 1, f"Ambiguous ({len(files)}) number of files was returned"
+        entities.overwrite("derivatives", "fmridenoise")
+        entities.overwrite("dataset_directory", self.mockSettings["bids_dir"])
+        entities.overwrite("suffix", "Denoised")
+        entities["pipeline"] = self.inputs.pipeline["name"]
+        files = self.queery_for_denoised_file_path(entities)
+        if len(files) != 1:
+            raise AssertionError(f"Ambiguous ({len(files)}) number of files was returned")
         self._results['fmri_denoised'] = files[0]
         return runtime
 
     @staticmethod
-    def queery_for_denoised_file_path(entities, pipeline_name):
-        entities.overwrite("derivatives", "fmridenoise")
-        entities["pipeline"] = pipeline_name
-        path = join(entities["dataset_directory"], "derivatives", "fmridenoise")
+    def queery_for_denoised_file_path(entities):
+        path = join(entities["dataset_directory"], "derivatives", entities["derivatives"])
         if entities["session"]:
             path = join(path, f"ses-{entities['session']}")
         if entities["subject"]:
