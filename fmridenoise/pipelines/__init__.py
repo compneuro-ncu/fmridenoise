@@ -4,6 +4,7 @@ from fmridenoise.utils.utils import cast_bool, swap_booleans
 from os.path import  exists
 import json
 
+
 def get_pipeline_path(name: str) -> str:
     dirname = os.path.dirname(__file__)
     path = os.path.join(dirname, name) + ".json"
@@ -11,6 +12,7 @@ def get_pipeline_path(name: str) -> str:
         return path
     else:
         raise ValueError(f"File '{path}' is not part of fmridenoise valid pipelines!")
+
 
 def get_pipeline_name(path: str) -> str:
     dirname = os.path.dirname(__file__)
@@ -36,8 +38,10 @@ def get_pipelines_names() -> set:
 def is_valid_name(name: str) -> bool:
     return True if name in get_pipelines_names() else False
 
+
 def is_IcaAROMA(pipeline: dict) -> bool:
     return cast_bool(pipeline["aroma"])
+
 
 def load_pipeline_from_json(json_path: str) -> dict:
     """

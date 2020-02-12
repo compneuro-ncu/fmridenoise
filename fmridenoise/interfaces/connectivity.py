@@ -9,6 +9,7 @@ from nilearn.input_data import NiftiLabelsMasker
 from nilearn.connectome import ConnectivityMeasure
 from fmridenoise.utils.quality_measures import create_carpetplot
 from nilearn.plotting import plot_matrix
+from fmridenoise.utils.utils import split_suffix
 from os.path import join
 
 
@@ -54,11 +55,11 @@ class Connectivity(SimpleInterface):
         corr_measure = ConnectivityMeasure(kind='correlation')
         corr_mat = corr_measure.fit_transform([time_series])[0]
         _, base, _ = split_filename(fname)
+        base, _ = split_suffix(base)
+        conn_file = f'{self.inputs.output_dir}/{base}_connMat.npy'
 
-        conn_file = f'{self.inputs.output_dir}/{base}_conn_mat.npy'
-
-        carpet_plot_file = join(self.inputs.output_dir, f'{base}_carpet_plot.png')
-        matrix_plot_file = join(self.inputs.output_dir, f'{base}_matrix_plot.png')
+        carpet_plot_file = join(self.inputs.output_dir, f'{base}_carpetPlot.png')
+        matrix_plot_file = join(self.inputs.output_dir, f'{base}_matrixPlot.png')
 
         create_carpetplot(time_series, carpet_plot_file)
         mplot = plot_matrix(corr_mat,  vmin=-1, vmax=1)
@@ -117,10 +118,10 @@ class GroupConnectivity(SimpleInterface):
         task = self.inputs.task
         if ses:
             group_corr_file = join(self.inputs.output_dir,
-                                   f'pieline-{pipeline_name}_ses-{ses}_task-{task}_group_corr_mat.npy')
+                                   f'pipeline-{pipeline_name}_ses-{ses}_task-{task}_groupCorrMat.npy')
         else:
             group_corr_file = join(self.inputs.output_dir,
-                                   f'pieline-{pipeline_name}_task-{task}_group_corr_mat.npy')
+                                   f'pipeline-{pipeline_name}_task-{task}_groupCorrMat.npy')
         np.save(group_corr_file, group_corr_mat)
 
         self._results['group_corr_mat'] = group_corr_file

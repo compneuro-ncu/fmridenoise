@@ -2,8 +2,10 @@ import json
 import jsonschema
 import copy
 from os.path import exists
+import re
 _pipeline_valid_keys = ["name", "descrtiption", "confounds"]
 type_checker = jsonschema.Draft4Validator.VALIDATORS
+
 
 def load_pipeline_from_json(json_path: str) -> dict:
     """
@@ -71,8 +73,25 @@ def swap_booleans(dictionary: dict, inplace: bool=True) -> dict:  # TODO: Extend
             dictionary[key] = cast_bool(dictionary[key])
     return dictionary
 
+
+def split_suffix(basename):
+    """
+    Takes bids dataset filename and splits it into suffix and rest of file basename.
+    Args:
+        basename: bids file basename.
+
+    Returns:
+       basename without suffix
+       suffix
+    """
+    match = re.search("([a-z 0-9 A-Z]{1,}\\-{1}[a-z 0-9 A-Z]{1,}_{0,}){1,}", basename)
+    if match:
+        return basename[match.regs[0][0]:match.regs[0][1]].strip('_'), basename[match.regs[0][1]:].strip('_')
+    else:
+        return basename, ""
+
+
 if __name__ == '__main__':
-    #  rudimentary test/proof of work
-    dicto = load_pipeline_from_json("../pipelines/36_parameters_spikes.json")
-    print(dicto)
-    print(swap_booleans(dicto, False))
+     basename = "pipeline-24HMP8PhysSpikeReg_sub-m03_task-prlpun_space-MNI152NLin2009cAsym_desc-preproc_boldSmoothedDenoised_carpet_plot"
+     # basename = "dupa"
+     print(split_suffix(basename))

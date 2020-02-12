@@ -3,15 +3,15 @@ from bids import BIDSLayout
 from nipype.interfaces.io import IOBase
 from nipype.utils.filemanip import split_filename, copyfile
 from nipype.interfaces.base import (BaseInterfaceInputSpec, SimpleInterface,
-    traits, isdefined, TraitedSpec,
+    traits, TraitedSpec,
     Directory, Str, ImageFile,
-    InputMultiObject, OutputMultiObject, OutputMultiPath, InputMultiPath)
-from traits.trait_types import Any, Dict, List, Either, File
+    OutputMultiPath)
+from traits.trait_types import Dict, List, Either, File
 import json
 import os
-import pickle
 from itertools import product
 from os.path import  join
+
 
 def validate_derivatives(bids_dir, derivatives):
     """ Validate derivatives argument provided by the user.

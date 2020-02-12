@@ -2,11 +2,10 @@ from nilearn.image import clean_img
 from nipype.utils.filemanip import split_filename
 from nipype.interfaces.base import (
     BaseInterfaceInputSpec, TraitedSpec, SimpleInterface,
-    ImageFile, File, Directory, traits
-    )
+    ImageFile, File, Directory, traits)
 import nibabel as nb
 import pandas as pd
-import os
+from fmridenoise.utils.utils import split_suffix
 from os.path import exists
 
 
@@ -34,6 +33,7 @@ class DenoiseInputSpec(BaseInterfaceInputSpec):
         mandatory=True)
 
     task = traits.Str(
+        desc="Task name",
         mandatory=True
     )
 
@@ -44,15 +44,18 @@ class DenoiseInputSpec(BaseInterfaceInputSpec):
 
     output_dir = Directory(
         exists=True,
-        desc="Output path"
+        desc="Output path",
+        mandatory=True
     )
 
     high_pass = traits.Float(
         desc="High-pass filter",
+        mandatory=True
     )
 
     low_pass = traits.Float(
-        desc="Low-pass filter"
+        desc="Low-pass filter",
+        mandator=True
     )
 
 
@@ -69,16 +72,18 @@ class Denoise(SimpleInterface):
     output_spec = DenoiseOutputSpec
 
     def _run_interface(self, runtime):
-        assert(self.inputs.fmri_prep is not None or self.inputs.fmri_prep_aroma is not None,
-               "Both fmri_prep and fmri_prep_aroma is missing")
+        assert self.inputs.fmri_prep is not None or self.inputs.fmri_prep_aroma is not None, \
+            "Both fmri_prep and fmri_prep_aroma is missing"
         pipeline_name = self.inputs.pipeline['name']
         pipeline_aroma = self.inputs.pipeline['aroma']
         if pipeline_aroma:
-            assert(exists(str(self.inputs.fmri_prep_aroma)), f"No such required fmri_prep_aroma file as: {self.inputs.fmri_prep_aroma}")
+            assert exists(str(self.inputs.fmri_prep_aroma)), \
+                f"No such required fmri_prep_aroma file as: {self.inputs.fmri_prep_aroma}"
             img = nb.load(self.inputs.fmri_prep_aroma)
  
         else:
-            assert(exists(str(self.inputs.fmri_prep)), f"No such required fmri_prep file as: {self.inputs.fmri_prep}")
+            assert exists(str(self.inputs.fmri_prep)), \
+                f"No such required fmri_prep file as: {self.inputs.fmri_prep}"
             img = nb.load(self.inputs.fmri_prep)
         # Handle possibility of null pipeline
         try:
@@ -106,39 +111,11 @@ class Denoise(SimpleInterface):
         )
 
         _, base, _ = split_filename(self.inputs.fmri_prep)
-        denoised_file = f'{self.inputs.output_dir}/{base}_denoised_pipeline-{pipeline_name}.nii.gz'
+        base, _ = split_suffix(base)
+        denoised_file = f'{self.inputs.output_dir}/pipeline-{pipeline_name}_{base}_Denoised.nii.gz'
 
         nb.save(denoised_img, denoised_file)
 
         self._results['fmri_denoised'] = denoised_file
 
         return runtime
-
-
-# --- TESTS
-
-if __name__ == '__main__':
-
-    ### INPUTS #################################################################
-    root = '/home/kmb/Desktop/Neuroscience/Projects/NBRAINGROUP_fmridenoise/test_data/denoising'
-    fmri_prep = os.path.join(root, 'sub-pd01_task-rest_space-MNI152NLin2009cAsym_desc-preproc_bold.nii.gz')
-    conf_prep = os.path.join(root, 'confounds_out', 'sub-pd01_task-rest_desc-confounds_regressors_prep.tsv')
-    entities = {'task': 'rest'}
-    tr_dict = {'rest': 2}
-    output_dir = os.path.join(root, 'denoising_out')
-    low_pass = 0.08
-    high_pass = 0.008
-
-    ### RUN INTERFACE ##########################################################
-    dn = Denoise()
-
-    dn.inputs.fmri_prep = fmri_prep
-    dn.inputs.conf_prep = conf_prep
-    dn.inputs.entities = entities
-    dn.inputs.tr_dict = tr_dict
-    dn.inputs.output_dir = output_dir
-    dn.inputs.low_pass = low_pass
-    dn.inputs.high_pass = high_pass
-
-    results = dn.run()
-    print(results.outputs)
