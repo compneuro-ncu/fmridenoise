@@ -178,7 +178,7 @@ class GroupConfounds(SimpleInterface):
 
         for summary_json_file in self.inputs.conf_summary_json_files:
             with open(summary_json_file, 'r') as f:
-                group_conf_summary.append((pd.DataFrame.from_dict((json.load(f)))))
+                group_conf_summary = group_conf_summary.append(pd.DataFrame.from_dict(json.load(f)))
         if self.inputs.session:
             base =  f"ses-{self.inputs.session}_task-{self.inputs.task}_pipeline-{self.inputs.pipeline_name}_groupConfSummary.tsv"
         else:
