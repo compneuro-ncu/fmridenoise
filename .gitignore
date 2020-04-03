@@ -4,3 +4,5 @@
 crash*
 build/*
 .egg
+.idea/*
+.vscode/*
