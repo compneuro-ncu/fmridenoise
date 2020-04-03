@@ -8,6 +8,7 @@ from itertools import chain
 with open("README.md", "r") as fh:
     long_description = fh.read()
 
+
 def get_requirements() -> list:
     return ['nibabel>=2.0',
             'seaborn>=0.9.0',
@@ -22,6 +23,7 @@ def get_requirements() -> list:
             'pybids>=0.9.1',
             'psutil>=5.0',
             'jinja2>=2.10.1']
+
 
 def relative_paths(paths: list) -> list:
     return [ relpath(path, join(dirname(__file__), 'fmridenoise')) for path in paths ]

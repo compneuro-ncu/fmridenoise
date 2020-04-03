@@ -1,24 +1,8 @@
 import json
-import jsonschema
 import copy
 from os.path import exists
 import re
-_pipeline_valid_keys = ["name", "descrtiption", "confounds"]
-type_checker = jsonschema.Draft4Validator.VALIDATORS
-
-
-def load_pipeline_from_json(json_path: str) -> dict:
-    """
-    Loads json file and prepares it for further use (e.g. assures proper types interpretation)
-    :param json_path: path to json file
-    :return: jsonlike dictionary
-    """
-    if not exists(json_path):
-        raise IOError(f"File '{json_path}' does not exists!")
-    with open(json_path, 'r') as json_file:
-        js = json.load(json_file)
-    js = swap_booleans(js, inplace=True)
-    return js
+# _pipeline_valid_keys = ["name", "descrtiption", "confounds"]
 
 
 def is_booleanlike(value) -> bool:

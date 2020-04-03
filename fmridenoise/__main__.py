@@ -8,12 +8,12 @@ import sys
 #         sys.path.append(dirname(dirname(abspath(__file__))))
 from nipype import config
 from fmridenoise.workflows.base import init_fmridenoise_wf
-from fmridenoise.utils import profiler_callback
+from fmridenoise.utils.profiling import profiler_callback
 from fmridenoise.utils.json_validator import is_valid
-import fmridenoise.utils.utils as ut
 from fmridenoise.pipelines import (get_pipelines_paths,
                                    get_pipelines_names,
-                                   get_pipeline_path)
+                                   get_pipeline_path,
+                                   load_pipeline_from_json)
 
 HIGH_PASS_DEFAULT = 0.008
 LOW_PASS_DEFAULT = 0.08
@@ -103,7 +103,7 @@ def parse_pipelines(pipelines_args: str or set = "all") -> set:
     for p in pipelines_args:
         if p in known_pipelines:
             ret.add(get_pipeline_path(p))    
-        elif p not in known_pipelines and is_valid(ut.load_pipeline_from_json(p)):
+        elif p not in known_pipelines and is_valid(load_pipeline_from_json(p)):
             ret.add(p)
         else:
             raise ValueError(f"File: '{p} is not a valid pipeline")
