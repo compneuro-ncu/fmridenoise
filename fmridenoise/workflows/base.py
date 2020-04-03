@@ -299,7 +299,7 @@ def init_fmridenoise_wf(bids_dir,
                          name='BidsValidate')
     result = bids_validate.run()
     if result.outputs.sessions:
-        return BaseWorkflow(name=name,
+        return BaseWorkflowWithSessions(name=name,
                                         base_dir=base_dir,
                                         bids_dir=bids_dir,
                                         bids_validate_result=result,
