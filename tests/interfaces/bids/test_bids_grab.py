@@ -68,6 +68,3 @@ class TestBidsGrab(ut.TestCase):
                                                         dn_dataset['derivatives'])
         self.assertEqual(scope, ['fMRIPrep'])
         self.assertEqual(derivatives_valid, [join(dn_dataset['bids_dir'], 'derivatives/fmriprep')])
-
-if __name__ == '__main__':
-    pass
