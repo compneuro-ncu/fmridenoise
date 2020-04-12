@@ -1,65 +1,111 @@
-import unittest as ut
-from fmridenoise.interfaces.confounds import Confounds
-from nipype import Node
-from fmridenoise.pipelines import get_pipelines_paths, load_pipeline_from_json
-from os.path import dirname, join
-from os import remove
-from glob import glob
-import json
+import unittest
+import tempfile
+import copy
+import os
 
-class TestConfounds(ut.TestCase):
+import pandas as pd
+
+from fmridenoise.interfaces.confounds import Confounds
+from tests.interfaces.confounds.utils import (ConfoundsGenerator, 
+    confound_filename, pipeline_null)
+
+class TestConfounds(unittest.TestCase):
 
     @classmethod
-    def setUpClass(cls) -> None:
-        pipeline = load_pipeline_from_json(get_pipelines_paths({'pipeline-ICA-AROMA_8Phys'}).pop())
-        conf_raw = join(dirname(__file__),
-        "sub-01_ses-1_task-audionback_desc-confounds_regressors.tsv")
-        conf_json = join(dirname(__file__),
-        "sub-01_ses-1_task-audionback_desc-confounds_regressors.json")
-        subject = '01'
-        session = '1'
-        task = 'audionback'
-        output_dir = dirname(__file__)
-        cls.confound = Confounds(
-            output_dir = output_dir,
-            pipeline = pipeline,
-            conf_raw=conf_raw,
-            conf_json=conf_json,
-            subject=subject,
-            session=session,
-            task=task
+    def setUpClass(cls):
+        cls.n_volumes = 100
+        cls.n_tcompcor = 10
+        cls.n_acompcor = 100
+        cls.n_aroma = 20
+
+        # Generate fake confounds
+        cls.cg = ConfoundsGenerator(
+            n_volumes=cls.n_volumes,
+            n_tcompcor=cls.n_tcompcor,
+            n_acompcor=cls.n_acompcor,
+            n_aroma=cls.n_aroma
         )
 
+        # BIDS variables
+        cls.sub = '01'
+        cls.ses = '1'
+        cls.task = 'rest'
+        
+    def setUp(self):
+        # Write confounds to file
+        self.temp_dir = tempfile.TemporaryDirectory()
+        self.conf_filename_tsv = os.path.join(self.temp_dir.name, 
+            confound_filename(sub=self.sub, ses=self.ses, task=self.task, ext='tsv'))
+        self.conf_filename_json = os.path.join(self.temp_dir.name, 
+            confound_filename(sub=self.sub, ses=self.ses, task=self.task, ext='json'))
+        self.cg.confounds.to_csv(self.conf_filename_tsv, sep='\t', index=False)
+        self.cg.meta_to_json(self.conf_filename_json)
+
+    def tearDown(self):
+        self.temp_dir.cleanup()
+
     @classmethod
-    def tearDownClass(cls) -> None:
-        to_remove = glob(join(dirname(__file__), "*pipeline*"))
-        for path in to_remove:
-            remove(path)
+    def tearDownClass(cls):
+        pass
 
-    def test_valid_paths(self) -> None:
-        node = Node(self.confound, name='TestConfounds')
-        node.run()
-        self.assertEqual(
-            node.get_output('conf_prep'),
-            join(dirname(__file__), "sub-01_ses-1_task-audionback_desc-confounds_regressors_prep_pipeline-ICA-AROMA_8Phys.tsv"))
-        self.assertEqual(
-            node.get_output('conf_summary_json_file'),
-            join(dirname(__file__), "sub-01_ses-1_task-audionback_desc-confounds_regressors_prep_pipeline-ICA-AROMA_8Phys_summary_dict.json"))
+    def recreate_confounds_node(self, pipeline):
+        node = Confounds(
+            pipeline=pipeline,
+            conf_raw=self.conf_filename_tsv,
+            conf_json=self.conf_filename_json,
+            subject=self.sub,
+            task=self.task,
+            session=self.ses,
+            output_dir=self.temp_dir.name
+        )
+        return node
 
-    def test_valid_json_content(self) -> None:
-        expected_dict = {
-            "subject": ["01"],
-            "session": ["1"],
-            "task": ["01"],
-            "mean_fd": [0.10787703340943952],
-            "max_fd": [1.14735715],
-            "n_spikes": [0.0],
-            "perc_spikes": [0.0],
-            "n_conf": [6.0],
-            "include": [1.0]
+    def test_24hmp_filtering(self):
+        '''Check if 24 motion parameters are correctly filtered from raw 
+        confounds.
+        '''
+        pipeline = copy.deepcopy(pipeline_null)
+        pipeline['confounds']['motion'] = {
+            'temp_deriv': True,
+            'quad_terms': True
         }
-        node = Node(self.confound, name='TestConfounds')
+
+        # Run interface & load confounds
+        node = self.recreate_confounds_node(pipeline)
         node.run()
-        with open(node.get_output('conf_summary_json_file'), 'r') as file:
-            result = json.load(file)
-            self.assertEqual(expected_dict, result)
+        conf_prep = pd.read_csv(node._results['conf_prep'], sep='\t')
+
+        # Recreate correct column names
+        hmp_names = [f'{type_}_{axis}' 
+            for type_ in ('trans', 'rot') for axis in ('x', 'y', 'z')]
+        conf_names = {f'{hmp_name}{suffix}'
+            for suffix in ('', '_derivative1', '_power2', '_derivative1_power2') 
+            for hmp_name in hmp_names}
+
+        self.assertEqual(conf_names, set(conf_prep.columns))
+        self.assertEqual(conf_prep.shape, (self.n_volumes, 18)) 
+
+    def test_8phys_4gs_filtering(self):
+        '''Check if physiological signals and global signal are correctly 
+        filtered from raw confounds. Physiological signals are white matter, csf
+        signal.'''
+        pipeline = copy.deepcopy(pipeline_null)
+        pipeline['confounds']['wm'],  pipeline['confounds']['csf'], pipeline['confounds']['gs'] = \
+            ({'temp_deriv': True, 'quad_terms': True}, ) * 3
+
+        # Run interface & load confounds
+        node = self.recreate_confounds_node(pipeline)
+        node.run()
+        conf_prep = pd.read_csv(node._results['conf_prep'], sep='\t')
+
+        # Recreate correct column names
+        phys_names = ['csf', 'global_signal', 'white_matter']
+        conf_names = {f'{phys_name}{suffix}'
+            for suffix in ('', '_derivative1', '_power2', '_derivative1_power2') 
+            for phys_name in phys_names}
+
+        self.assertEqual(conf_names, set(conf_prep.columns))
+        self.assertEqual(conf_prep.shape, (self.n_volumes, 12)) 
+
+if __name__ == '__main__':
+    unittest.main()

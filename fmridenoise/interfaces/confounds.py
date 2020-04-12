@@ -1,12 +1,15 @@
+from os.path import join
+import json
+import os
+
 import pandas as pd
+
 from traits.trait_types import Dict, Str, List, Directory
 from nipype.interfaces.base import BaseInterfaceInputSpec, File, TraitedSpec, SimpleInterface
 from nipype.utils.filemanip import split_filename
 from fmridenoise.utils.confound_prep import prep_conf_df
 from fmridenoise.utils.utils import split_suffix
-from os.path import join
-import json
-import os
+
 
 
 class ConfoundsInputSpec(BaseInterfaceInputSpec):
@@ -78,8 +81,8 @@ class Confounds(SimpleInterface):
         conf_df_prep = prep_conf_df(conf_df_raw, self.inputs.pipeline, a_comp_cor)
 
         # Create new filename and save
-        path, base, _ = split_filename(fname)  # Path can be removed later
-        base, suffix = split_suffix(base)
+        _, base, _ = split_filename(fname)  # Path can be removed later
+        base, _ = split_suffix(base)
         fname_prep = join(self.inputs.output_dir, f"{base}_pipeline-{pipeline_name}_conf.tsv")  # use output path
         conf_df_prep.to_csv(fname_prep, sep='\t', index=False)
 

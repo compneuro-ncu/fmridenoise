@@ -116,12 +116,12 @@ def get_confounds_regressors(conf_df_raw, pipeline, a_comp_cor):
 
                     if pipeline['confounds'][conf_name]['temp_deriv']:
                         for conf_colname in conf_colnames[conf_name]:
-                            confounds_df[conf_colname + '_td'] = \
+                            confounds_df[conf_colname + '_derivative1'] = \
                                 calc_temp_deriv(confounds_df[conf_colname])
 
                     if pipeline['confounds'][conf_name]['quad_terms']:
                         for conf_colname in conf_colnames[conf_name]:
-                            confounds_df[conf_colname + '_quad'] = \
+                            confounds_df[conf_colname + '_power2'] = \
                                 calc_quad_term(confounds_df[conf_colname])
     return confounds_df
 
