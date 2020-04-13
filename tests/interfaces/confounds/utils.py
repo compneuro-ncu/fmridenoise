@@ -44,6 +44,7 @@ class ConfoundsGenerator:
         'sv_slope': 8000
     }
 
+
     def __init__(self, n_volumes=20, *, n_tcompcor=10, n_acompcor=300, 
                  n_aroma=0, seed=0):
 
@@ -51,6 +52,7 @@ class ConfoundsGenerator:
         self._n_tcompcor = n_tcompcor
         self._n_acompcor = n_acompcor
         self._n_aroma = n_aroma
+        self._seed = seed
 
         self._df = pd.DataFrame()
         self._meta = {}
@@ -60,26 +62,38 @@ class ConfoundsGenerator:
 
         self._create()
 
+
+    def __repr__(self):
+        return f'{self.__class__.__name__}' + \
+            f'(n_volumes={self._n_volumes}, n_tcompcor={self._n_tcompcor}, ' + \
+            f'n_acompcor={self._n_acompcor}, n_aroma={self._n_aroma}, ' + \
+            f'seed={self._seed})'  
+
+
     @property
     def confounds(self):
         return self._df
-    
+
+
     @property
     def confounds_meta(self):
         return self._meta
-    
+
+
     @property
     def mean_fd(self):
         return self.confounds['framewise_displacement'].mean()
-    
+
+
     @property
     def max_fd(self):
         return self.confounds['framewise_displacement'].max()
-    
+
+
     @property
     def relevant_acompcors(self):
-        '''Returns computed list of 10 acompcor regressors (5 for both wm and csf) with highest 
-        explained variance'''
+        '''Returns computed list of 10 acompcor regressors (5 for both wm and 
+        csf) with highest explained variance'''
         if self._n_acompcor < 15:
             return []
 
@@ -94,9 +108,14 @@ class ConfoundsGenerator:
             
         return acompcors_filtered
 
+
     def get_outlier_scans(self, fd_thr, dvars_thr):
-        outliers = (self._df['framewise_displacement'] >= fd_thr) | (self._df['std_dvars'] >= dvars_thr)
+        outliers = (
+            (self._df['framewise_displacement'] >= fd_thr) | 
+            (self._df['std_dvars'] >= dvars_thr)
+            )
         return list(outliers[outliers].index)
+
 
     def _create_tissue_signals(self):
         tissue_signals = {}
@@ -113,8 +132,10 @@ class ConfoundsGenerator:
 
         for conf_name, signal in tissue_signals.items():
             self._df[conf_name] = signal
+            self._df[conf_name + '_power2'] = np.power(signal, 2)
             self._df[conf_name + '_derivative1'] = np.diff(signal, prepend=np.nan)
             self._df[conf_name + '_derivative1_power2'] = np.power(np.diff(signal, prepend=np.nan), 2)
+
 
     def _create_motion_params(self):
         motion_params = {}
@@ -130,8 +151,10 @@ class ConfoundsGenerator:
 
         for conf_name, signal in motion_params.items():
             self._df[conf_name] = signal
+            self._df[conf_name + '_power2'] = np.power(signal, 2)
             self._df[conf_name + '_derivative1'] = np.diff(signal, prepend=np.nan)
             self._df[conf_name + '_derivative1_power2'] = np.power(np.diff(signal, prepend=np.nan), 2)
+
 
     def _create_framewise_displacement(self):
         self._df['framewise_displacement'] = (
@@ -143,12 +166,14 @@ class ConfoundsGenerator:
             50 * self._df['rot_z'].diff().abs()
         )
 
+
     def _create_dvars(self):
         self._df['dvars'] = (self._params['dvars_slope'] * self._df['framewise_displacement'] 
                           + self._params['dvars_intercept'] 
                           + self._params['dvars_noise'] * np.random.randn(self._n_volumes))
         # Note: this is not nipype implementation of std_dvars
         self._df['std_dvars'] = self._df['dvars'] / self._df['dvars'].mean()
+
 
     def _create_tcompcors(self):
         for i in range(self._n_tcompcor):
@@ -159,7 +184,8 @@ class ConfoundsGenerator:
                 'Method': 'tCompCor',
                 'Retained': True
             }
-            
+
+
     def _create_acompcors(self):
         variance_acompcor = (np.arange(self._n_acompcor, 0, -1) 
                              / np.sum(np.arange(self._n_acompcor, 0, -1)))
@@ -178,6 +204,7 @@ class ConfoundsGenerator:
                 'VarianceExplained': variance_acompcor[i]
             }            
 
+
     def _create_cosine_functions(self):
         hfcut = 1 / 128  # low pass filter  
         t_r = 2          # repetition time
@@ -186,6 +213,7 @@ class ConfoundsGenerator:
             self._df[f'cosine{i:02}'] = np.cos(np.linspace(0, (i+1)*np.pi, 
                                                            num=self._n_volumes))
 
+
     def _create_motion_outliers(self):
         outlier_scans = self.get_outlier_scans(fd_thr=0.5, dvars_thr=1.5)
         for i, scan in enumerate(outlier_scans):
@@ -193,15 +221,18 @@ class ConfoundsGenerator:
             spike_regressor[scan] = 1.
             self._df[f'motion_outlier_{i:02}'] = spike_regressor
 
+
     def _create_aroma_regressors(self):
         for i in range(self._n_aroma):
             self._df[f'aroma_motion_{i:02}'] = (self._params['aroma_std'] 
                                                 * np.random.randn() 
                                                 * np.random.randn(self._n_volumes))
 
+
     def meta_to_json(self, filename):
         with open(filename, 'w') as f:
             json.dump(self._meta, f, sort_keys=True, indent=4, separators=(',', ': '))
+
 
     def _create(self):
         self._create_tissue_signals()

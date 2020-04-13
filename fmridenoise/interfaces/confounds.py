@@ -1,15 +1,13 @@
-from os.path import join
 import json
 import os
 
 import pandas as pd
+import numpy as np
 
+from typing import List
 from traits.trait_types import Dict, Str, List, Directory
-from nipype.interfaces.base import BaseInterfaceInputSpec, File, TraitedSpec, SimpleInterface
-from nipype.utils.filemanip import split_filename
-from fmridenoise.utils.confound_prep import prep_conf_df
-from fmridenoise.utils.utils import split_suffix
-
+from nipype.interfaces.base import (BaseInterfaceInputSpec, File, TraitedSpec, 
+    SimpleInterface)
 
 
 class ConfoundsInputSpec(BaseInterfaceInputSpec):
@@ -45,77 +43,172 @@ class ConfoundsOutputSpec(TraitedSpec):
         desc="Preprocessed confounds table")
     conf_summary = File(
         exists=True,
-        desc="Confounds summary")
+        desc="Confounds summary JSON")
 
 
 class Confounds(SimpleInterface):
     input_spec = ConfoundsInputSpec
     output_spec = ConfoundsOutputSpec
 
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+
+        self.conf_raw = pd.read_csv(self.inputs.conf_raw, sep='\t')
+        with open(self.inputs.conf_json, 'r') as json_file:
+            self.conf_json = json.load(json_file)
+
+        self.n_volumes = len(self.conf_raw)
+
+        self.conf_prep = pd.DataFrame()
+
+
+    @property
+    def conf_filename(self):
+        return self.inputs.conf_raw.replace(
+            'regressors.tsv',
+            f"pipeline-{self.inputs.pipeline['name']}"
+            ) 
+
+
+    def _retain(self, regressor_names: List(str)):
+        '''Copies selected regressors from conf_raw to conf_prep.'''
+        if regressor_names:
+            self.conf_prep = pd.concat((
+                self.conf_prep,
+                self.conf_raw[regressor_names]
+            ))
+
+
+    def _filter_tissue_signals(self):
+        '''...'''
+        tissue_regressors = []
+        for confound, setting in self.inputs.pipeline['confounds'].items():
+            
+            if confound in ('white_matter', 'csf', 'global_signal') and setting:
+                tissue_regressors.append(confound)
+                
+                if isinstance(setting, dict):
+                    for transform, include in setting.items():
+                        if include:
+                            tissue_regressors.append(f'{confound}_{transform}')
+        
+        self._retain(tissue_regressors)
+
+
+    def _filter_motion_parameters(self):
+        '''...'''
+        hmp_regressors = []
+        hmp_names = [f'{type_}_{axis}' 
+                     for type_ in ('trans', 'rot') 
+                     for axis in ('x', 'y', 'z')]
+
+        setting = self.inputs.pipeline['confounds']['motion']
+        
+        if setting:
+            hmp_regressors.extend(hmp_names)
+
+            if isinstance(setting, dict):
+                for transform, include in setting.items():
+                    if include:
+                        hmp_regressors.extend(f'{hmp}_{transform}' 
+                                            for hmp in hmp_names)
+        
+        self._retain(hmp_regressors)
+
+
+    def _filter_acompcors(self):
+        '''...'''
+        if not self.inputs.pipeline['confounds']['acompcor']:
+            return
+
+        acompcor_regressors = []
+        for mask in ('CSF', 'WM'):
+            acompcors = {
+                (name, dict_['VarianceExplained']) 
+                for name, dict_ in self.conf_json.items()
+                if dict_.get('Retained') and dict_.get('Mask') == mask 
+                }
+            acompcors = sorted(acompcors, key=lambda tpl: tpl[1], reverse=True)
+            acompcor_regressors.extend(acompcor[0] for acompcor in acompcors[:5])
+
+        self._retain(acompcor_regressors)
+
+
+    def _create_spike_regressors(self):
+        '''...'''
+        if not self.inputs.pipeline['spikes']:
+            return
+
+        fd_th = self.inputs.pipeline['spikes']['fd_th']
+        dvars_th = self.inputs.pipeline['spikes']['dvars_th']
+
+        outliers = (self.conf_raw['framewise_displacement'] > fd_th) \
+                 | (self.conf_raw['std_dvars'] > dvars_th) 
+        outliers = list(outliers[outliers].index)
+
+        if outliers:
+            spikes = np.zeros((self.n_volumes, len(outliers)))
+            for i, outlier in enumerate(outliers):
+                spikes[outlier, i] = 1.
+                
+            conf_spikes = pd.DataFrame(
+                data=spikes, 
+                columns=[f'motion_outlier_{i:02}' for i in range(len(outliers))]
+                )
+
+            self.conf_prep = pd.concat((
+                self.conf_prep,
+                conf_spikes
+            ))
+        
+        self.n_spikes = len(outliers)
+
+
+    def _create_summary_dict(self):
+        '''...'''
+        self.conf_summary = {
+            'subject': self.inputs.subject,
+            'task': self.inputs.task,
+            'mean_fd': self.conf_raw["framewise_displacement"].mean(),
+            'max_fd': self.conf_raw["framewise_displacement"].max(),
+            'n_conf': len(self.conf_prep.columns)
+        }
+
+        if self.inputs.pipeline['spikes']:
+            self.conf_summary['n_spikes'] = self.n_spikes 
+            self.conf_summary['perc_spikes'] = self.n_spikes / self.n_volumes * 100
+            include = inclusion_check(
+                n_timepoints=self.n_volumes, 
+                mean_fd=self.conf_raw["framewise_displacement"].mean(),
+                max_fd=self.conf_raw["framewise_displacement"].max(),
+                n_spikes=self.n_spikes,
+                fd_th=self.inputs.pipeline['spikes']['fd_th']
+            )
+            self.conf_summary['include'] = include  #TODO: Should this be calculated only if spikes are included?
+
+        if self.inputs.session:
+            self.conf_summary["session"] = str(self.inputs.session)
+
+
     def _run_interface(self, runtime):
 
-        pipeline_name = self.inputs.pipeline['name']
-        fname = self.inputs.conf_raw
-        json_path = self.inputs.conf_json
+        self._filter_motion_parameters()
+        self._filter_tissue_signals()
+        self._filter_acompcors()
+        self._create_spike_regressors()
+        self._create_summary_dict()
 
-        conf_df_raw = pd.read_csv(fname, sep='\t')
+        self.conf_prep.to_csv(self.conf_filename + '.tsv', sep='\t', index=False)
+        with open(self.conf_filename + '.json', 'w') as f:
+            json.dump(self.conf_summary, f)
 
-        # Load aCompCor list
-
-        with open(json_path, 'r') as json_file:
-            js = json.load(json_file)
-
-        a_comp_cor_csf, a_comp_cor_wm = ([] for _ in range(2))
-
-        for i in js.keys():
-            if i.startswith('a_comp_cor'):
-                if js[i]['Mask'] == 'CSF' and js[i]['Retained']:
-                    a_comp_cor_csf.append(i)
-
-                if js[i]['Mask'] == 'WM' and js[i]['Retained']:
-                    a_comp_cor_wm.append(i)
-
-        a_comp_cor = a_comp_cor_csf[:5] + a_comp_cor_wm[:5]
-
-        # Preprocess confound table according to pipeline
-        conf_df_prep = prep_conf_df(conf_df_raw, self.inputs.pipeline, a_comp_cor)
-
-        # Create new filename and save
-        _, base, _ = split_filename(fname)  # Path can be removed later
-        base, _ = split_suffix(base)
-        fname_prep = join(self.inputs.output_dir, f"{base}_pipeline-{pipeline_name}.tsv")  # use output path
-        conf_df_prep.to_csv(fname_prep, sep='\t', index=False)
-
-        # Creates dictionary with summary measures
-        n_spikes = conf_df_prep.filter(regex='spike', axis=1).sum().sum()
-        mean_fd = conf_df_raw["framewise_displacement"].mean()
-        max_fd = conf_df_raw["framewise_displacement"].max()
-        n_timepoints = len(conf_df_raw)
-
-        conf_summary = { # TODO: Why there are lists in this dict and not a simple types?
-                        "subject": str(self.inputs.subject),
-                        "task": str(self.inputs.task),
-                        "mean_fd": float(mean_fd),
-                        "max_fd": float(max_fd),
-                        "n_spikes": float(n_spikes),
-                        "perc_spikes": float((n_spikes/n_timepoints)*100),
-                        "n_conf": float(len(conf_df_prep.columns)),
-                        "include": float(inclusion_check(n_timepoints, mean_fd, max_fd, n_spikes, 0.2))
-                        }
-        if self.inputs.session:
-            conf_summary["session"] = str(self.inputs.session)
-        conf_summary_json_file_name = join(self.inputs.output_dir,
-                                           f"{base}_pipeline-{pipeline_name}_summaryDict.json")
-        assert not os.path.exists(conf_summary_json_file_name)
-        with open(conf_summary_json_file_name, 'w') as f:
-            json.dump(conf_summary, f)
-        self._results['conf_prep'] = fname_prep
-        self._results['conf_summary'] = conf_summary_json_file_name
+        self._results['conf_prep'] = self.conf_filename + '.tsv'
+        self._results['conf_summary'] = self.conf_filename + '.json'
 
         return runtime
 
 
-def inclusion_check(n_timepoints, mean_fd, max_fd, n_spikes, fd_th):
+def inclusion_check(n_timepoints, mean_fd, max_fd, n_spikes, fd_th): #TODO convert to instance method
     """
     Checking if participant is recommended to be excluded from analysis
     based on motion parameters and spikes regressors.
@@ -151,11 +244,9 @@ class GroupConfoundsInputSpec(BaseInterfaceInputSpec):
         File(exists=True),
         mandatory=True,
         desc="Confounds summary")
-
     output_dir = Directory(          # needed to save data in other directory
         mandatory=True,
         desc="Output path")     # TODO: Implement temp dir
-
     task = Str(
         mandatory=True,
         desc="Task name")
@@ -186,7 +277,7 @@ class GroupConfounds(SimpleInterface):
             base =  f"ses-{self.inputs.session}_task-{self.inputs.task}_pipeline-{self.inputs.pipeline_name}_groupConfSummary.tsv"
         else:
             base =  f"task-{self.inputs.task}_pipeline-{self.inputs.pipeline_name}_groupConfSummary.tsv"
-        fname = join(self.inputs.output_dir, base)
+        fname = os.path.join(self.inputs.output_dir, base)
         assert not os.path.exists(fname)
         group_conf_summary.to_csv(fname, sep='\t', index=False)
         self._results['group_conf_summary'] = fname

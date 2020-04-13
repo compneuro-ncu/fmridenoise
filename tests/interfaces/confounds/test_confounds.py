@@ -35,9 +35,8 @@ class ConfoundsTestCase(unittest.TestCase):
     def assertEmptyConfounds(self, file):
         '''Assert that confound file exists and is empty'''
         if (not os.path.exists(file) or 
-            os.stat(file).st_size != self.n_volumes + 1):
-            msg = f'confounds file {file} should have single empty column ' + \
-                  f'({self.n_volumes + 1} characters) but have ' + \
+            os.stat(file).st_size != 1):
+            msg = f'confounds file {file} should be empty but have ' + \
                   f'{os.stat(file).st_size} characters'
             raise AssertionError(msg)
             
@@ -96,7 +95,7 @@ class TestConfounds(ConfoundsTestCase):
             for hmp_name in hmp_names}
 
         self.assertEqual(conf_names, set(conf_prep.columns))
-        self.assertEqual(conf_prep.shape, (self.n_volumes, 18)) 
+        self.assertEqual(conf_prep.shape, (self.n_volumes, 24)) 
 
 
     def test_tissue_signals_filtering(self):
@@ -104,7 +103,9 @@ class TestConfounds(ConfoundsTestCase):
         filtered from raw confounds. Physiological signals are white matter, csf
         signal.'''
         pipeline = copy.deepcopy(pipeline_null)
-        pipeline['confounds']['wm'],  pipeline['confounds']['csf'], pipeline['confounds']['gs'] = \
+        (pipeline['confounds']['white_matter'],  
+         pipeline['confounds']['csf'], 
+         pipeline['confounds']['global_signal']) = \
             ({
                 'derivative1': True, 
                 'power2': True,
@@ -154,7 +155,7 @@ class TestConfounds(ConfoundsTestCase):
         self.assertEmptyConfounds(node._results['conf_prep'])
 
 
-    def test_motion_regressors_filtering(self):
+    def test_spike_regressors(self):
         '''Check if motion regressors are correctly created for specified range
         of both fd and dvars thresholds.'''
         pipeline = copy.deepcopy(pipeline_null)
