@@ -43,7 +43,7 @@ class ConfoundsOutputSpec(TraitedSpec):
     conf_prep = File(
         exists=True,
         desc="Preprocessed confounds table")
-    conf_summary_json_file = File(
+    conf_summary = File(
         exists=True,
         desc="Confounds summary")
 
@@ -83,7 +83,7 @@ class Confounds(SimpleInterface):
         # Create new filename and save
         _, base, _ = split_filename(fname)  # Path can be removed later
         base, _ = split_suffix(base)
-        fname_prep = join(self.inputs.output_dir, f"{base}_pipeline-{pipeline_name}_conf.tsv")  # use output path
+        fname_prep = join(self.inputs.output_dir, f"{base}_pipeline-{pipeline_name}.tsv")  # use output path
         conf_df_prep.to_csv(fname_prep, sep='\t', index=False)
 
         # Creates dictionary with summary measures
@@ -93,24 +93,24 @@ class Confounds(SimpleInterface):
         n_timepoints = len(conf_df_raw)
 
         conf_summary = { # TODO: Why there are lists in this dict and not a simple types?
-                        "subject": [str(self.inputs.subject)],
-                        "task": [str(self.inputs.subject)],
-                        "mean_fd": [float(mean_fd)],
-                        "max_fd": [float(max_fd)],
-                        "n_spikes": [float(n_spikes)],
-                        "perc_spikes": [float((n_spikes/n_timepoints)*100)],
-                        "n_conf": [float(len(conf_df_prep.columns))],
-                        "include": [float(inclusion_check(n_timepoints, mean_fd, max_fd, n_spikes, 0.2))]
+                        "subject": str(self.inputs.subject),
+                        "task": str(self.inputs.task),
+                        "mean_fd": float(mean_fd),
+                        "max_fd": float(max_fd),
+                        "n_spikes": float(n_spikes),
+                        "perc_spikes": float((n_spikes/n_timepoints)*100),
+                        "n_conf": float(len(conf_df_prep.columns)),
+                        "include": float(inclusion_check(n_timepoints, mean_fd, max_fd, n_spikes, 0.2))
                         }
         if self.inputs.session:
-            conf_summary["session"] = [str(self.inputs.session)]
+            conf_summary["session"] = str(self.inputs.session)
         conf_summary_json_file_name = join(self.inputs.output_dir,
                                            f"{base}_pipeline-{pipeline_name}_summaryDict.json")
         assert not os.path.exists(conf_summary_json_file_name)
         with open(conf_summary_json_file_name, 'w') as f:
             json.dump(conf_summary, f)
         self._results['conf_prep'] = fname_prep
-        self._results['conf_summary_json_file'] = conf_summary_json_file_name
+        self._results['conf_summary'] = conf_summary_json_file_name
 
         return runtime
 

@@ -40,10 +40,12 @@ class ConfoundsGenerator:
         'trans_meta_std': 0.02,
         'trans_meta_mean': 0.005,
         'rot_meta_std': 0.001,
-        'rot_meta_mean': 0
+        'rot_meta_mean': 0,
+        'sv_slope': 8000
     }
 
-    def __init__(self, n_volumes=20, *, n_tcompcor=10, n_acompcor=300, n_aroma=0, seed=0):
+    def __init__(self, n_volumes=20, *, n_tcompcor=10, n_acompcor=300, 
+                 n_aroma=0, seed=0):
 
         self._n_volumes = n_volumes
         self._n_tcompcor = n_tcompcor
@@ -61,6 +63,36 @@ class ConfoundsGenerator:
     @property
     def confounds(self):
         return self._df
+    
+    @property
+    def confounds_meta(self):
+        return self._meta
+    
+    @property
+    def mean_fd(self):
+        return self.confounds['framewise_displacement'].mean()
+    
+    @property
+    def max_fd(self):
+        return self.confounds['framewise_displacement'].max()
+    
+    @property
+    def relevant_acompcors(self):
+        '''Returns computed list of 10 acompcor regressors (5 for both wm and csf) with highest 
+        explained variance'''
+        if self._n_acompcor < 15:
+            return []
+
+        acompcors_filtered = []
+        for tissue in ['CSF', 'WM']:
+            acompcors = [(key, val['VarianceExplained']) 
+                         for key, val in self.confounds_meta.items() 
+                         if val.get('Mask') == tissue]
+            acompcors.sort(key=lambda x: x[1], reverse=True)
+            acompcors = [acompcor[0] for acompcor in acompcors[:5]]
+            acompcors_filtered.extend(acompcors)
+            
+        return acompcors_filtered
 
     def get_outlier_scans(self, fd_thr, dvars_thr):
         outliers = (self._df['framewise_displacement'] >= fd_thr) | (self._df['std_dvars'] >= dvars_thr)
@@ -118,7 +150,7 @@ class ConfoundsGenerator:
         # Note: this is not nipype implementation of std_dvars
         self._df['std_dvars'] = self._df['dvars'] / self._df['dvars'].mean()
 
-    def _create_comp_cors(self):
+    def _create_tcompcors(self):
         for i in range(self._n_tcompcor):
             self._df[f't_comp_cor_{i:02}'] = (self._params['tcompcor_meta_std'] 
                                               * np.random.randn() 
@@ -127,14 +159,23 @@ class ConfoundsGenerator:
                 'Method': 'tCompCor',
                 'Retained': True
             }
+            
+    def _create_acompcors(self):
+        variance_acompcor = (np.arange(self._n_acompcor, 0, -1) 
+                             / np.sum(np.arange(self._n_acompcor, 0, -1)))
+        variance_acompcor_cum = np.cumsum(variance_acompcor)
+        
         for i in range(self._n_acompcor):
             self._df[f'a_comp_cor_{i:02}'] = (self._params['acompcor_meta_std'] 
                                               * np.random.randn() 
                                               * np.random.randn(self._n_volumes)) 
             self._meta[f'a_comp_cor_{i:02}'] = {
+                'CumulativeVarianceExplained': variance_acompcor_cum[i],
                 'Method': 'tCompCor',
+                'Mask': ['combined', 'CSF', 'WM'][i%3],
                 'Retained': True,
-                'Mask': ['combined', 'CSF', 'WM'][i%3]
+                'SingularValue': self._params['sv_slope'] * variance_acompcor[i],
+                'VarianceExplained': variance_acompcor[i]
             }            
 
     def _create_cosine_functions(self):
@@ -157,7 +198,7 @@ class ConfoundsGenerator:
             self._df[f'aroma_motion_{i:02}'] = (self._params['aroma_std'] 
                                                 * np.random.randn() 
                                                 * np.random.randn(self._n_volumes))
-            
+
     def meta_to_json(self, filename):
         with open(filename, 'w') as f:
             json.dump(self._meta, f, sort_keys=True, indent=4, separators=(',', ': '))
@@ -167,7 +208,8 @@ class ConfoundsGenerator:
         self._create_motion_params()
         self._create_framewise_displacement()    
         self._create_dvars()
-        self._create_comp_cors()
+        self._create_tcompcors()
+        self._create_acompcors()
         self._create_cosine_functions()
         self._create_motion_outliers()
         self._create_aroma_regressors()
