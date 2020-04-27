@@ -21,7 +21,7 @@ class ConfoundsInputSpec(BaseInterfaceInputSpec):
     conf_json = File(
         exist=True,
         mandatory=True,
-        desc="Details aCompCor")
+        desc="Confounds description (aCompCor)")
     subject = Str(
         mandatory=True,
         desc="Subject name")
@@ -47,6 +47,44 @@ class ConfoundsOutputSpec(TraitedSpec):
 
 
 class Confounds(SimpleInterface):
+    '''Preprocess and filter confounds table according to denoising pipeline.
+
+    This interface reads raw confounds table (fmriprep output) and process it 
+    retaining regressors of interest and creating additional regressors if 
+    needed. Additionally, it creates summary file containing all relevant 
+    information about confounds. This interface operates on single BIDS entity
+    i.e. single subject, task and (optionally) session. 
+
+    Output filenames for both processed confounds and summary JSON have 
+    identical base but different extensions, since they are describing the same 
+    piece of data. They are created by replacing regressors suffix from original
+    filenames with expression pipeline-<pipeline_name>.
+    
+    Summary contains fields:
+        'subject': 
+            Subject label.
+        'task': 
+            Task label.
+        'session': 
+            Session label (only if session was specified).
+        'mean_fd': 
+            Mean framewise displacement.
+        'max_fd': 
+            Highest recorded framewise displacement.
+        'n_conf': 
+            Total number of confounds included.
+        'include':
+            Decision about subject inclusion in connectivity analysis based on
+            three criteria: (1) mean framewise displacement is lower than 
+            specified by the pipeline, (2) max framewise displacement did not 
+            exceed 5mm and (3) percentage of outlier scans did not exceed 20%. 
+            Note that if spikes strategy is not specified, include flag defaults
+            to True.
+        'n_spikes':
+            Number of outlier scans (only if spikes strategy is specified).
+        'perc_spikes':
+            Percentage of outlier scans (only if spikes strategy is specified).
+    '''
     input_spec = ConfoundsInputSpec
     output_spec = ConfoundsOutputSpec
 
@@ -64,6 +102,7 @@ class Confounds(SimpleInterface):
 
     @property
     def conf_filename(self):
+        '''Output filename for processed confounds table.'''
         return self.inputs.conf_raw.replace(
             'regressors.tsv',
             f"pipeline-{self.inputs.pipeline['name']}"
@@ -76,48 +115,41 @@ class Confounds(SimpleInterface):
             self.conf_prep = pd.concat((
                 self.conf_prep,
                 self.conf_raw[regressor_names]
-            ))
+            ), axis=1)
 
 
     def _filter_tissue_signals(self):
-        '''...'''
         tissue_regressors = []
         for confound, setting in self.inputs.pipeline['confounds'].items():
             
-            if confound in ('white_matter', 'csf', 'global_signal') and setting:
-                tissue_regressors.append(confound)
-                
-                if isinstance(setting, dict):
-                    for transform, include in setting.items():
-                        if include:
-                            tissue_regressors.append(f'{confound}_{transform}')
+            if confound in ('white_matter', 'csf', 'global_signal'):
+                for transform, include in setting.items():
+                    if transform == 'raw' and include:
+                        tissue_regressors.append(confound)
+                    elif include:
+                        tissue_regressors.append(f'{confound}_{transform}')
         
         self._retain(tissue_regressors)
 
 
     def _filter_motion_parameters(self):
-        '''...'''
         hmp_regressors = []
         hmp_names = [f'{type_}_{axis}' 
                      for type_ in ('trans', 'rot') 
                      for axis in ('x', 'y', 'z')]
 
         setting = self.inputs.pipeline['confounds']['motion']
-        
-        if setting:
-            hmp_regressors.extend(hmp_names)
 
-            if isinstance(setting, dict):
-                for transform, include in setting.items():
-                    if include:
-                        hmp_regressors.extend(f'{hmp}_{transform}' 
-                                            for hmp in hmp_names)
+        for transform, include in setting.items():
+            if transform == 'raw' and include:
+                hmp_regressors.extend(hmp_names)
+            elif include:
+                hmp_regressors.extend(f'{hmp}_{transform}' for hmp in hmp_names)
         
         self._retain(hmp_regressors)
 
 
     def _filter_acompcors(self):
-        '''...'''
         if not self.inputs.pipeline['confounds']['acompcor']:
             return
 
@@ -135,7 +167,6 @@ class Confounds(SimpleInterface):
 
 
     def _create_spike_regressors(self):
-        '''...'''
         if not self.inputs.pipeline['spikes']:
             return
 
@@ -165,33 +196,36 @@ class Confounds(SimpleInterface):
 
 
     def _create_summary_dict(self):
-        '''...'''
         self.conf_summary = {
             'subject': self.inputs.subject,
             'task': self.inputs.task,
             'mean_fd': self.conf_raw["framewise_displacement"].mean(),
             'max_fd': self.conf_raw["framewise_displacement"].max(),
-            'n_conf': len(self.conf_prep.columns)
+            'n_conf': len(self.conf_prep.columns),
+            'include': self._inclusion_check()
         }
 
         if self.inputs.pipeline['spikes']:
             self.conf_summary['n_spikes'] = self.n_spikes 
             self.conf_summary['perc_spikes'] = self.n_spikes / self.n_volumes * 100
-            include = inclusion_check(
-                n_timepoints=self.n_volumes, 
-                mean_fd=self.conf_raw["framewise_displacement"].mean(),
-                max_fd=self.conf_raw["framewise_displacement"].max(),
-                n_spikes=self.n_spikes,
-                fd_th=self.inputs.pipeline['spikes']['fd_th']
-            )
-            self.conf_summary['include'] = include  #TODO: Should this be calculated only if spikes are included?
 
         if self.inputs.session:
-            self.conf_summary["session"] = str(self.inputs.session)
+            self.conf_summary['session'] = str(self.inputs.session)
 
+    def _inclusion_check(self):
+        '''Decide if subject should be included in connectivity analysis'''
+        if not self.inputs.pipeline['spikes']:
+            return True
+
+        mean_fd = self.conf_raw['framewise_displacement'].mean()
+        max_fd = self.conf_raw['framewise_displacement'].max()
+        fd_th = self.inputs.pipeline['spikes']['fd_th']
+
+        if mean_fd > fd_th or max_fd > 5 or self.n_spikes / self.n_volumes > 0.2:
+            return False
+        return True
 
     def _run_interface(self, runtime):
-
         self._filter_motion_parameters()
         self._filter_tissue_signals()
         self._filter_acompcors()
@@ -206,37 +240,6 @@ class Confounds(SimpleInterface):
         self._results['conf_summary'] = self.conf_filename + '.json'
 
         return runtime
-
-
-def inclusion_check(n_timepoints, mean_fd, max_fd, n_spikes, fd_th): #TODO convert to instance method
-    """
-    Checking if participant is recommended to be excluded from analysis
-    based on motion parameters and spikes regressors.
-
-    Inputs
-    -------
-
-    n_timepoints: number of timepoints
-    mean_fd: mean framewise_displacement (FD)
-    max_fd: maximum FD
-    n_spikes: number of spikes
-    fd_th: threshold for mean FD
-
-    Outputs
-    -------
-
-    returns 0 if subject should be excluded due to head motion
-    or 1 if there is no reason to exclude subject based on submitted threshold.
-
-    """
-    if mean_fd > fd_th:
-        return 0
-    elif max_fd > 5:
-        return 0
-    elif n_spikes/n_timepoints > 0.20:
-        return 0
-    else:
-        return 1
 
 
 class GroupConfoundsInputSpec(BaseInterfaceInputSpec):

@@ -6,17 +6,38 @@ pipeline_null = {
     'name': '',
     'description': '',
     'confounds': {
-        'wm': False,
-        'csf': False,
-        'gs': False,
-        'motion': False,
-        'acompcor': False
+        'white_matter': {
+            'raw': False,
+            'derivative1': False,
+            'power2': False,
+            'derivative1_power2': False
         },
+        'csf': {
+            'raw': False,
+            'derivative1': False,
+            'power2': False,
+            'derivative1_power2': False
+        },
+        'global_signal': {
+            'raw': False,
+            'derivative1': False,
+            'power2': False,
+            'derivative1_power2': False
+        },
+        'motion': {
+            'raw': False,
+            'derivative1': False,
+            'power2': False,
+            'derivative1_power2': False
+        },
+        'acompcor': False
+    },
     'aroma': False,
     'spikes': False
 }
 
 def confound_filename(sub, task, ses, ext):
+    '''Create proper filename for raw confounds given BIDS entity.'''
     sub_substr = f'sub-{sub}_'
     ses_substr = f'ses-{ses}_' if ses else ''
     task_substr = f'task-{task}_'
@@ -57,10 +78,9 @@ class ConfoundsGenerator:
         self._df = pd.DataFrame()
         self._meta = {}
 
-        if seed is not None:
-            np.random.seed(seed)
+        np.random.seed(seed)
 
-        self._create()
+        self._create_all()
 
 
     def __repr__(self):
@@ -234,7 +254,7 @@ class ConfoundsGenerator:
             json.dump(self._meta, f, sort_keys=True, indent=4, separators=(',', ': '))
 
 
-    def _create(self):
+    def _create_all(self):
         self._create_tissue_signals()
         self._create_motion_params()
         self._create_framewise_displacement()    

@@ -12,26 +12,6 @@ from tests.interfaces.confounds.utils import (ConfoundsGenerator,
 
 class ConfoundsTestCase(unittest.TestCase):
 
-    @classmethod
-    def setUpClass(cls):
-        cls.n_volumes = 100
-        cls.n_tcompcor = 10
-        cls.n_acompcor = 100
-        cls.n_aroma = 20
-
-        # Generate fake confounds
-        cls.cg = ConfoundsGenerator(
-            n_volumes=cls.n_volumes,
-            n_tcompcor=cls.n_tcompcor,
-            n_acompcor=cls.n_acompcor,
-            n_aroma=cls.n_aroma
-        )
-
-        # BIDS variables
-        cls.sub = '01'
-        cls.ses = '1'
-        cls.task = 'rest'
-
     def assertEmptyConfounds(self, file):
         '''Assert that confound file exists and is empty'''
         if (not os.path.exists(file) or 
@@ -39,11 +19,20 @@ class ConfoundsTestCase(unittest.TestCase):
             msg = f'confounds file {file} should be empty but have ' + \
                   f'{os.stat(file).st_size} characters'
             raise AssertionError(msg)
-            
 
-class TestConfounds(ConfoundsTestCase):
+
+class TestConfounds(ConfoundsTestCase):        
+    seed = None 
+    n_volumes = None
+    n_tcompcor = None 
+    n_acompcor = None 
+    n_aroma = None 
+    sub = None 
+    ses = None
+    task = None
 
     def setUp(self):
+        self._generate_confounds()
         # Write confounds to file
         self.temp_dir = tempfile.TemporaryDirectory()
         self.conf_filename_tsv = os.path.join(self.temp_dir.name, 
@@ -58,7 +47,19 @@ class TestConfounds(ConfoundsTestCase):
         self.temp_dir.cleanup()
 
 
-    def recreate_confounds_node(self, pipeline):
+    def _generate_confounds(self):
+        '''Create fake confounds.'''
+        self.cg = ConfoundsGenerator(
+            n_volumes=self.n_volumes,
+            n_tcompcor=self.n_tcompcor,
+            n_acompcor=self.n_acompcor,
+            n_aroma=self.n_aroma,
+            seed=self.seed
+        )
+
+
+    def _recreate_confounds_node(self, pipeline):
+        '''Initialize and return instance of tested Confounds interface.'''
         node = Confounds(
             pipeline=pipeline,
             conf_raw=self.conf_filename_tsv,
@@ -76,14 +77,11 @@ class TestConfounds(ConfoundsTestCase):
         confounds.
         '''
         pipeline = copy.deepcopy(pipeline_null)
-        pipeline['confounds']['motion'] = {
-            'derivative1': True,
-            'power2': True,
-            'derivative1_power2': True
-        }
+        for transform in ['raw', 'derivative1', 'power2', 'derivative1_power2']:
+            pipeline['confounds']['motion'][transform] = True
 
         # Run interface & load confounds
-        node = self.recreate_confounds_node(pipeline)
+        node = self._recreate_confounds_node(pipeline)
         node.run()
         conf_prep = pd.read_csv(node._results['conf_prep'], sep='\t')
 
@@ -103,16 +101,11 @@ class TestConfounds(ConfoundsTestCase):
         filtered from raw confounds. Physiological signals are white matter, csf
         signal.'''
         pipeline = copy.deepcopy(pipeline_null)
-        (pipeline['confounds']['white_matter'],  
-         pipeline['confounds']['csf'], 
-         pipeline['confounds']['global_signal']) = \
-            ({
-                'derivative1': True, 
-                'power2': True,
-                'derivative1_power2': True
-            }, ) * 3
+        for tissue in ['white_matter', 'csf', 'global_signal']:
+            for transform in ['raw', 'derivative1', 'power2', 'derivative1_power2']:
+                pipeline['confounds'][tissue][transform] = True
 
-        node = self.recreate_confounds_node(pipeline)
+        node = self._recreate_confounds_node(pipeline)
         node.run()
         conf_prep = pd.read_csv(node._results['conf_prep'], sep='\t')
 
@@ -125,6 +118,32 @@ class TestConfounds(ConfoundsTestCase):
         self.assertEqual(conf_prep.shape, (self.n_volumes, 12)) 
 
 
+    def test_selective_filtering(self):
+        '''Check if confounds (hmp and physiological signals) are correctly 
+        filtered for non-standard options.'''
+        pipeline = copy.deepcopy(pipeline_null)
+        pipeline['confounds']['motion']['derivative1'] = True
+        pipeline['confounds']['white_matter']['power2'] = True
+        pipeline['confounds']['global_signal']['derivative1_power2'] = True
+        pipeline['confounds']['csf']['raw'] = True
+
+        node = self._recreate_confounds_node(pipeline)
+        node.run()
+        conf_prep = pd.read_csv(node._results['conf_prep'], sep='\t')
+
+        hmp_names = [f'{type_}_{axis}' 
+            for type_ in ('trans', 'rot') for axis in ('x', 'y', 'z')]
+        conf_names = {f'{hmp_name}_derivative1' for hmp_name in hmp_names}
+        conf_names = conf_names.union({
+            'white_matter_power2', 
+            'global_signal_derivative1_power2',
+            'csf'
+        })
+        
+        self.assertEqual(conf_names, set(conf_prep.columns))
+        self.assertEqual(conf_prep.shape, (self.n_volumes, 9)) 
+        
+
     def test_acompcor_filtering(self):
         '''Test filtering out first aCompCor components. Filtering procedure 
         should retain first five wm components and first five csf components. 
@@ -133,7 +152,7 @@ class TestConfounds(ConfoundsTestCase):
         pipeline = copy.deepcopy(pipeline_null)
         pipeline['confounds']['acompcor'] = True
 
-        node = self.recreate_confounds_node(pipeline)
+        node = self._recreate_confounds_node(pipeline)
         node.run()
         conf_prep = pd.read_csv(node._results['conf_prep'], sep='\t')
 
@@ -148,7 +167,7 @@ class TestConfounds(ConfoundsTestCase):
         pipeline = copy.deepcopy(pipeline_null)
         pipeline['aroma'] = True
 
-        node = self.recreate_confounds_node(pipeline)
+        node = self._recreate_confounds_node(pipeline)
         node.run()
 
         # Ensure that file exists and is (almost) empty
@@ -161,7 +180,7 @@ class TestConfounds(ConfoundsTestCase):
         pipeline = copy.deepcopy(pipeline_null)
 
         test_thrs = [(0.1, 0.1), (0.1, 1.5), (0.5, 0.1),
-                     (0.5, 1.5), (0.5, 3.0), (9.9, 9.9)]
+                    (0.5, 1.5), (0.5, 3.0), (9.9, 9.9)]
 
         for fd_th, dvars_th in test_thrs:
             with self.subTest(f'Testing fd_th = {fd_th} and dvars_th = {dvars_th}'):
@@ -171,12 +190,12 @@ class TestConfounds(ConfoundsTestCase):
 
                 pipeline['spikes'] = {'fd_th': fd_th, 'dvars_th': dvars_th}
 
-                node = self.recreate_confounds_node(pipeline)
+                node = self._recreate_confounds_node(pipeline)
                 node.run()
 
                 outlier_scans = self.cg.get_outlier_scans(fd_th, dvars_th)
                 outlier_names = {f'motion_outlier_{i:02}' 
-                                 for i in range(len(outlier_scans))}
+                                for i in range(len(outlier_scans))}
 
                 if not outlier_scans:
                     # No outliers should be detected
@@ -196,7 +215,7 @@ class TestConfounds(ConfoundsTestCase):
         pipeline = copy.deepcopy(pipeline_null)
         pipeline['name'] = 'testPipeline'
 
-        node = self.recreate_confounds_node(pipeline)
+        node = self._recreate_confounds_node(pipeline)
         node.run()  
         conf_prep_name = node._results['conf_prep']
 
@@ -214,7 +233,7 @@ class TestConfounds(ConfoundsTestCase):
         pipeline = copy.deepcopy(pipeline_null)
         pipeline['name'] = 'testPipeline'
 
-        node = self.recreate_confounds_node(pipeline)
+        node = self._recreate_confounds_node(pipeline)
         node.run()  
         conf_summary_name = node._results['conf_summary']
 
@@ -234,7 +253,7 @@ class TestConfounds(ConfoundsTestCase):
         pipeline = copy.deepcopy(pipeline_null)
 
         test_thrs = [(0.1, 0.1), (0.1, 1.5), (0.5, 0.1),
-                     (0.5, 1.5), (0.5, 3.0), (9.9, 9.9)]
+                    (0.5, 1.5), (0.5, 3.0), (9.9, 9.9)]
 
         for fd_th, dvars_th in test_thrs:
             with self.subTest(f'Testing fd_th = {fd_th} and dvars_th = {dvars_th}'):
@@ -242,7 +261,7 @@ class TestConfounds(ConfoundsTestCase):
                 self.setUp()
                 pipeline['spikes'] = {'fd_th': fd_th, 'dvars_th': dvars_th}
 
-                node = self.recreate_confounds_node(pipeline)
+                node = self._recreate_confounds_node(pipeline)
                 node.run()
 
                 with open(node._results['conf_summary']) as f:
@@ -251,17 +270,69 @@ class TestConfounds(ConfoundsTestCase):
                 # Expected values
                 n_outlier_scans = len(self.cg.get_outlier_scans(fd_th, dvars_th))
                 perc_outlier_scans = n_outlier_scans / self.n_volumes * 100
+                include = (self.cg.mean_fd <= fd_th and
+                           self.cg.max_fd <= 5 and
+                           perc_outlier_scans <= 20) 
 
                 self.assertEqual(summary_dict['subject'], self.sub)
-                self.assertEqual(summary_dict['session'], self.ses)
+                self.assertEqual(summary_dict.get('session', ''), self.ses)
                 self.assertEqual(summary_dict['task'], self.task)
                 self.assertAlmostEqual(summary_dict['max_fd'], self.cg.max_fd)
                 self.assertAlmostEqual(summary_dict['mean_fd'], self.cg.mean_fd)
                 self.assertEqual(summary_dict['n_spikes'], n_outlier_scans)
                 self.assertAlmostEqual(summary_dict['perc_spikes'], 
-                                       perc_outlier_scans)
-
+                                    perc_outlier_scans)
+                self.assertEqual(summary_dict['include'], include)
 
 
 if __name__ == '__main__':
-    unittest.main()
+
+    test_params = [
+        # Standard case
+        {
+            'seed': 0, 
+            'n_volumes': 100,
+            'n_tcompcor': 10, 
+            'n_acompcor': 100, 
+            'n_aroma': 10, 
+            'sub': '00', 
+            'ses': '0', 
+            'task': 'task0'
+        },
+        # No-aroma, no tcompcor
+        {
+            'seed': 1, 
+            'n_volumes': 5, 
+            'n_tcompcor': 0, 
+            'n_acompcor': 100, 
+            'n_aroma': 0, 
+            'sub': '01', 
+            'ses': '1', 
+            'task': 'task1'
+        },
+        # No-session, letter in subject
+        {
+            'seed': 2, 
+            'n_volumes': 5, 
+            'n_tcompcor': 10, 
+            'n_acompcor': 100, 
+            'n_aroma': 10, 
+            'sub': 'test02', 
+            'ses': '', 
+            'task': 'task2'
+        },
+    ]
+
+    for params_dict in test_params:
+        
+        loader = unittest.TestLoader()
+        suite = unittest.TestSuite()
+
+        for param, value in params_dict.items():
+            setattr(TestConfounds, param, value)
+
+        suite.addTests(loader.loadTestsFromTestCase(TestConfounds))
+
+        print(f'Testing {params_dict}')
+        runner = unittest.TextTestRunner(verbosity=1)
+        runner.run(suite)
