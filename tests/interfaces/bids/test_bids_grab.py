@@ -1,70 +1,47 @@
-from fmridenoise.interfaces.bids import validate_derivatives, BIDSGrab
-from os.path import dirname, join
+from fmridenoise.interfaces.bids import BIDSValidate, MissingFile
+import fmridenoise.pipelines as pipe
 import unittest as ut
+from os.path import join, dirname
 
-# Datasets
-dn_dataset = {"bids_dir": join(dirname(__file__), 'dn3sub_fmriprep_dummy'),
-              "derivatives": "fmriprep"}
-lb_dataset = {"bids_dir": join(dirname(__file__), 'lb2sub_fmriprep_dummy'),
-              "derivatives": "fmriprep"}
+# Data sets
+testDir = dirname(__file__)
+dummyDataPath = join(testDir, "dummy_complete")
+dummyMissing = join(testDir, "dummy_missing_files")
+pipelinesDir = dirname(pipe.__file__)
+aromaPipelinesDicts = list(map(lambda name: join(pipelinesDir, name), ['pipeline-ICA-AROMA_8Phys.json']))
+noAromaPipelineDicts = list(map(lambda name: join(pipelinesDir, name), ['pipeline-24HMP_aCompCor_SpikeReg.json']))
 
-class TestBidsGrab(ut.TestCase):
 
-    def test_bidsgrab_output_dn3sub(self):
+class BidsValidateFunctionsTestCase(ut.TestCase):
 
-        # Create correct output
-        subjects = [f'm{sub:02}'for sub in list(range(2,5))]
-        common_prefix = [
-            join(dirname(__file__), 'dn3sub_fmriprep_dummy', 'derivatives',
-                 'fmriprep', f'sub-{sub}/', 'func', f'sub-{sub}_task-{task}')
-            for sub in subjects for task in ['prlpun', 'prlrew']]
-        conf_json = [path_prefix + '_desc-confounds_regressors.json'
-                     for path_prefix in common_prefix]
-        conf_raw =  [path_prefix + '_desc-confounds_regressors.tsv'
-                     for path_prefix in common_prefix]
-        fmri_prep = [path_prefix + '_space-MNI152NLin2009cAsym_desc-preproc_bold.nii.gz'
-                     for path_prefix in common_prefix]
-        entities = [{'datatype': 'func', 'subject': sub, 'task': task}
-                    for sub in subjects for task in ['prlpun', 'prlrew']]
-        tr_dict = {task:2 for task in ['prlpun', 'prlrew']}
+    def test_validate_derivative_onValid(self):
+        target_derivative_list = [join(dummyDataPath, "derivatives", "fmriprep")]
+        target_scope = ['fMRIPrep']
+        derivatives_list, scope = BIDSValidate.validate_derivatives(dummyDataPath, "fmriprep")
+        self.assertListEqual(target_derivative_list, derivatives_list)
+        self.assertListEqual(target_scope, scope)
 
-        # No flags
-        grabber = BIDSGrab(bids_dir=dn_dataset['bids_dir'])
-        results = grabber.run()
-        self.assertEqual(fmri_prep, results.outputs.fmri_prep)
-        self.assertEqual(conf_json, results.outputs.conf_json)
-        self.assertEqual(conf_raw, results.outputs.conf_raw)
-        self.assertEqual(entities, results.outputs.entities)
-        self.assertEqual(tr_dict, results.outputs.tr_dict)
+    def test_validate_derivative_onMissingJson(self):
+        self.assertRaises(MissingFile, BIDSValidate.validate_derivatives, dummyMissing, 'fmridenoise')
 
-        # Participant flag
-        grabber = BIDSGrab(bids_dir=dn_dataset['bids_dir'], subject=['m03'])
-        results = grabber.run()
-        subfilter = lambda l: list(filter(lambda x: 'm03' in x, l))
-        self.assertEqual(subfilter(fmri_prep), results.outputs.fmri_prep)
-        self.assertEqual(subfilter(conf_json), results.outputs.conf_json)
-        self.assertEqual(subfilter(conf_raw), results.outputs.conf_raw)
-        self.assertEqual(
-            [entity for entity in entities if entity['subject'] == 'm03'],
-            results.outputs.entities
-        )
-        self.assertEqual(tr_dict, results.outputs.tr_dict)
+    def test_validate_derivative_onMissingDirectory(self):
+        self.assertRaises(MissingFile, BIDSValidate.validate_derivatives, dummyMissing, 'notExisting')
 
-        # Task flag
-        grabber = BIDSGrab(bids_dir=dn_dataset['bids_dir'], task=['prlpun'])
-        results = grabber.run()
-        taskfilter = lambda l: list(filter(lambda x: 'prlpun' in x, l))
-        self.assertEqual(taskfilter(fmri_prep), results.outputs.fmri_prep)
-        self.assertEqual(taskfilter(conf_json), results.outputs.conf_json)
-        self.assertEqual(taskfilter(conf_raw), results.outputs.conf_raw)
-        self.assertEqual(
-            [entity for entity in entities if entity['task'] == 'prlpun'],
-            results.outputs.entities
-        )
-        self.assertEqual({'prlpun': 2}, results.outputs.tr_dict)
 
-    def test_validate_derivatives_output(self):
-        derivatives_valid, scope = validate_derivatives(dn_dataset['bids_dir'],
-                                                        dn_dataset['derivatives'])
-        self.assertEqual(scope, ['fMRIPrep'])
-        self.assertEqual(derivatives_valid, [join(dn_dataset['bids_dir'], 'derivatives/fmriprep')])
+
+
+class BidsValidateTestCase(ut.TestCase):
+    pass
+
+
+if __name__ == '__main__':
+    print(dummyDataPath)
+    bidsValidate = BIDSValidate()
+    bidsValidate.inputs.bids_dir = dummyDataPath
+    bidsValidate.inputs.pipelines = [aromaPipelinesDicts[0], noAromaPipelineDicts[0]]
+    bidsValidate.inputs.sessions = ['1']
+    bidsValidate.inputs.subjects = ['01', '02']
+    bidsValidate.inputs.tasks = ['audionback']
+    bidsValidate.inputs.derivatives = ['fmriprep']
+    # bidsValidate.run()
+    print(BIDSValidate.validate_derivatives(dummyDataPath, 'fmriprep'))

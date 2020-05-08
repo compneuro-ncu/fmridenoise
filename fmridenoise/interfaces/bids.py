@@ -10,99 +10,8 @@ from traits.trait_types import Dict, List, Either, File
 import json
 import os
 from itertools import product
-from os.path import  join
-
-
-def validate_derivatives(bids_dir, derivatives):
-    """ Validate derivatives argument provided by the user.
-
-    Args:
-        bids_dir: list
-            Path to bids root directory.
-        derivatives: str or list(str)
-            Derivatives to use for denoising.
-
-    Returns:
-        derivatives_valid: list
-            Validated derivatives list.
-        scope: list
-            Right scope keyword used in pybids query.
-    """
-
-    if isinstance(derivatives, str):
-        derivatives_valid = [derivatives]
-    else:
-        derivatives_valid = derivatives
-
-    # Create full paths to derivatives folders
-    derivatives_valid = [os.path.join(bids_dir, 'derivatives', d)
-                         for d in derivatives_valid]
-
-    # Establish right scope keyword for arbitrary packages
-    scope = []
-    for derivative_path in derivatives_valid:
-        dataset_desc_path = os.path.join(derivative_path,
-                                         'dataset_description.json')
-        try:
-            with open(dataset_desc_path, 'r') as f:
-                dataset_desc = json.load(f)
-            scope.append(dataset_desc['PipelineDescription']['Name'])
-        except FileNotFoundError as e:
-            raise Exception(f"{derivative_path} should contain" +
-                            " dataset_description.json file") from e
-        except KeyError as e:
-            raise Exception(f"Key 'PipelineDescription.Name' is " +
-                            "required in {dataset_desc_path} file") from e
-
-    return derivatives_valid, scope
-
-
-def validate_option(layout, option, kind='task'):
-    """ Validate BIDS query filters provided by the user.
-
-    Args:
-        layout: bids.layout.layout.BIDSLayout
-            Lightweight class representing BIDS project file tree.
-        option: list
-            Filter arguments provided by the user.
-        kind: string
-            Type of query. Available options are 'task', 'session' and
-            'subject'.
-
-    Returns:
-        option_: list
-            Validated filter values.
-    """
-    # Grab all possible filter values
-
-    if kind == 'task':
-        option_all = layout.get_tasks()
-    elif kind == 'session':
-        option_all = layout.get_sessions()
-    elif kind == 'subject':
-        option_all = layout.get_subjects()
-    else:
-        raise ValueError("kind should be either 'task', 'session' or 'subject'")
-
-    for option_item in option:
-        if option_item not in option_all:
-            raise ValueError(f'{kind} {option_item} is not found')
-
-    return option
-
-
-def compare_common_entities(file1, file2) -> None:
-    """Compare common entities for two layout files"""
-
-    common_keys = ['task', 'session', 'subject', 'datatype']
-    entity_f1 = {key: value for key, value in file1.get_entities().items() if
-                 key in common_keys}
-    entity_f2 = {key: value for key, value in file2.get_entities().items() if
-                 key in common_keys}
-
-    if not entity_f1 == entity_f2:
-        raise MissingFile(f"{file1.path} has no corresponding file. "
-                          f"Entities {entity_f1} and {entity_f2} should match.")
+from os.path import join
+import typing as t
 
 
 class MissingFile(IOError):
@@ -138,14 +47,34 @@ class BIDSGrab(SimpleInterface):
         self._results['conf_json'] = self.select_one(self.inputs.conf_json_files)
         return runtime
 
-    def select_one(self, _list: list) -> str:
+    def select_one(self, _list: t.List[str]) -> str:
+        """
+        Wraper for _select_one that uses class instance variable.
+        Args:
+            _list (List[str]): list of file paths
+        Returns:
+           str: resulting file path meeting criteria
+        """
         return self._select_one(_list,
                                 self.inputs.subject,
                                 self.inputs.session,
                                 self.inputs.task)
 
     @staticmethod
-    def _select_one(_list: list, subject: str, session: str, task: str) -> str:
+    def _select_one(_list: t.List[str], subject: str, session: str, task: str) -> str:
+        """
+        For given list of file paths returns one path for given subject, session and task.
+        If no paths meet criteria empty string is returned instead.
+        If more than one path is found ValueError is raised.
+        Args:
+            _list (List[str]): list of file paths
+            subject (str): subject identifier without 'sub-'
+            session (str): session identifier without 'ses-'
+            task (str): task identifier without 'task-'
+
+        Returns:
+           str: resulting file path meeting criteria
+        """
         if session:
             query = lambda data_list: list(
                 filter(lambda x: f"sub-{subject}" in x,
@@ -224,13 +153,14 @@ class BIDSValidate(SimpleInterface):
     output_spec = BIDSValidateOutputSpec
 
     @staticmethod
-    def validate_derivatives(bids_dir, derivatives):
+    def validate_derivatives(bids_dir: str,
+                             derivatives: t.Union[str, t.List[str]]) -> t.Tuple[t.List[str], t.List[str]]:
         """ Validate derivatives argument provided by the user before calling
         layout. It creates required full path for derivatives directory. Also
         returns scope required for queries.
 
         Args:
-            bids_dir: list
+            bids_dir: str
                 Path to bids root directory.
             derivatives: str or list(str)
                 Derivatives to use for denoising.
@@ -261,10 +191,10 @@ class BIDSValidate(SimpleInterface):
                     dataset_desc = json.load(f)
                 scope.append(dataset_desc['PipelineDescription']['Name'])
             except FileNotFoundError as e:
-                raise Exception(f"{derivative_path} should contain" +
+                raise MissingFile(f"{derivative_path} should contain" +
                                 " dataset_description.json file") from e
             except KeyError as e:
-                raise Exception(f"Key 'PipelineDescription.Name' is " +
+                raise MissingFile(f"Key 'PipelineDescription.Name' is " +
                                 "required in {dataset_desc_path} file") from e
 
         return derivatives_valid, scope
@@ -511,6 +441,6 @@ class BIDSDataSink(IOBase):
         os.makedirs(path, exist_ok=True)
         basedir, basename, ext = split_filename(self.inputs.in_file)
         path = join(path, basename+ext)
-        assert not os.path.exists(path)
+        assert not os.path.exists(path), f"Path {path} already exists."
         copyfile(self.inputs.in_file, path, copy=True)
         return {'out_file': path}
