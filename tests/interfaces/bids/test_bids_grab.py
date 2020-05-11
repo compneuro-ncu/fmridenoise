@@ -35,8 +35,17 @@ class BidsValidateBasicPropertiesOnCompleteDataTestCase(ut.TestCase):
     sessions = ["1", "2", "3", "4"]
     subjects = ["01", "02"]
     pipelines = list(chain(aromaPipelinesPaths, noAromaPipelinePaths))
+    pipelinesDicts = list(map(lambda x: pipe.load_pipeline_from_json(x), pipelines))
     bids_dir = dummyDataPath
     maxDiff = None
+
+    @property
+    def shouldContainAromaFiles(self) -> bool:
+        return any(map(pipe.is_IcaAROMA, self.pipelinesDicts))
+
+    @property
+    def shouldContainNoAromaFiles(self) -> bool:
+        return not all(map(pipe.is_IcaAROMA, self.pipelinesDicts))
 
     @classmethod
     def setUpClass(cls) -> None:
@@ -59,10 +68,22 @@ class BidsValidateBasicPropertiesOnCompleteDataTestCase(ut.TestCase):
         self.assertListEqual(self.bidsValidate._results["sessions"], self.sessions)
 
     def test_pipelines(self):
-        for pipe_bidsVal, pipe_loaded in zip(self.bidsValidate._results["pipelines"], map(lambda x: pipe.load_pipeline_from_json(x), self.pipelines)):
+        for pipe_bidsVal, pipe_loaded in zip(self.bidsValidate._results["pipelines"], self.pipelinesDicts):
             self.assertDictEqual(pipe_loaded, pipe_bidsVal)
 
+    def test_aromaFiles(self):
+        if self.shouldContainAromaFiles:
+            filesCount = len(self.subjects) * len(self.sessions) * len(self.tasks)
+            self.assertEquals(filesCount, len(self.bidsValidate._results["fmri_prep_aroma"]))
+        else:
+            self.assertEquals(0, len(self.bidsValidate._results["fmri_prep_aroma"]))
 
+    def test_noAromaFiles(self):
+        if self.shouldContainNoAromaFiles:
+            filesCount = len(self.subjects) * len(self.sessions) * len(self.tasks)
+            self.assertEquals(filesCount, len(self.bidsValidate._results["fmri_prep"]))
+        else:
+            self.assertEquals(0, len(self.bidsValidate._results["fmri_prep"]))
 
 if __name__ == '__main__':
     print(dummyDataPath)
