@@ -340,7 +340,7 @@ class BIDSValidate(SimpleInterface):
             pipelines_dicts.append(load_pipeline_from_json(pipeline))
 
         # Check if there is at least one pipeline requiring aroma
-        include_aroma = any(map(lambda p: p['aroma'] == 'True', pipelines_dicts))
+        include_aroma = any(map(lambda p: p['aroma'] is True, pipelines_dicts))
         # include_aroma = False
 
         # Check missing files and act accordingly

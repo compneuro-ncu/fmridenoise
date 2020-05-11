@@ -74,16 +74,16 @@ class BidsValidateBasicPropertiesOnCompleteDataTestCase(ut.TestCase):
     def test_aromaFiles(self):
         if self.shouldContainAromaFiles:
             filesCount = len(self.subjects) * len(self.sessions) * len(self.tasks)
-            self.assertEquals(filesCount, len(self.bidsValidate._results["fmri_prep_aroma"]))
+            self.assertEqual(filesCount, len(self.bidsValidate._results["fmri_prep_aroma"]))
         else:
-            self.assertEquals(0, len(self.bidsValidate._results["fmri_prep_aroma"]))
+            self.assertEqual(0, len(self.bidsValidate._results["fmri_prep_aroma"]))
 
     def test_noAromaFiles(self):
         if self.shouldContainNoAromaFiles:
             filesCount = len(self.subjects) * len(self.sessions) * len(self.tasks)
-            self.assertEquals(filesCount, len(self.bidsValidate._results["fmri_prep"]))
+            self.assertEqual(filesCount, len(self.bidsValidate._results["fmri_prep"]))
         else:
-            self.assertEquals(0, len(self.bidsValidate._results["fmri_prep"]))
+            self.assertEqual(0, len(self.bidsValidate._results["fmri_prep"]))
 
 if __name__ == '__main__':
     print(dummyDataPath)
