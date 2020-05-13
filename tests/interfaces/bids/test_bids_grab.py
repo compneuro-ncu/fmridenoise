@@ -85,6 +85,51 @@ class BidsValidateBasicPropertiesOnCompleteDataTestCase(ut.TestCase):
         else:
             self.assertEqual(0, len(self.bidsValidate._results["fmri_prep"]))
 
+    @classmethod
+    def createParametrizedTestCase(cls,
+                                   caseName: str,
+                                   derivatives: list,
+                                   tasks: list,
+                                   subjects: list,
+                                   pipelines: list,
+                                   pipeliensDict: list,
+                                   bids_dir: list,
+                                   maxDiff=None):
+        return type(caseName,
+                    (cls,),
+                    {
+                        'derivatives': derivatives,
+                        'tasks': tasks,
+                        'subjects': subjects,
+                        'pipelines': pipelines,
+                        'pipelinesDict': pipeliensDict,
+                        'bids_dir': bids_dir,
+                        'maxDiff': maxDiff
+                    })
+
+
+class BidsValidateNoAromaOnCompleteDataTest(BidsValidateBasicPropertiesOnCompleteDataTestCase):
+    derivatives = ["fmriprep"]
+    tasks = ["audionback", "dualnback", "rest", "spatialnback"]
+    sessions = ["1", "2", "3", "4"]
+    subjects = ["01", "02"]
+    pipelines = list(chain(noAromaPipelinePaths))
+    pipelinesDicts = list(map(lambda x: pipe.load_pipeline_from_json(x), pipelines))
+    bids_dir = dummyDataPath
+    maxDiff = None
+
+
+class BidsValidateOnlyAromaOnCompleteDataTest(BidsValidateBasicPropertiesOnCompleteDataTestCase):
+    derivatives = ["fmriprep"]
+    tasks = ["audionback", "dualnback", "rest", "spatialnback"]
+    sessions = ["1", "2", "3", "4"]
+    subjects = ["01", "02"]
+    pipelines = list(chain(aromaPipelinesPaths))
+    pipelinesDicts = list(map(lambda x: pipe.load_pipeline_from_json(x), pipelines))
+    bids_dir = dummyDataPath
+    maxDiff = None
+
+
 if __name__ == '__main__':
     print(dummyDataPath)
     bidsValidate = BIDSValidate()

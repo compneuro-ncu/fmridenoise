@@ -7,7 +7,7 @@ from nipype.interfaces.base import (BaseInterfaceInputSpec, SimpleInterface,
     Directory, Str, ImageFile,
     OutputMultiPath)
 from traits.trait_types import Dict, List, Either, File
-from fmridenoise.pipelines import load_pipeline_from_json
+from fmridenoise.pipelines import load_pipeline_from_json, is_IcaAROMA
 import json
 import os
 from itertools import product
@@ -340,7 +340,7 @@ class BIDSValidate(SimpleInterface):
             pipelines_dicts.append(load_pipeline_from_json(pipeline))
 
         # Check if there is at least one pipeline requiring aroma
-        include_aroma = any(map(lambda p: p['aroma'] is True, pipelines_dicts))
+        include_aroma = any(map(is_IcaAROMA, pipelines_dicts))
         # include_aroma = False
 
         # Check missing files and act accordingly
