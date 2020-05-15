@@ -1,121 +1,172 @@
+import pandas as pd
+import nibabel as nb
+import os
+
+from traits.trait_base import _Undefined
 from nilearn.image import clean_img
-from nipype.utils.filemanip import split_filename
 from nipype.interfaces.base import (
     BaseInterfaceInputSpec, TraitedSpec, SimpleInterface,
     ImageFile, File, Directory, traits)
-import nibabel as nb
-import pandas as pd
-from fmridenoise.utils.utils import split_suffix
-from os.path import exists
 
 
 class DenoiseInputSpec(BaseInterfaceInputSpec):
     fmri_prep = ImageFile(
-        default=None,
-        desc='Preprocessed fMRI file',
-        mandatory=False
-    )
-
-    fmri_prep_aroma = ImageFile(
-        default=None,
-        desc='ICA-Aroma preprocessed fMRI file',
-        mandatory=False
-    )
-
-    conf_prep = File(
+        mandatory=False,
         exists=True,
-        desc="Confound file",
-        mandatory=True
-    )
-
+        desc='Preprocessed fMRI file'
+        )
+    fmri_prep_aroma = ImageFile(
+        mandatory=False,
+        exists=True,
+        desc='ICA-Aroma preprocessed fMRI file',
+        )
+    conf_prep = File(
+        mandatory=True,
+        exists=True,
+        desc='Confounds file'
+        )
     pipeline = traits.Dict(
-        desc="Denoising pipeline",
-        mandatory=True)
-
+        mandatory=True,
+        desc='Denoising pipeline'
+        )
     task = traits.Str(
-        desc="Task name",
-        mandatory=True
+        mandatory=True,
+        desc='Task name'
     )
-
-    tr_dict = traits.Dict(
-        desc="dictionary of tr for all tasks",
-        mandatory=True
-    )
-
     output_dir = Directory(
         exists=True,
-        desc="Output path",
+        desc='Output path',
         mandatory=True
     )
-
+    tr_dict = traits.Dict(
+        mandatory=False,
+        desc='TR values for all tasks'
+    )
     high_pass = traits.Float(
-        desc="High-pass filter",
-        mandatory=True
+        mandatory=False,
+        desc='High cut-off frequency in Hertz'
     )
-
     low_pass = traits.Float(
-        desc="Low-pass filter",
-        mandator=True
+        mandatory=False,
+        desc='Low cut-off frequency in Hertz'
     )
 
 
 class DenoiseOutputSpec(TraitedSpec):
     fmri_denoised = File(
+        mandatory=True,
         exists=True,
         desc='Denoised fMRI file',
-        mandatory=True
     )
 
 
 class Denoise(SimpleInterface):
+    ''' Denoise functional images using filtered confounds.
+
+    This interface uses filtered confounds table and temporal (bandpass) 
+    filtering to denoise functional images. It wraps around nilearn clean_img
+    function to create and save denoised file. 
+
+    At least one of two inputs should be passed to this interface depending on
+    denoising strategy. If denoising assumes aroma, fmri_prep_aroma file should
+    be provided, otherwise fmri_prep file should be provided.
+
+    Temporal filtering can be requested by specifying either one or two optonal 
+    inputs: low_pass and high_pass. These reflect cut-off values (in Hertz) for 
+    low-pass and high-pass temporal filters. Note that if either low_pass or 
+    high_pass argument is provided, tr_dict containing task name as key and task
+    TR (in seconds) as value should also be provided (because in that case 
+    clean_img requires TR). 
+
+    Output filename reflecting denoised filename is created by adding suffix
+        'pipeline-<pipeline_name>_desc-denoised_bold'
+    to existing filename (desc-preproc is replaced with desc-denoised).
+    '''
     input_spec = DenoiseInputSpec
     output_spec = DenoiseOutputSpec
 
-    def _run_interface(self, runtime):
-        assert self.inputs.fmri_prep is not None or self.inputs.fmri_prep_aroma is not None, \
-            "Both fmri_prep and fmri_prep_aroma is missing"
-        pipeline_name = self.inputs.pipeline['name']
-        pipeline_aroma = self.inputs.pipeline['aroma']
-        if pipeline_aroma:
-            assert exists(str(self.inputs.fmri_prep_aroma)), \
-                f"No such required fmri_prep_aroma file as: {self.inputs.fmri_prep_aroma}"
-            img = nb.load(self.inputs.fmri_prep_aroma)
- 
+    def _validate_fmri_prep_files(self):
+        '''Check if correct file is provided according to aroma option in 
+        pipeline dictionary.
+        
+        Creates:
+            _fmri_file (attibute): 
+                preprocessed fmri file (either with or without aroma)
+        '''
+        if not self.inputs.pipeline['aroma']: 
+            if isinstance(self.inputs.fmri_prep, _Undefined):
+                raise FileNotFoundError('for pipeline using aroma ' + \
+                                        'file fmri_prep_aroma is required')
+            self._fmri_file = self.inputs.fmri_prep     
         else:
-            assert exists(str(self.inputs.fmri_prep)), \
-                f"No such required fmri_prep file as: {self.inputs.fmri_prep}"
-            img = nb.load(self.inputs.fmri_prep)
-        # Handle possibility of null pipeline
-        try:
-            conf = pd.read_csv(self.inputs.conf_prep,
-                               delimiter='\t',
-                               #low_memory=False,
-                               #engine='python'
-                               )
-            conf = conf.values
-        except pd.errors.EmptyDataError:
-            conf = None
+            if isinstance(self.inputs.fmri_prep_aroma, _Undefined):
+                raise FileNotFoundError('for pipeline without aroma ' + \
+                                        'file fmri_prep is required')
+            self._fmri_file = self.inputs.fmri_prep_aroma             
 
-        # Determine proper TR
-        if self.inputs.task in self.inputs.tr_dict:
-            tr = self.inputs.tr_dict[self.inputs.task]
-        else:
-            raise KeyError(f'{self.inputs.task} TR not found in tr_dict')
+    def _create_fmri_denoised_filename(self):
+        '''Creates proper filename for fmri_denoised file.
+        
+        Creates:
+            _fmri_denoised_fname:
+                Full path to denoised fmri file.
 
-        denoised_img = clean_img(
-            img,
-            confounds=conf,
-            high_pass=self.inputs.high_pass,
-            low_pass=self.inputs.low_pass,
-            t_r=tr
+        Note that this method requires _fmri_file attribute, so it has to be
+        called after _validate_fmri_prep_files.        
+        '''
+        base_substr = self._fmri_file.split('/')[-1].split('.')[0]
+        base_substr = base_substr.replace('_desc-preproc_bold', '')
+        pipeline_substr = f'pipeline-{self.inputs.pipeline["name"]}'
+
+        self._fmri_denoised_fname = os.path.join(
+            self.inputs.output_dir,
+            f'{base_substr}_{pipeline_substr}_desc-denoised_bold.nii.gz'
         )
 
-        _, base, _ = split_filename(self.inputs.fmri_prep)
-        base, _ = split_suffix(base)
-        denoised_file = f'{self.inputs.output_dir}/pipeline-{pipeline_name}_{base}_Denoised.nii.gz'
+    def _load_confouds(self):
+        '''Load confounds from tsv file. If confounds is empty file (in case of 
+        null pipeline) confounds keyword argument for clean_img should be None.
+        
+        Creates:
+            _confounds (attribute):
+                Either None (for null pipeline) or np.ndarray of confounds if 
+                conf_prep is not empty.
+        '''
+        try:
+            self._confounds = pd.read_csv(
+                self.inputs.conf_prep, delimiter='\t').values
+        except pd.errors.EmptyDataError:
+            self._confounds = None
 
-        nb.save(denoised_img, denoised_file)
+    def _validate_filtering(self):
+        '''Validate input arguments related to temporal filtering.
+        
+        Creates:
+            _filtering_kwargs (attribute):
+                Dictionary of optional keyword arguments passed to clean_img.
+                Empty if no temporal filtering is requested.         
+        '''
+        self._filtering_kwargs = dict()
+        if not isinstance(self.inputs.low_pass, _Undefined):
+            self._filtering_kwargs.update(low_pass=self.inputs.low_pass)
+        if not isinstance(self.inputs.high_pass, _Undefined):
+            self._filtering_kwargs.update(high_pass=self.inputs.high_pass)
+        if self._filtering_kwargs:
+            self._filtering_kwargs.update(
+                t_r=self.inputs.tr_dict[self.inputs.task])
 
-        self._results['fmri_denoised'] = denoised_file
+    def _run_interface(self, runtime):
+        self._validate_fmri_prep_files()
+        self._validate_filtering()
+        self._load_confouds()
+        self._create_fmri_denoised_filename()
+
+        fmri_denoised = clean_img(
+            nb.load(self._fmri_file), 
+            confounds=self._confounds, 
+            **self._filtering_kwargs)
+
+        nb.save(fmri_denoised, self._fmri_denoised_fname)
+        self._results['fmri_denoised'] = self._fmri_denoised_fname
 
         return runtime
