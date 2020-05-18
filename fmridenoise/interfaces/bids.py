@@ -136,40 +136,43 @@ class BIDSValidateOutputSpec(TraitedSpec):
 
 
 class BIDSValidate(SimpleInterface):
-    '''
-    Interface responsible for calling BIDSLayout and validating file structure.
+    """
+     Interface responsible for calling BIDSLayout and validating file structure.
 
     It should output to:
+
     - layout (-> BIDSGrab)
     - task, session, subject  (-> iterNodes)
     - pipeline (-> ?)
     - tr_dict (-> Denoiser)
 
     It should raise exception when:
+
     - user specified incorrect flags (there are no matching files)
     - some files are missing e.g. these for AROMA pipeline, when it is required
+    """
 
-    '''
     input_spec = BIDSValidateInputSpec
     output_spec = BIDSValidateOutputSpec
 
     @staticmethod
     def validate_derivatives(bids_dir: str,
                              derivatives: t.Union[str, t.List[str]]) -> t.Tuple[t.List[str], t.List[str]]:
-        """ Validate derivatives argument provided by the user before calling
+        """
+        Validate derivatives argument provided by the user before calling
         layout. It creates required full path for derivatives directory. Also
         returns scope required for queries.
 
         Args:
-            bids_dir: str
+            bids_dir (str):
                 Path to bids root directory.
-            derivatives: str or list(str)
+            derivatives (Union[str, List[str]]): str or list(str)
                 Derivatives to use for denoising.
 
         Returns:
-            derivatives_valid: list
+            derivatives_valid (list):
                 Validated derivatives list.
-            scope: list
+            scope (list):
                 Right scope keyword used in pybids query.
         """
 
@@ -201,11 +204,33 @@ class BIDSValidate(SimpleInterface):
         return derivatives_valid, scope
 
     @staticmethod
-    def validate_files(layout, tasks, sessions, subjects, include_aroma, include_no_aroma):
-        '''...'''
+    def validate_files(
+            layout: BIDSLayout,
+            tasks: List[str],
+            sessions: List[str],
+            subjects: List[str],
+            include_aroma: bool,
+            include_no_aroma: bool):
+        """
+        Checks if for all parameters permutations every file (confounds.tsv, confounds.json, img,
+        img with aroma) exists. Aroma and no aroma files are checked if proper flag is set to true.
+
+        Args:
+            layout (BIDSLayout): BIDSLayout
+            tasks (List[str]): tasks that are expected to exist
+            sessions (List[str]): tasks that are expected to exist
+            subjects (List[str]): subjects that are expected to exist
+            include_aroma (bool): check for aroma files for every task/session/subject configuration
+            include_no_aroma (bool): check for no aroma files for every task/session/subject configuration
+
+        Returns:
+            entity files and tuple with all tasks, subjects, sessions
+        """
 
         def fill_empty_lists(subjects: list, tasks: list, sessions: list):
-            '''If filters are not provided by the user, load them from layout.'''
+            """
+            If filters are not provided by the user, load them from layout.
+            """
 
             if not subjects:    subjects = layout.get_subjects()
             if not tasks:       tasks = layout.get_tasks()
@@ -214,8 +239,10 @@ class BIDSValidate(SimpleInterface):
             return subjects, tasks, sessions
 
         def lists_to_entities(subjects: list, tasks: list, sessions: list):
-            '''Convert lists of subjects, tasks and sessions into list of dictionaries
-            (entities). It handles empty session list.'''
+            """
+            Convert lists of subjects, tasks and sessions into list of dictionaries
+            (entities). It handles empty session list.
+            """
 
             keys = ('subject', 'task', 'session')
             entities = []
@@ -232,7 +259,8 @@ class BIDSValidate(SimpleInterface):
             return entities
 
         def get_entity_files(include_no_aroma: bool, include_aroma: bool, entity: dict) -> tuple:
-            '''Checks if all required files are present for single entity defined by
+            """
+            Checks if all required files are present for single entity defined by
             subject, session and task labels. If include_aroma is True also checks for
             AROMA file. Note that session argument can be undefined.
 
@@ -241,7 +269,7 @@ class BIDSValidate(SimpleInterface):
             Returns:
                 (missing: bool, dict)
 
-            '''
+            """
             filter_fmri = {
                 'extension': ['nii', 'nii.gz'],
                 'suffix': 'bold',
