@@ -141,7 +141,7 @@ class ValidateFilesOnMissingTestCase(ut.TestCase):
     subjects = ["01", "02"]
     pipelines = list(chain(aromaPipelinesPaths, noAromaPipelinePaths))
     pipelinesDicts = list(map(lambda x: pipe.load_pipeline_from_json(x), pipelines))
-    bids_dir = dummyDataPath
+    bids_dir = dummyMissing
     maxDiff = None
 
     @classmethod
@@ -160,66 +160,69 @@ class ValidateFilesOnMissingTestCase(ut.TestCase):
             index_metadata=False
         )
 
-    @classmethod
-    def addParametrizedTest(cls,
-                            name: str,
-                            tasks: List[str],
-                            sessions: List[str],
-                            subjects: List[str],
-                            include_aroma: bool,
-                            include_no_aroma: bool,
-                            should_pass: bool):
-        def _(self):
-            if not should_pass:
-                with self.assertRaises(MissingFile):
-                    BIDSValidate.validate_files(
-                        layout=cls.layout,
-                        tasks=tasks,
-                        sessions=sessions,
-                        subjects=subjects,
-                        include_aroma=include_aroma,
-                        include_no_aroma=include_no_aroma
-                    )
-            else:
+    def parametrizedTest(self,
+                         tasks: List[str],
+                         sessions: List[str],
+                         subjects: List[str],
+                         include_aroma: bool,
+                         include_no_aroma: bool,
+                         should_pass: bool):
+        if not should_pass:
+            with self.assertRaises(MissingFile):
                 BIDSValidate.validate_files(
-                    layout=cls.layout,
+                    layout=self.layout,
                     tasks=tasks,
                     sessions=sessions,
                     subjects=subjects,
                     include_aroma=include_aroma,
                     include_no_aroma=include_no_aroma
                 )
-        setattr(cls, "test_" + name, _)
+        else:
+            BIDSValidate.validate_files(
+                layout=self.layout,
+                tasks=tasks,
+                sessions=sessions,
+                subjects=subjects,
+                include_aroma=include_aroma,
+                include_no_aroma=include_no_aroma
+            )
 
-
-ValidateFilesOnMissingTestCase.addParametrizedTest(
-            "t~audionback_sub-all_ses-all_aroma-t_PASS",
-            tasks=[x for x in ValidateFilesOnMissingTestCase.tasks if x != 'audionback'],
-            sessions=ValidateFilesOnMissingTestCase.sessions,
-            subjects=ValidateFilesOnMissingTestCase.subjects,
+    def test_task_dualnback_sub_01_ses_1_aromta_t_PASS(self):
+        self.parametrizedTest(
+            tasks=['dualnback'],
+            sessions=['1'],
+            subjects=['01'],
             include_no_aroma=True,
             include_aroma=True,
             should_pass=True
         )
 
-ValidateFilesOnMissingTestCase.addParametrizedTest(
-            "t-all_sub-all_ses-all_aroma-t_FAIL",
-            tasks=ValidateFilesOnMissingTestCase.sessions,
-            sessions=ValidateFilesOnMissingTestCase.sessions,
-            subjects=ValidateFilesOnMissingTestCase.subjects,
+    def test_task_audionback_sub_01_ses_1_aroma_t_FAIL(self):
+        self.parametrizedTest(
+            tasks=['audionback'],
+            sessions=['1'],
+            subjects=['01'],
             include_no_aroma=True,
             include_aroma=True,
             should_pass=False
         )
 
-if __name__ == '__main__':
-    print(dummyDataPath)
-    bidsValidate = BIDSValidate()
-    bidsValidate.inputs.bids_dir = dummyDataPath
-    bidsValidate.inputs.pipelines = [aromaPipelinesPaths[0], noAromaPipelinePaths[0]]
-    bidsValidate.inputs.sessions = ['1']
-    bidsValidate.inputs.subjects = ['01', '02']
-    bidsValidate.inputs.tasks = ['audionback']
-    bidsValidate.inputs.derivatives = ['fmriprep']
-    # bidsValidate.run()
-    print(BIDSValidate.validate_derivatives(dummyDataPath, 'fmriprep'))
+    def test_task_audionback_sub_01_ses_2_aroma_t_PASS(self):
+        self.parametrizedTest(
+            tasks=['audionback'],
+            sessions=['2'],
+            subjects=['01'],
+            include_no_aroma=True,
+            include_aroma=True,
+            should_pass=True
+        )
+
+    def test_task_audionback_sub_01_02_ses_2_aroma_t_FAIL(self):
+        self.parametrizedTest(
+            tasks=['audionback'],
+            sessions=['2'],
+            subjects=['01', '02'],
+            include_no_aroma=True,
+            include_aroma=True,
+            should_pass=False
+        )

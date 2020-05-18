@@ -206,9 +206,9 @@ class BIDSValidate(SimpleInterface):
     @staticmethod
     def validate_files(
             layout: BIDSLayout,
-            tasks: List[str],
-            sessions: List[str],
-            subjects: List[str],
+            tasks: t.List[str],
+            sessions: t.List[str],
+            subjects: t.List[str],
             include_aroma: bool,
             include_no_aroma: bool):
         """
@@ -294,7 +294,7 @@ class BIDSValidate(SimpleInterface):
             }
 
             filters_names = ['conf_raw', 'conf_json']
-            filters = [filter_fmri, filter_conf, filter_conf_json]
+            filters = [filter_conf, filter_conf_json]
             if include_no_aroma:
                 filters.append(filter_fmri)
                 filters_names.append('fmri_prep')
