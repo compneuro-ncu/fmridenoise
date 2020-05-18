@@ -135,6 +135,9 @@ class BidsValidateOnlyAromaOnCompleteDataTestCase(BidsValidateBasicPropertiesOnC
 
 
 class ValidateFilesOnMissingTestCase(ut.TestCase):
+    """
+    TODO: Consider adding mutating test covering all possible parameter configurations
+    """
     derivatives = ["fmriprep"]
     tasks = ["audionback", "dualnback", "rest", "spatialnback"]
     sessions = ["1", "2", "3", "4"]
@@ -197,6 +200,17 @@ class ValidateFilesOnMissingTestCase(ut.TestCase):
             should_pass=True
         )
 
+    def test_task_audionback_sub_01_ses_1_aromta_f_PASS(self):
+        self.parametrizedTest(
+            tasks=['audionback'],
+            sessions=['1'],
+            subjects=['01'],
+            include_no_aroma=True,
+            include_aroma=False,
+            should_pass=True
+        )
+
+    # test against missing aroma files
     def test_task_audionback_sub_01_ses_1_aroma_t_FAIL(self):
         self.parametrizedTest(
             tasks=['audionback'],
@@ -217,11 +231,23 @@ class ValidateFilesOnMissingTestCase(ut.TestCase):
             should_pass=True
         )
 
+    # test against missing session
     def test_task_audionback_sub_01_02_ses_2_aroma_t_FAIL(self):
         self.parametrizedTest(
             tasks=['audionback'],
             sessions=['2'],
             subjects=['01', '02'],
+            include_no_aroma=True,
+            include_aroma=True,
+            should_pass=False
+        )
+
+    # test against missing subject
+    def test_task_audionback_sub_03_ses_2_aroma_t_FAIL(self):
+        self.parametrizedTest(
+            tasks=['audionback'],
+            sessions=['2'],
+            subjects=['03'],
             include_no_aroma=True,
             include_aroma=True,
             should_pass=False
