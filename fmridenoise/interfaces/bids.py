@@ -201,7 +201,7 @@ class BIDSValidate(SimpleInterface):
         return derivatives_valid, scope
 
     @staticmethod
-    def validate_files(layout, tasks, sessions, subjects, include_aroma):
+    def validate_files(layout, tasks, sessions, subjects, include_aroma, include_no_aroma):
         '''...'''
 
         def fill_empty_lists(subjects: list, tasks: list, sessions: list):
@@ -231,7 +231,7 @@ class BIDSValidate(SimpleInterface):
 
             return entities
 
-        def get_entity_files(include_aroma: bool, entity: dict) -> tuple:
+        def get_entity_files(include_no_aroma: bool, include_aroma: bool, entity: dict) -> tuple:
             '''Checks if all required files are present for single entity defined by
             subject, session and task labels. If include_aroma is True also checks for
             AROMA file. Note that session argument can be undefined.
@@ -265,8 +265,11 @@ class BIDSValidate(SimpleInterface):
                 'desc': 'confounds',
             }
 
-            filters_names = ['fmri_prep', 'conf_raw', 'conf_json']
+            filters_names = ['conf_raw', 'conf_json']
             filters = [filter_fmri, filter_conf, filter_conf_json]
+            if include_no_aroma:
+                filters.append(filter_fmri)
+                filters_names.append('fmri_prep')
             if include_aroma:
                 filters.append(filter_fmri_aroma)
                 filters_names.append('fmri_prep_aroma')
@@ -296,7 +299,7 @@ class BIDSValidate(SimpleInterface):
             # Raise error if there are missing files
             for entity in entities:
 
-                missing, entity_files = get_entity_files(include_aroma, entity)
+                missing, entity_files = get_entity_files(include_no_aroma, include_aroma, entity)
                 entities_files.append(entity_files)
 
                 if missing:
@@ -306,7 +309,7 @@ class BIDSValidate(SimpleInterface):
             # Log missing files and exclude subjects for missing files
             for entity in entities:
 
-                missing, entity_files = get_entity_files(include_aroma, entity)
+                missing, entity_files = get_entity_files(include_no_aroma, include_aroma, entity)
                 entities_files.append(entity_files)
 
                 if missing:
@@ -341,7 +344,9 @@ class BIDSValidate(SimpleInterface):
 
         # Check if there is at least one pipeline requiring aroma
         include_aroma = any(map(is_IcaAROMA, pipelines_dicts))
-        # include_aroma = False
+
+        # Check if there is at least one pipeline requiring no armoa files
+        include_no_aroma = not all(map(is_IcaAROMA, pipelines_dicts))
 
         # Check missing files and act accordingly
         entities_files, (tasks, sessions, subjects) = BIDSValidate.validate_files(
@@ -349,16 +354,21 @@ class BIDSValidate(SimpleInterface):
             tasks=self.inputs.tasks,
             sessions=self.inputs.sessions,
             subjects=self.inputs.subjects,
-            include_aroma=include_aroma
+            include_aroma=include_aroma,
+            include_no_aroma=include_no_aroma
         )
 
         # Convert entities_files into separate lists of BIDSImageFile Objects
-        fmri_prep = list(map(lambda d: d['fmri_prep'].path, entities_files))
         conf_raw = list(map(lambda d: d['conf_raw'].path, entities_files))
         conf_json = list(map(lambda d: d['conf_json'].path, entities_files))
+
+        if include_no_aroma:
+            fmri_prep = list(map(lambda d: d['fmri_prep'].path, entities_files))
+        else:
+            fmri_prep = []
+
         if include_aroma:
-            fmri_prep_aroma = list(
-                map(lambda d: d['fmri_prep_aroma'].path, entities_files))
+            fmri_prep_aroma = list(map(lambda d: d['fmri_prep_aroma'].path, entities_files))
         else:
             fmri_prep_aroma = []
 
