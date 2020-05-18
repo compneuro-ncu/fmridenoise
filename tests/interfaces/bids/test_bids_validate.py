@@ -89,6 +89,10 @@ class BidsValidateBasicPropertiesOnCompleteDataTestCase(ut.TestCase):
         else:
             self.assertEqual(0, len(self.bidsValidate._results["fmri_prep"]))
 
+    def test_test_tr(self):
+        for task in self.tasks:
+            self.assertEqual(2, self.bidsValidate._results["tr_dict"][task])  # a magical number - 2
+
     @classmethod
     def createParametrizedTestCase(cls,
                                    caseName: str,
