@@ -34,7 +34,7 @@ master_doc = 'index'
 # extensions coming with Sphinx (named 'sphinx.ext.*') or your custom
 # ones.
 autodoc_mock_imports = ['m2r']
-extensions = ['sphinx.ext.autodoc',
+extensions = ['sphinx.ext.autodoc', 'm2r'
 ]
 
 # Add any paths that contain templates here, relative to this directory.
