@@ -16,7 +16,7 @@ We believe that the tool can make the selection of the denoising strategy more o
 Problem
 =======
 
-![Alt text](docs/fmridenoise_problem.png?raw=true "Title")
+![Alt text](/docs/fmridenoise_problem.png?raw=true "Title")
 
 Solution
 ========
