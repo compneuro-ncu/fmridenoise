@@ -59,6 +59,4 @@ html_static_path = ['docs']
 
 from recommonmark.parser import CommonMarkParser
 
-source_parsers = {'.md': CommonMarkParser}
-
 source_suffix = ['.rst', '.md']
