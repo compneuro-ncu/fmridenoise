@@ -1,6 +1,6 @@
 # fMRIDenoise - automated denoising, denoising strategies comparison, and functional connectivity data quality control.
 
-[<img src="https://zenodo.org/badge/181017876.svg">](https://zenodo.org/record/3243178)
+<img src="https://zenodo.org/badge/181017876.svg">(https://zenodo.org/record/3243178)
 [<img src="https://travis-ci.org/nbraingroup/fmridenoise.svg?branch=master">](https://travis-ci.org/nbraingroup/fmridenoise)
    
 Tool for automatic denoising, denoising strategies comparisons,
@@ -16,7 +16,7 @@ We believe that the tool can make the selection of the denoising strategy more o
 Problem
 =======
 
-![Alt text](/docs/fmridenoise_problem.png?raw=true "Title")
+![Alt text](docs/fmridenoise_problem.png "Title")
 
 Solution
 ========
