@@ -2,18 +2,16 @@ from nipype.interfaces.base import (
     BaseInterfaceInputSpec, TraitedSpec, SimpleInterface,
     InputMultiPath, OutputMultiPath, File, Directory,
     traits, isdefined
-    )
+)
 
 import numpy as np
 import pandas as pd
 from nilearn.connectome import sym_matrix_to_vec, vec_to_sym_matrix
 from scipy.stats import pearsonr
-import matplotlib.pyplot as plt
 from os.path import join
 from itertools import chain
+import warnings
 from fmridenoise.utils.plotting import motion_plot
-
-import seaborn as sns
 
 
 class QualityMeasuresInputSpec(BaseInterfaceInputSpec):
@@ -37,16 +35,16 @@ class QualityMeasuresInputSpec(BaseInterfaceInputSpec):
 class QualityMeasuresOutputSpec(TraitedSpec):
     fc_fd_summary = traits.List(
         exists=True,
-        desc="QC-FC quality measures")
+        desc='QC-FC quality measures')
 
     edges_weight = traits.Dict(
         exists=True,
-        desc="Weights of individual edges")
+        desc='Weights of individual edges')
 
     edges_weight_clean = traits.Dict(
         exists=True,
-        desc="Weights of individual edges after "
-             "removing subjects with high motion")
+        desc='Weights of individual edges after '
+             'removing subjects with high motion')
 
     exclude_list = traits.List(
         exists=True,
@@ -54,98 +52,225 @@ class QualityMeasuresOutputSpec(TraitedSpec):
 
 
 class QualityMeasures(SimpleInterface):
+    """Calculates quality measures based on confound summary and connectivity matrices."""
+
     input_spec = QualityMeasuresInputSpec
     output_spec = QualityMeasuresOutputSpec
 
-    def _run_interface(self, runtime):
-        # Loading data
-        group_corr_mat = np.load(self.inputs.group_corr_mat)  # array with matrices for all runs
-        group_conf_summary = pd.read_csv(self.inputs.group_conf_summary, sep='\t')  # motion summary for all runs
-        pipeline_name = self.inputs.pipeline_name
-        distance_vector = sym_matrix_to_vec(np.load(self.inputs.distance_matrix))  # load distance matrix
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
 
-        # Plotting motion
-        colour = ["#fe6863", "#00a074"]
-        sns.set_palette(colour)
-        fig = motion_plot(group_conf_summary)
-        fig.savefig(join(self.inputs.output_dir, f"motion_criterion_{pipeline_name}.svg"), dpi=300)
+        self.pipeline_name = self.inputs.pipeline_name
+        self.output_dir = self.inputs.output_dir
+        self.quality_measures = []
+        self.edges_weights = {}
+        self.edges_weights_clean = {}
+        self.sample_dict = {'All': True, 'No_high_motion': False}
 
-        # Creating vectors with subject filter
-        all_sub_no = len(group_conf_summary)
-        icluded_sub = group_conf_summary["include"]
-        excluded_sub_no = all_sub_no - sum(icluded_sub) # number of subjects excluded from analyses
 
-        # Create dictionary describing full sampple and sample after exluding highly motion runs
-        included = {f"All subjects (n = {all_sub_no})":
-                        [np.ones((all_sub_no), dtype=bool), False, all_sub_no, "All"],
-                    f"After excluding {excluded_sub_no} high motion subjects (n = {all_sub_no - excluded_sub_no})":
-                        [group_conf_summary["include"].values.astype("bool"), True, all_sub_no - excluded_sub_no,
-                         "No_high_motion"]
-                    }
+    def _validate_group_conf_summary(self):
+        """Checks if correct summary data are provided.
+        Each row should contain data for one subject."""
 
-        group_corr_vec = sym_matrix_to_vec(group_corr_mat)
-        n_edges = group_corr_vec.shape[1]
+        # Checks if file exist
+        try:
+            self.group_conf_summary = pd.read_csv(
+                self.inputs.group_conf_summary, delimiter='\t')
+        except FileNotFoundError:
+            print('Missing confounds summary data file.')
 
+        # Checks if file have data inside
+        try:
+            self.group_conf_summary.values
+        except pd.errors.EmptyDataError:
+            print('Missing confounds summary data')
+
+        # Check if number of subjects corresponds to data frame size
+        if len(self.group_conf_summary) != len(np.unique(self.group_conf_summary['subject'])):
+            raise ValueError('Each subject should have only one ' +
+                             'corresponding summary values.')
+
+        # Check if summary contains data from a one task
+        if len(np.unique(self.group_conf_summary['task'])) > 1:
+            raise ValueError('Summary confouds data should contain ' +
+                             'data from a one task at time.')
+
+        # Check if subjects' data are not idenical
+        if check_identity(self.group_conf_summary.iloc[:, 2:].values):
+            raise ValueError('Confounds summary data of some subjects are identical.')
+
+        # Check if number of subject allows to calculate summary measures
+        if len(self.group_conf_summary['subject']) < 10:
+            warnings.warn('Quality measures may be not meaningful ' +
+                          'for small sample sizes.')
+
+    def _validate_fc_matrices(self):
+        """Checks if correct FC matrices are provided."""
+
+        # Checks if file exists
+        try:
+            self.group_corr_mat = np.load(self.inputs.group_corr_mat)
+        except FileNotFoundError:
+            print('Missing group_corr_mat data file.')
+
+        # Check if each matrix is symmetrical
+        for matrix in self.group_corr_mat:
+            if not check_symmetry(matrix):
+                raise ValueError('Correlation matrix is not symetrical.')
+
+        self.group_corr_vec = sym_matrix_to_vec(self.group_corr_mat)
+
+        # Check if subjects' data are not idenical
+        if check_identity(self.group_corr_vec):
+            raise ValueError('Connectivity values of some subjects ' +
+                             'are identical.')
+
+        # Check if a number of FC matrices is the same as the nymber
+        # of subjects
+        if len(self.group_corr_vec) != len(self.group_conf_summary):
+            raise ValueError('Number of FC matrices does not correspond ' +
+                             'to the number of confound summaries.')
+
+    def _validate_distance_matrix(self):
+        """Validates distance matrix."""
+
+        # Check if file exist
+        try:
+            self.distance_matrix = np.load(self.inputs.distance_matrix)
+        except FileNotFoundError:
+            print('Missing distance_matrix data file.')
+
+        # Check if distance matrix has the same shape as FC matrix
+        if self.group_corr_mat[0].shape != self.distance_matrix.shape:
+            raise ValueError(f'FC matrices have shape {self.distance_matrix.shape} ' +
+                             f'while distance matrix {self.group_corr_mat[0].shape}')
+
+        self.distance_vector = sym_matrix_to_vec(self.distance_matrix)
+
+    @property
+    def n_subjects(self):
+        """Returns total number of subjects."""
+        return len(self.group_conf_summary)
+
+    @property
+    def subjects_list(self):
+        """Returns list of all subjects."""
+        return [f"sub-{sub + 1:02}" for sub in self.group_conf_summary['subject']]
+
+    def _get_subject_filter(self, all_subjects=True):
+        """Returns filter vector with subjects included in analysis."""
+        if all_subjects:
+            self.subject_filter = np.ones((self.n_subjects), dtype=bool)
+        else:
+            self.subject_filter = self.group_conf_summary['include'].values.astype('bool')
+
+    def _get_n_excluded(self, subjects_filter):
+        """Gets lumber of excluded subjests."""
+        self.n_excluded = self.n_subjects - sum(subjects_filter)
+
+    def _get_excluded_subjects(self, subjects_filter):
+        """Gets list of excluded subjects."""
+        self.excluded_subjects = list(np.array(self.subjects_list)[[not i for i in subjects_filter]])
+
+    def _get_fc_fd_correlations(self, subjects_filter):
+        """Calculates correlations between edges weights and mean framewise displacement
+        for all subjects."""
+        n_edges = self.group_corr_vec.shape[1]
         fc_fd_corr, fc_fd_pval = (np.zeros(n_edges) for _ in range(2))
-        fc_fd_summary = []
-        edges_weight = {}
-        edges_weight_clean = {}
 
-        for key, value in included.items():
+        for i in range(n_edges):
+            fc = self.group_corr_vec[subjects_filter, i]
+            fd = self.group_conf_summary['mean_fd'].values[subjects_filter]
+            corr = pearsonr(x=fc, y=fd)
+            fc_fd_corr[i], fc_fd_pval[i] = corr
 
-            for i in range(n_edges):
-                corr = pearsonr(group_corr_vec[value[0], i], group_conf_summary['mean_fd'].values[value[0]])
-                fc_fd_corr[i] = corr[0]  # Pearson's r values
-                fc_fd_pval[i] = corr[1]  # p-values
+            if np.isnan(fc_fd_corr).any():
+                fc_fd_corr = np.nan_to_num(fc_fd_corr)
+                warnings.warn('NaN values in correlation measues; ' +
+                              'replaced with zeros.')
 
-            fc_fd_corr = np.nan_to_num(fc_fd_corr)  # TODO: write exception
+        self.fc_fd_corr = fc_fd_corr
+        self.fc_fd_pval = fc_fd_pval
 
-            # Calculate correlation between FC-FD r values and distance vector
-            distance_dependence = pearsonr(fc_fd_corr, distance_vector)[0]
+    def pearson_fc_fd_median(self):
+        """Calculates median of FC-FD correlations."""
+        return np.median(self.fc_fd_corr)
 
-            # Store summary measure
-            fc_fd_summary.append({"pipeline": pipeline_name,
-                                  "perc_fc_fd_uncorr": np.sum(fc_fd_pval < 0.5) / len(fc_fd_pval) * 100,
-                                  "pearson_fc_fd": np.median(fc_fd_corr),
-                                  "distance_dependence": distance_dependence,
-                                  "tdof_loss": group_conf_summary["n_conf"].mean(),
-                                  "cleaned": value[1],
-                                  "subjects": value[3],
-                                  "sub_no": value[2]
-                                  })
-            # For cleaned dataset
-            if value[1]:
-                edges_weight_clean = {pipeline_name: group_corr_vec[value[0]].mean(axis=0)}
+    def perc_fc_fd_uncorr(self):
+        """Calculates percent of significant FC-FD correlations (uncorrected)."""
+        return np.sum(self.fc_fd_pval < 0.05) / len(self.fc_fd_pval) * 100
 
-            # For full dataset
-            if not value[1]:
-                edges_weight = {pipeline_name: group_corr_vec[value[0]].mean(axis=0)}
+    def distance_dependence(self):
+        """Calculates distance dependence of FC-FD correlations."""
+        return pearsonr(self.fc_fd_corr, self.distance_vector)[0]
 
-            # Plotting FC and FC-FD correlation matrices
-            fc_fd_corr_mat = vec_to_sym_matrix(fc_fd_corr)
-            fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(16, 6))
+    def dof_loss(self):
+        """Calculates degrees of freedom loss."""
+        return self.group_conf_summary['n_conf'].mean()
 
-            fig1 = ax1.imshow(group_corr_mat[value[0]].mean(axis=0), vmin=-1, vmax=1, cmap="RdBu_r")
-            ax1.set_title(f"{pipeline_name}: mean FC")
-            fig.colorbar(fig1, ax=ax1)
+    def _get_mean_edges_dict(self, subject_filter):
+        """Greates fictionary with mean edge weights for selected subject filter."""
+        self.edges_dict = {self.pipeline_name: self.group_corr_vec[subject_filter].mean(axis=0)}
 
-            fig2 = ax2.imshow(fc_fd_corr_mat, vmin=-1, vmax=1, cmap="RdBu_r")
-            ax2.set_title(f"{pipeline_name}: FC-FD correlation")
-            fig.colorbar(fig2, ax=ax2)
-            fig.suptitle(f"{pipeline_name}: {key}")
+    def _create_summary_dict(self, all_subjects=None, n_excluded=None):
+        """Generates dictionary with all summary measures."""
+        self.fc_fd_summary = {'pipeline': self.pipeline_name,
+                              'perc_fc_fd_uncorr': self.perc_fc_fd_uncorr(),
+                              'pearson_fc_fd': self.pearson_fc_fd_median(),
+                              'distance_dependence': self.distance_dependence(),
+                              'tdof_loss': self.dof_loss(),
+                              'n_subjects': self.n_subjects,
+                              'n_excluded': n_excluded,
+                              'all': all_subjects,
+                              }
 
-            fig.savefig(join(self.inputs.output_dir, f"FC_FD_corr_mat_{pipeline_name}_{value[3].lower()}.png"),
-                        dpi=300)
+    def _quality_measures(self):
+        """Iterates over subject filters to get summary measures."""
+        for key, value in self.sample_dict.items():
+            self._get_subject_filter(all_subjects=value)
+            self._get_n_excluded(self.subject_filter)
+            self._get_excluded_subjects(self.subject_filter)
+            self._get_fc_fd_correlations(self.subject_filter)
+            self._create_summary_dict(all_subjects=value, n_excluded=self.n_excluded)
+            self.quality_measures.append(self.fc_fd_summary)
+            self._get_mean_edges_dict(self.subject_filter)
 
-            exclude_list = [f"sub-{x + 1:02}" for x in
-                            group_conf_summary[group_conf_summary['include'] == 1]['subject']]
+            if value:
+                self.edges_weight = self.edges_dict
+            else:
+                self.edges_weight_clean = self.edges_dict
 
-            self._results["fc_fd_summary"] = fc_fd_summary
-            self._results["edges_weight"] = edges_weight
-            self._results["edges_weight_clean"] = edges_weight_clean
-            self._results["exclude_list"] = exclude_list
+    def _make_figures(self):
+        """Generates figures."""
+        motion_plot(self.group_conf_summary, self.pipeline_name, self.output_dir)
+
+    def _run_interface(self, runtime):
+        self._validate_group_conf_summary()
+        self._validate_fc_matrices()
+        self._validate_distance_matrix()
+        self._quality_measures()
+        self._make_figures()
+
+        self._results['fc_fd_summary'] = self.quality_measures
+        self._results['edges_weight'] = self.edges_weight
+        self._results['edges_weight_clean'] = self.edges_weight_clean
+        self._results['exclude_list'] = self.excluded_subjects
 
         return runtime
+
+
+def check_identity(matrix):
+    """Checks whether any row of the matrix is identical with any other row."""
+    identical = []
+    for a in range(len(matrix)):
+        for b in range(a):
+            identical.append(np.allclose(a, b, rtol=1e-05, atol=1e-08))
+    return any(identical)
+
+
+def check_symmetry(matrix):
+    """Checks if matrix is symmetrical."""
+    return np.allclose(matrix, matrix.T, rtol=1e-05, atol=1e-08)
 
 
 class MergeGroupQualityMeasuresOutputSpec(TraitedSpec):
@@ -352,3 +477,6 @@ class PipelinesQualityMeasures(SimpleInterface):
         self._results['plot_pipelines_tdof_loss'] = plot_pipelines_fc_fd_uncorr
 
         return runtime
+
+
+

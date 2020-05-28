@@ -4,8 +4,8 @@ import seaborn as sns
 from os.path import join
 
 
-def make_motion_plot(group_conf_summary, pipeline_name, output_dir,
-                     mean_fd_th=0.2, max_fd_th=5, perc_spikes_th=20):
+def motion_plot(group_conf_summary, pipeline_name, output_dir,
+                mean_fd_th=0.2, max_fd_th=5, perc_spikes_th=20):
     """Generates plot presenting number of subjects excluded with high morion
     according specified thresholds."""
 
