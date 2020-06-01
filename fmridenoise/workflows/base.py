@@ -146,12 +146,11 @@ class BaseWorkflow(pe.Workflow):
 
         # Inputs: group_corr_mat, group_conf_summary, pipeline_name
 
-        quality_measures = pe.MapNode(
+        self.quality_measures = pe.Node(
             QualityMeasures(
                 output_dir=os.path.join(bids_dir, 'derivatives', 'fmridenoise'),
                 distance_matrix=get_distance_matrix_file_path()
             ),
-            iterfield=['group_corr_mat', 'group_conf_summary'],
             name="QualityMeasures")
         # Outputs: fc_fd_summary, edges_weight, edges_weight_clean
 
@@ -234,7 +233,9 @@ class BaseWorkflow(pe.Workflow):
             (self.pipelineselector, self.group_connectivity, [("pipeline_name", "pipeline_name")]),
             (self.taskselector, self.group_connectivity, [('task', 'task')]),
             # quality measures
-
+            (self.pipelineselector, self.quality_measures, [('pipeline_name', 'pipeline_name')]),
+            (self.group_connectivity, self.quality_measures, [('group_corr_mat', 'group_corr_mat')]),
+            (self.group_conf_summary, self.quality_measures, [('group_conf_summary', 'group_conf_summary')]),
             # all datasinks
             ## ds_denoise
             (self.subjectselector, self.ds_denoise, [("subject", "subject")]),
