@@ -38,31 +38,34 @@ class BIDSGrabOutputSpec(TraitedSpec):
 
 
 class BIDSGrab(SimpleInterface):
+    """
+    For each list of paths selects one file for given set of parameters - subject, session, task.
+    """
     input_spec = BIDSGrabInputSpec
     output_spec = BIDSGrabOutputSpec
 
     def _run_interface(self, runtime):
-        self._results['fmri_prep'] = self.select_one(self.inputs.fmri_prep_files)
-        self._results['fmri_prep_aroma'] = self.select_one(self.inputs.fmri_prep_aroma_files)
-        self._results['conf_raw'] = self.select_one(self.inputs.conf_raw_files)
-        self._results['conf_json'] = self.select_one(self.inputs.conf_json_files)
+        self._results['fmri_prep'] = self._select_one(self.inputs.fmri_prep_files)
+        self._results['fmri_prep_aroma'] = self._select_one(self.inputs.fmri_prep_aroma_files)
+        self._results['conf_raw'] = self._select_one(self.inputs.conf_raw_files)
+        self._results['conf_json'] = self._select_one(self.inputs.conf_json_files)
         return runtime
 
-    def select_one(self, _list: t.List[str]) -> str:
+    def _select_one(self, _list: t.List[str]) -> str:
         """
-        Wraper for _select_one that uses class instance variable.
+        Wrapper for select_one that uses class instance variable.
         Args:
             _list (List[str]): list of file paths
         Returns:
            str: resulting file path meeting criteria
         """
-        return self._select_one(_list,
+        return self.select_one(_list,
                                 self.inputs.subject,
                                 self.inputs.session,
                                 self.inputs.task)
 
     @staticmethod
-    def _select_one(_list: t.List[str], subject: str, session: str, task: str) -> str:
+    def select_one(_list: t.List[str], subject: str, session: str, task: str) -> str:
         """
         For given list of file paths returns one path for given subject, session and task.
         If no paths meet criteria empty string is returned instead.

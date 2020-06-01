@@ -3,7 +3,6 @@ from fmridenoise.interfaces.bids import BIDSValidate, MissingFile
 import fmridenoise.pipelines as pipe
 import unittest as ut
 from os.path import join, dirname
-from itertools import chain
 from typing import List
 
 
@@ -12,8 +11,8 @@ testDir = dirname(__file__)
 dummyDataPath = join(testDir, "dummy_complete")
 dummyMissing = join(testDir, "dummy_missing_files")
 pipelinesDir = dirname(pipe.__file__)
-aromaPipelinesPaths = list(map(lambda name: join(pipelinesDir, name), ['pipeline-ICA-AROMA_8Phys.json']))
-noAromaPipelinePaths = list(map(lambda name: join(pipelinesDir, name), ['pipeline-24HMP_aCompCor_SpikeReg.json']))
+aromaPipelinesPaths = [join(pipelinesDir, 'pipeline-ICA-AROMA_8Phys.json')]
+noAromaPipelinePaths = [join(pipelinesDir, 'pipeline-24HMP_aCompCor_SpikeReg.json')]
 
 
 class ValidateDerivativeTestCase(ut.TestCase):
@@ -38,7 +37,7 @@ class BidsValidateBasicPropertiesOnCompleteDataTestCase(ut.TestCase):
     tasks = ["audionback", "dualnback", "rest", "spatialnback"]
     sessions = ["1", "2", "3", "4"]
     subjects = ["01", "02"]
-    pipelines = list(chain(aromaPipelinesPaths, noAromaPipelinePaths))
+    pipelines = aromaPipelinesPaths + noAromaPipelinePaths
     pipelinesDicts = list(map(lambda x: pipe.load_pipeline_from_json(x), pipelines))
     bids_dir = dummyDataPath
     maxDiff = None
@@ -93,35 +92,13 @@ class BidsValidateBasicPropertiesOnCompleteDataTestCase(ut.TestCase):
         for task in self.tasks:
             self.assertEqual(2, self.bidsValidate._results["tr_dict"][task])  # a magical number - 2
 
-    @classmethod
-    def createParametrizedTestCase(cls,
-                                   caseName: str,
-                                   derivatives: list,
-                                   tasks: list,
-                                   subjects: list,
-                                   pipelines: list,
-                                   pipeliensDict: list,
-                                   bids_dir: list,
-                                   maxDiff=None):
-        return type(caseName,
-                    (cls,),
-                    {
-                        'derivatives': derivatives,
-                        'tasks': tasks,
-                        'subjects': subjects,
-                        'pipelines': pipelines,
-                        'pipelinesDict': pipeliensDict,
-                        'bids_dir': bids_dir,
-                        'maxDiff': maxDiff
-                    })
-
 
 class BidsValidateNoAromaOnCompleteDataTestCase(BidsValidateBasicPropertiesOnCompleteDataTestCase):
     derivatives = ["fmriprep"]
     tasks = ["audionback", "dualnback", "rest", "spatialnback"]
     sessions = ["1", "2", "3", "4"]
     subjects = ["01", "02"]
-    pipelines = list(chain(noAromaPipelinePaths))
+    pipelines = noAromaPipelinePaths
     pipelinesDicts = list(map(lambda x: pipe.load_pipeline_from_json(x), pipelines))
     bids_dir = dummyDataPath
     maxDiff = None
@@ -132,7 +109,7 @@ class BidsValidateOnlyAromaOnCompleteDataTestCase(BidsValidateBasicPropertiesOnC
     tasks = ["audionback", "dualnback", "rest", "spatialnback"]
     sessions = ["1", "2", "3", "4"]
     subjects = ["01", "02"]
-    pipelines = list(chain(aromaPipelinesPaths))
+    pipelines = aromaPipelinesPaths
     pipelinesDicts = list(map(lambda x: pipe.load_pipeline_from_json(x), pipelines))
     bids_dir = dummyDataPath
     maxDiff = None
@@ -146,7 +123,7 @@ class ValidateFilesOnMissingTestCase(ut.TestCase):
     tasks = ["audionback", "dualnback", "rest", "spatialnback"]
     sessions = ["1", "2", "3", "4"]
     subjects = ["01", "02"]
-    pipelines = list(chain(aromaPipelinesPaths, noAromaPipelinePaths))
+    pipelines = aromaPipelinesPaths + noAromaPipelinePaths
     pipelinesDicts = list(map(lambda x: pipe.load_pipeline_from_json(x), pipelines))
     bids_dir = dummyMissing
     maxDiff = None
