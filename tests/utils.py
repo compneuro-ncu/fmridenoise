@@ -46,7 +46,7 @@ def create_dummy_bids(root: str, subjects: int, sessions: int,
 
 def create_dummy_data_description(dir_path: str) -> None:
     """
-    Creates dummy dataset_description.json in specified directory.
+    Creates dummy_complete dataset_description.json in specified directory.
     
     Arguments:
         dir_path {str} -- path do destination directory
@@ -74,7 +74,7 @@ def copy_as_dummy_dataset(source_bids_dir: str, new_path: str, ext_to_copy=tuple
     
     Arguments:
         source_bids_dir {str} -- source of BIDS dataset
-        new_path {str} -- destination of new dummy dataset
+        new_path {str} -- destination of new dummy_complete dataset
     
     Keyword Arguments:
         ext_to_copy {tuple or str} -- files with given extensions
@@ -111,11 +111,11 @@ if __name__ == '__main__':
     parser.add_argument("bids_dir",
                         help="Data source bids directory.")
     parser.add_argument("target_directory",
-                        help="Directory in which dummy dataset will be saved")
+                        help="Directory in which dummy_complete dataset will be saved")
     parser.add_argument("-c", "--copy",
                         nargs="+",
                         default=['.json'],
-                        help="Extensions of files that should be copied instead of creating dummy")
+                        help="Extensions of files that should be copied instead of creating dummy_complete")
     args = parser.parse_args()
 
     copy_as_dummy_dataset(source_bids_dir=args.bids_dir,
