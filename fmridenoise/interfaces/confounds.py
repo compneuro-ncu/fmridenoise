@@ -88,18 +88,6 @@ class Confounds(SimpleInterface):
     input_spec = ConfoundsInputSpec
     output_spec = ConfoundsOutputSpec
 
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-
-        self.conf_raw = pd.read_csv(self.inputs.conf_raw, sep='\t')
-        with open(self.inputs.conf_json, 'r') as json_file:
-            self.conf_json = json.load(json_file)
-
-        self.n_volumes = len(self.conf_raw)
-
-        self.conf_prep = pd.DataFrame()
-
-
     @property
     def conf_filename(self):
         '''Output filename for processed confounds table.'''
@@ -226,16 +214,25 @@ class Confounds(SimpleInterface):
         return True
 
     def _run_interface(self, runtime):
+
+        # Setup useful properties
+        self.conf_raw = pd.read_csv(self.inputs.conf_raw, sep='\t')
+        with open(self.inputs.conf_json, 'r') as json_file:
+            self.conf_json = json.load(json_file)
+        self.n_volumes = len(self.conf_raw)
+        self.conf_prep = pd.DataFrame()
+
+        # Create preprocessed confounds step-by-step
         self._filter_motion_parameters()
         self._filter_tissue_signals()
         self._filter_acompcors()
         self._create_spike_regressors()
         self._create_summary_dict()
 
+        # Store output
         self.conf_prep.to_csv(self.conf_filename + '.tsv', sep='\t', index=False)
         with open(self.conf_filename + '.json', 'w') as f:
             json.dump(self.conf_summary, f)
-
         self._results['conf_prep'] = self.conf_filename + '.tsv'
         self._results['conf_summary'] = self.conf_filename + '.json'
 
