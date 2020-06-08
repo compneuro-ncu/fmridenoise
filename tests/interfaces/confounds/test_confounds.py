@@ -10,7 +10,15 @@ from fmridenoise.interfaces.confounds import Confounds
 from tests.interfaces.confounds.utils import (ConfoundsGenerator, 
     confound_filename, pipeline_null)
 
-class ConfoundsTestCase(unittest.TestCase):
+class TestConfoundsStandardCase(unittest.TestCase):
+    seed = 0 
+    n_volumes = 100
+    n_tcompcor = 10 
+    n_acompcor = 100 
+    n_aroma = 10
+    sub = '00' 
+    ses = '0'
+    task = 'task0'
 
     def assertEmptyConfounds(self, file):
         '''Assert that confound file exists and is empty'''
@@ -19,17 +27,6 @@ class ConfoundsTestCase(unittest.TestCase):
             msg = f'confounds file {file} should be empty but have ' + \
                   f'{os.stat(file).st_size} characters'
             raise AssertionError(msg)
-
-
-class TestConfounds(ConfoundsTestCase):        
-    seed = None 
-    n_volumes = None
-    n_tcompcor = None 
-    n_acompcor = None 
-    n_aroma = None 
-    sub = None 
-    ses = None
-    task = None
 
     def setUp(self):
         self._generate_confounds()
@@ -284,55 +281,25 @@ class TestConfounds(ConfoundsTestCase):
                                     perc_outlier_scans)
                 self.assertEqual(summary_dict['include'], include)
 
+class TestConfoundsNoAromaNoTCompCor(TestConfoundsStandardCase):        
+    seed = 0
+    n_volumes = 5
+    n_tcompcor = 0
+    n_acompcor = 100
+    n_aroma = 0
+    sub = '01'
+    ses = '1'
+    task = 'task1'
+
+class TestConfoundsNoSessionLetterInSubject(TestConfoundsStandardCase):
+    seed = 2 
+    n_volumes = 5 
+    n_tcompcor = 10 
+    n_acompcor = 100 
+    n_aroma = 10 
+    sub = 'test02' 
+    ses = ''
+    task = 'task2'
 
 if __name__ == '__main__':
-
-    test_params = [
-        # Standard case
-        {
-            'seed': 0, 
-            'n_volumes': 100,
-            'n_tcompcor': 10, 
-            'n_acompcor': 100, 
-            'n_aroma': 10, 
-            'sub': '00', 
-            'ses': '0', 
-            'task': 'task0'
-        },
-        # No-aroma, no tcompcor
-        {
-            'seed': 1, 
-            'n_volumes': 5, 
-            'n_tcompcor': 0, 
-            'n_acompcor': 100, 
-            'n_aroma': 0, 
-            'sub': '01', 
-            'ses': '1', 
-            'task': 'task1'
-        },
-        # No-session, letter in subject
-        {
-            'seed': 2, 
-            'n_volumes': 5, 
-            'n_tcompcor': 10, 
-            'n_acompcor': 100, 
-            'n_aroma': 10, 
-            'sub': 'test02', 
-            'ses': '', 
-            'task': 'task2'
-        },
-    ]
-
-    for params_dict in test_params:
-        
-        loader = unittest.TestLoader()
-        suite = unittest.TestSuite()
-
-        for param, value in params_dict.items():
-            setattr(TestConfounds, param, value)
-
-        suite.addTests(loader.loadTestsFromTestCase(TestConfounds))
-
-        print(f'Testing {params_dict}')
-        runner = unittest.TextTestRunner(verbosity=1)
-        runner.run(suite)
+    unittest.main()
