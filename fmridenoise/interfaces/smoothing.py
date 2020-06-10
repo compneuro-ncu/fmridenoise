@@ -37,7 +37,7 @@ class Smooth(SimpleInterface):
             base, _ = split_suffix(base)
             self._results['fmri_smoothed'] = join(
                 self.inputs.output_directory,
-                f'{base}_Smoothed.{ext}')
+                f'{base}_Smoothed{ext}')
             save(smoothed, self._results['fmri_smoothed'])
         elif self.inputs.is_file_mandatory:
             raise FileExistsError(f"Mandatory fMRI image file doesn't exists (input arg {self.inputs.fmri_prep})")

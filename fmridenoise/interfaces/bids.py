@@ -6,6 +6,7 @@ from nipype.interfaces.base import (BaseInterfaceInputSpec, SimpleInterface,
     traits, TraitedSpec,
     Directory, Str, ImageFile,
     OutputMultiPath)
+from traits.trait_base import Undefined
 from traits.trait_types import Dict, List, Either, File
 import json
 import os
@@ -132,8 +133,14 @@ class BIDSGrab(SimpleInterface):
     output_spec = BIDSGrabOutputSpec
 
     def _run_interface(self, runtime):
-        self._results['fmri_prep'] = self.select_one(self.inputs.fmri_prep_files)
-        self._results['fmri_prep_aroma'] = self.select_one(self.inputs.fmri_prep_aroma_files)
+        fmri_prep = self.select_one(self.inputs.fmri_prep_files)
+        if (fmri_prep == ""):
+            fmri_prep = Undefined
+        fmri_prep_aroma = self.select_one(self.inputs.fmri_prep_aroma_files)
+        if (fmri_prep_aroma == ""):
+            fmri_prep_aroma = Undefined
+        self._results['fmri_prep'] = fmri_prep
+        self._results['fmri_prep_aroma'] = fmri_prep_aroma
         self._results['conf_raw'] = self.select_one(self.inputs.conf_raw_files)
         self._results['conf_json'] = self.select_one(self.inputs.conf_json_files)
         return runtime
@@ -511,6 +518,6 @@ class BIDSDataSink(IOBase):
         os.makedirs(path, exist_ok=True)
         basedir, basename, ext = split_filename(self.inputs.in_file)
         path = join(path, basename+ext)
-        assert not os.path.exists(path)
+        assert not os.path.exists(path), f"File already exists, overwriting protection: {path}"
         copyfile(self.inputs.in_file, path, copy=True)
         return {'out_file': path}

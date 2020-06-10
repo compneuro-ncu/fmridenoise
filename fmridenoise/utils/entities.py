@@ -1,6 +1,6 @@
 import re
 from nipype.utils.filemanip import split_filename
-
+from os.path import join
 
 class EntityDict(dict):
     """
@@ -28,6 +28,9 @@ class EntityDict(dict):
         """
         super().__setitem__(key, value)
 
+    def build_path(self, format_string):
+        # TODO: Pretty powerful but naive solutions - will fail if any key in format string is not in dict
+        format_string.format(**self)
 
 def explode_into_entities(path: str) -> EntityDict:
     """

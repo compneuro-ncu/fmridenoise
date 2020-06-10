@@ -5,6 +5,8 @@ import os
 
 import pandas as pd
 import numpy as np
+from nipype import Node
+from traits.trait_base import Undefined
 
 from fmridenoise.interfaces.denoising import Denoise
 from tests.utils import fmri_prep_filename, confound_filename, pipeline_null
@@ -40,6 +42,42 @@ class TestDenoising(unittest.TestCase):
     def tearDown(self):
         self.temp_dir.cleanup()
         self.out_dir.cleanup()
+
+    def test_missing_aroma_files_on_noaroma_pipeline(self):
+        self.pipeline['aroma'] = False
+
+        denoise = Denoise(
+            fmri_prep=self.fmri_prep,
+            conf_prep=self.conf_prep,
+            pipeline=self.pipeline,
+            task=self.task,
+            output_dir=self.out_dir.name
+        )
+
+        def _(runtime):
+            denoise._validate_fmri_prep_files()
+            return  runtime
+
+        denoise._run_interface = _
+        denoise.run()
+
+    def test_missing_noaroma_files_on_aroma_pipeline(self):
+        self.pipeline['aroma'] = True
+
+        denoise = Denoise(
+            fmri_prep_aroma=self.fmri_prep,
+            conf_prep=self.conf_prep,
+            pipeline=self.pipeline,
+            task=self.task,
+            output_dir=self.out_dir.name
+        )
+
+        def _(runtime):
+            denoise._validate_fmri_prep_files()
+            return runtime
+
+        denoise._run_interface = _
+        denoise.run()
 
     def test_missing_both_fmri_prep_files(self):
         '''Expect FileNotFoundError when neither fmri_prep nor fmri_prep_aroma
@@ -194,6 +232,62 @@ class TestDenoising(unittest.TestCase):
         print(expected_name)
 
         self.assertEqual(expected_name, denoise._fmri_denoised_fname)
+
+
+class MinorWorkflowIntegrationTestCase(unittest.TestCase):
+    """Tests checking input integration at nodes level"""
+    sub = '01'
+    ses = '1'
+    task = 'test'
+
+    def setUp(self):
+        self.temp_dir = tempfile.TemporaryDirectory()
+        self.out_dir = tempfile.TemporaryDirectory()
+
+        self.fmri_prep = os.path.join(
+            self.temp_dir.name,
+            fmri_prep_filename(self.sub, self.ses, self.task, False))
+        self.fmri_prep_aroma = os.path.join(
+            self.temp_dir.name,
+            fmri_prep_filename(self.sub, self.ses, self.task, True))
+        self.conf_prep = os.path.join(
+            self.temp_dir.name,
+            confound_filename(self.sub, self.ses, self.task, ext='tsv'))
+
+        # Create empty files
+        for file in (self.fmri_prep, self.fmri_prep_aroma):
+            open(file, 'a').close()
+        pd.DataFrame().to_csv(self.conf_prep, sep='\t', index=False)
+
+        self.pipeline = copy.deepcopy(pipeline_null)
+        self.task = self.task
+        self.tr_dict = {self.task: 2}
+
+        def _(self, runtime):
+            self._validate_fmri_prep_files()
+            return runtime
+        Denoise._run_interface = _
+
+    def tearDown(self):
+        self.temp_dir.cleanup()
+        self.out_dir.cleanup()
+
+    def build_node(self) -> Node:
+        denoise_node = Node(name='InputSource', interface=Denoise())
+        denoise_node.inputs.conf_prep = self.conf_prep
+        denoise_node.inputs.pipeline = self.pipeline
+        denoise_node.inputs.task = self.task
+        denoise_node.inputs.output_dir = self.out_dir.name
+        denoise_node.inputs.tr_dict = self.tr_dict
+        denoise_node.inputs.fmri_prep_aroma = self.fmri_prep_aroma
+        denoise_node.inputs.fmri_prep = self.fmri_prep
+        return denoise_node
+
+    def test_missing_aroma_files_on_noaroma_pipeline(self):
+        self.pipeline['aroma'] = False
+        self.fmri_prep_aroma = Undefined
+        node = self.build_node()
+        node.run()
 
 if __name__ == '__main__':
     unittest.main()

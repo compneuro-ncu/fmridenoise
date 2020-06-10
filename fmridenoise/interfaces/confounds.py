@@ -8,6 +8,8 @@ from typing import List
 from traits.trait_types import Dict, Str, List, Directory
 from nipype.interfaces.base import (BaseInterfaceInputSpec, File, TraitedSpec, 
     SimpleInterface)
+import typing as t
+from fmridenoise.utils.entities import *
 
 
 class ConfoundsInputSpec(BaseInterfaceInputSpec):
@@ -47,7 +49,7 @@ class ConfoundsOutputSpec(TraitedSpec):
 
 
 class Confounds(SimpleInterface):
-    '''Preprocess and filter confounds table according to denoising pipeline.
+    """Preprocess and filter confounds table according to denoising pipeline.
 
     This interface reads raw confounds table (fmriprep output) and process it 
     retaining regressors of interest and creating additional regressors if 
@@ -84,27 +86,29 @@ class Confounds(SimpleInterface):
             Number of outlier scans (only if spikes strategy is specified).
         'perc_spikes':
             Percentage of outlier scans (only if spikes strategy is specified).
-    '''
+    """
     input_spec = ConfoundsInputSpec
     output_spec = ConfoundsOutputSpec
 
     @property
     def conf_filename(self):
         '''Output filename for processed confounds table.'''
-        return self.inputs.conf_raw.replace(
-            'regressors.tsv',
-            f"pipeline-{self.inputs.pipeline['name']}"
-            ) 
+        entities = explode_into_entities(self.inputs.conf_raw)
+        entities.overwrite('dataset_directory', self.inputs.output_dir)
+        entities['pipeline'] = self.inputs.pipeline['name']
+        if ('ses' in entities.keys()):
+            return "{dataset_directory}/sub-{sub}_ses-{ses}_task-{task}_desc-{desc}_pipeline-{pipeline}".format(**entities)
+        else:
+            return "{dataset_directory}/sub-{sub}_task-{task}_desc-{desc}_pipeline-{pipeline}".format(
+                **entities)
 
-
-    def _retain(self, regressor_names: List(str)):
+    def _retain(self, regressor_names: t.List[str]):
         '''Copies selected regressors from conf_raw to conf_prep.'''
         if regressor_names:
             self.conf_prep = pd.concat((
                 self.conf_prep,
                 self.conf_raw[regressor_names]
             ), axis=1)
-
 
     def _filter_tissue_signals(self):
         tissue_regressors = []
