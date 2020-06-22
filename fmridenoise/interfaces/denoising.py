@@ -8,6 +8,8 @@ from nipype.interfaces.base import (
     BaseInterfaceInputSpec, TraitedSpec, SimpleInterface,
     ImageFile, File, Directory, traits)
 
+from fmridenoise.utils.entities import explode_into_entities
+
 
 class DenoiseInputSpec(BaseInterfaceInputSpec):
     fmri_prep = ImageFile(
@@ -114,13 +116,14 @@ class Denoise(SimpleInterface):
         Note that this method requires _fmri_file attribute, so it has to be
         called after _validate_fmri_prep_files.        
         '''
-        base_substr = self._fmri_file.split('/')[-1].split('.')[0]
-        base_substr = base_substr.replace('_desc-preproc_bold', '')
-        pipeline_substr = f'pipeline-{self.inputs.pipeline["name"]}'
-
+        et = explode_into_entities(self._fmri_file)
+        et["pipeline"] = self.inputs.pipeline["name"]
+        et.overwrite("desc", "denoised")
+        et.overwrite("suffix", "bold")
+        et.overwrite("extension", "nii.gz")
         self._fmri_denoised_fname = os.path.join(
             self.inputs.output_dir,
-            f'{base_substr}_{pipeline_substr}_desc-denoised_bold.nii.gz'
+            et.build_filename()
         )
 
     def _load_confouds(self):

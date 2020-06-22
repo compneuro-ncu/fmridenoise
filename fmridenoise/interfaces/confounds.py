@@ -4,12 +4,11 @@ import os
 import pandas as pd
 import numpy as np
 
-from typing import List
 from traits.trait_types import Dict, Str, List, Directory
 from nipype.interfaces.base import (BaseInterfaceInputSpec, File, TraitedSpec, 
     SimpleInterface)
 import typing as t
-from fmridenoise.utils.entities import *
+from fmridenoise.utils.entities import explode_into_entities
 
 
 class ConfoundsInputSpec(BaseInterfaceInputSpec):
