@@ -67,17 +67,9 @@ class QualityMeasures(SimpleInterface):
         self.edges_weights_clean = {}
         self.sample_dict = {'All': True, 'No_high_motion': False}
 
-
     def _validate_group_conf_summary(self):
         """Checks if correct summary data are provided.
         Each row should contain data for one subject."""
-
-        # Checks if file exist
-        try:
-            self.group_conf_summary = pd.read_csv(
-                self.inputs.group_conf_summary, delimiter='\t')
-        except FileNotFoundError:
-            print('Missing confounds summary data file.')
 
         # Checks if file have data inside
         try:
@@ -107,16 +99,10 @@ class QualityMeasures(SimpleInterface):
     def _validate_fc_matrices(self):
         """Checks if correct FC matrices are provided."""
 
-        # Checks if file exists
-        try:
-            self.group_corr_mat = np.load(self.inputs.group_corr_mat)
-        except FileNotFoundError:
-            print('Missing group_corr_mat data file.')
-
         # Check if each matrix is symmetrical
         for matrix in self.group_corr_mat:
             if not check_symmetry(matrix):
-                raise ValueError('Correlation matrix is not symetrical.')
+                raise ValueError('Correlation matrix is not symmetrical.')
 
         self.group_corr_vec = sym_matrix_to_vec(self.group_corr_mat)
 
@@ -133,12 +119,6 @@ class QualityMeasures(SimpleInterface):
 
     def _validate_distance_matrix(self):
         """Validates distance matrix."""
-
-        # Check if file exist
-        try:
-            self.distance_matrix = np.load(self.inputs.distance_matrix)
-        except FileNotFoundError:
-            print('Missing distance_matrix data file.')
 
         # Check if distance matrix has the same shape as FC matrix
         if self.group_corr_mat[0].shape != self.distance_matrix.shape:
