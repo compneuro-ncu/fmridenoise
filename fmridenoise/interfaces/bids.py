@@ -6,6 +6,7 @@ from nipype.interfaces.base import (BaseInterfaceInputSpec, SimpleInterface,
     traits, TraitedSpec,
     Directory, Str, ImageFile,
     OutputMultiPath)
+from traits.trait_base import Undefined
 from traits.trait_types import Dict, List, Either, File
 from fmridenoise.pipelines import load_pipeline_from_json, is_IcaAROMA
 import json
@@ -20,11 +21,11 @@ class MissingFile(IOError):
 
 
 class BIDSGrabInputSpec(BaseInterfaceInputSpec):
-
+    # TODO: Check this inteface, why are there 'either file or list'? ~Mateusz
     fmri_prep_files = List()
     fmri_prep_aroma_files = Either(List(ImageFile()), File())
-    conf_raw_files = Either(List(File(exists=True)), File())
-    conf_json_files = Either(List(File(exists=True)), File())
+    conf_raw_files = Either(List(File(exists=True)), File(exists=True))
+    conf_json_files = Either(List(File(exists=True)), File(exists=True))
     subject = Str()
     task = Str()
     session = Str()
@@ -46,7 +47,11 @@ class BIDSGrab(SimpleInterface):
 
     def _run_interface(self, runtime):
         self._results['fmri_prep'] = self._select_one(self.inputs.fmri_prep_files)
+        if self._results['fmri_prep'] == '':
+            self._results['fmri_prep'] = Undefined
         self._results['fmri_prep_aroma'] = self._select_one(self.inputs.fmri_prep_aroma_files)
+        if self._results['fmri_prep_aroma'] == '':
+            self._results['fmri_prep_aroma'] = Undefined
         self._results['conf_raw'] = self._select_one(self.inputs.conf_raw_files)
         self._results['conf_json'] = self._select_one(self.inputs.conf_json_files)
         return runtime
@@ -482,6 +487,6 @@ class BIDSDataSink(IOBase):
         os.makedirs(path, exist_ok=True)
         basedir, basename, ext = split_filename(self.inputs.in_file)
         path = join(path, basename+ext)
-        assert not os.path.exists(path), f"Path {path} already exists."
+        assert not os.path.exists(path), f"File already exists, overwriting protection: {path}"
         copyfile(self.inputs.in_file, path, copy=True)
         return {'out_file': path}

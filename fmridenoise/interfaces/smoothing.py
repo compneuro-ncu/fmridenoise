@@ -3,10 +3,9 @@ from nipype.interfaces.base import (
     ImageFile, SimpleInterface, Directory)
 from nibabel import load, save
 from nilearn.image import smooth_img
-from nipype.utils.filemanip import split_filename
+from fmridenoise.utils.entities import explode_into_entities
 from os.path import join, exists
 from traits.trait_types import Bool
-from  fmridenoise.utils.utils import split_suffix
 
 
 class SmoothInputSpec(BaseInterfaceInputSpec):
@@ -20,10 +19,12 @@ class SmoothInputSpec(BaseInterfaceInputSpec):
         exists=True,
     )
 
+
 class SmoothOutputSpec(TraitedSpec):
     fmri_smoothed = ImageFile(
         desc='Smoothed fMRI file'
     )
+
 
 class Smooth(SimpleInterface):
     input_spec = SmoothInputSpec
@@ -33,11 +34,11 @@ class Smooth(SimpleInterface):
         if exists(self.inputs.fmri_prep):
             img = load(self.inputs.fmri_prep)
             smoothed = smooth_img(img, fwhm=6)
-            _, base, ext = split_filename(self.inputs.fmri_prep)
-            base, _ = split_suffix(base)
+            et = explode_into_entities(self.inputs.fmri_prep)
+            et.overwrite("desc", et["desc"] + "Smoothed" if et["desc"] else "Smoothed")
             self._results['fmri_smoothed'] = join(
                 self.inputs.output_directory,
-                f'{base}_Smoothed.{ext}')
+                et.build_filename())
             save(smoothed, self._results['fmri_smoothed'])
         elif self.inputs.is_file_mandatory:
             raise FileExistsError(f"Mandatory fMRI image file doesn't exists (input arg {self.inputs.fmri_prep})")

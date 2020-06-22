@@ -224,7 +224,7 @@ class BaseWorkflow(pe.Workflow):
             (self.bidsgrabber, self.denoise, [('fmri_prep_aroma', 'fmri_prep_aroma')]),
             (self.taskselector, self.denoise, [('task', 'task')]),
             # group conf summary
-            (self.prep_conf, self.group_conf_summary, [('conf_summary_json_file', 'conf_summary_json_files')]),
+            (self.prep_conf, self.group_conf_summary, [('conf_summary', 'conf_summary_json_files')]),
             (self.taskselector, self.group_conf_summary, [('task', 'task')]),
             (self.pipelineselector, self.group_conf_summary, [('pipeline_name', 'pipeline_name')]),
             # connectivity

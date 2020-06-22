@@ -1,22 +1,36 @@
 {
   "name": "24HMP8PhysSpikeReg",
   "description": "Denoising strategy based on regressing out: 24HMP - 24 head motion parameters including: 3 translations, 3 rotations, their temporal derivatives, and their quadratic terms (Satterthwaite et al., 2013), 8Phys - mean physiological signals from white matter (WM) and cerebrospinal fluid (CSF), their temporal derivatives, and quadratic terms (Satterthwaite et al., 2013), SpikeReg - spike regressors based on FD and DVARS thresholds (Power et al., 2013).",
-  "confounds":
-  {
-    "wm":
-      {"temp_deriv": "True",
-       "quad_terms": "True"},
-    "csf":
-      {"temp_deriv": "True",
-       "quad_terms": "True"},
-    "gs": "False",
-    "motion":
-      {"temp_deriv": "True",
-       "quad_terms": "True"},
+  "confounds": {
+    "white_matter": {
+      "raw": "True",
+      "derivative1": "True",
+      "power2": "True",
+      "derivative1_power2": "True"
+      },
+    "csf": {
+      "raw": "True",
+      "derivative1": "True",
+      "power2": "True",
+      "derivative1_power2":  "True"
+      },
+    "global_signal": {
+      "raw": "False",
+      "derivative1": "False",
+      "power2": "False",
+      "derivative1_power2": "False"
+      },
+    "motion": {
+      "raw": "True",
+      "derivative1": "True",
+      "power2": "True",
+      "derivative1_power2": "True"
+      },
     "acompcor": "False"
   },
   "aroma": "False",
-  "spikes":
-    {"fd_th": 0.5,
-     "dvars_th": 3}
+  "spikes": {
+    "fd_th": 0.5,
+    "dvars_th": 3
+  }
 }

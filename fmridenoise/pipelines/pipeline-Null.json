@@ -1,12 +1,31 @@
 {
   "name": "Null",
   "description": "Reference pipeline with no denoising strategy applied.",
-  "confounds":
-  {
-    "wm": "False",
-    "csf": "False",
-    "gs": "False",
-    "motion": "False",
+  "confounds": {
+    "white_matter": {
+      "raw": "False",
+      "derivative1": "False",
+      "power2": "False",
+      "derivative1_power2": "False"
+      },
+    "csf": {
+      "raw": "False",
+      "derivative1": "False",
+      "power2": "False",
+      "derivative1_power2":  "False"
+      },
+    "global_signal": {
+      "raw": "False",
+      "derivative1": "False",
+      "power2": "False",
+      "derivative1_power2": "False"
+      },
+    "motion": {
+      "raw": "False",
+      "derivative1": "False",
+      "power2": "False",
+      "derivative1_power2": "False"
+      },
     "acompcor": "False"
   },
   "aroma": "False",
