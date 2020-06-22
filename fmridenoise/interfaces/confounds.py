@@ -181,8 +181,9 @@ class Confounds(SimpleInterface):
 
             self.conf_prep = pd.concat((
                 self.conf_prep,
-                conf_spikes
-            ))
+                conf_spikes,
+            ),
+            axis=1)
         
         self.n_spikes = len(outliers)
 
@@ -234,7 +235,7 @@ class Confounds(SimpleInterface):
         self._create_summary_dict()
 
         # Store output
-        self.conf_prep.to_csv(self.conf_filename + '.tsv', sep='\t', index=False)
+        self.conf_prep.to_csv(self.conf_filename + '.tsv', sep='\t', index=False, na_rep=0)
         with open(self.conf_filename + '.json', 'w') as f:
             json.dump(self.conf_summary, f)
         self._results['conf_prep'] = self.conf_filename + '.tsv'

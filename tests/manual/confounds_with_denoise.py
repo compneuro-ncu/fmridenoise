@@ -25,9 +25,10 @@ def run(output_dir: str, pipeline_name: str, fmri_file: str, conf_raw: str, conf
     ), name="Denoise")
     if not is_IcaAROMA(pipeline):
         smoothing_node = Node(Smooth(
-            fmri_prep=fmri_file
+            fmri_prep=fmri_file,
+            output_directory=output_dir
         ), name="Smooth")
-        workflow.connect((smoothing_node, denoising_node, [("fmri_smoothed", "fmri_prep")]))
+        workflow.connect([(smoothing_node, denoising_node, [("fmri_smoothed", "fmri_prep")])])
     else:
         denoising_node.inputs.fmri_prep_aroma = fmri_file
     workflow.connect([
@@ -38,10 +39,10 @@ def run(output_dir: str, pipeline_name: str, fmri_file: str, conf_raw: str, conf
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
-    parser.add_argument("-o","--output_dir")
-    parser.add_argument("-p", "--pipeline_name")
-    parser.add_argument("-f", "--fmri_file")
-    parser.add_argument("-r", "--conf_raw")
-    parser.add_argument("-j", "--conf_json")
+    parser.add_argument("-o","--output_dir", required=True)
+    parser.add_argument("-p", "--pipeline_name", required=True)
+    parser.add_argument("-f", "--fmri_file", required=True)
+    parser.add_argument("-r", "--conf_raw", required=True)
+    parser.add_argument("-j", "--conf_json", required=True)
     args = parser.parse_args()
     run(args.output_dir, args.pipeline_name, args.fmri_file, args.conf_raw, args.conf_json)
