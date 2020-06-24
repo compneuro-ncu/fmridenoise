@@ -11,7 +11,7 @@ from scipy.stats import pearsonr
 from os.path import join
 from itertools import chain
 import warnings
-from fmridenoise.utils.plotting import motion_plot
+from fmridenoise.utils.plotting import make_motion_plot, make_kdeplot, make_catplot
 
 
 class QualityMeasuresInputSpec(BaseInterfaceInputSpec):
@@ -222,7 +222,7 @@ class QualityMeasures(SimpleInterface):
 
     def _make_figures(self):
         """Generates figures."""
-        motion_plot(self.group_conf_summary, self.pipeline_name, self.output_dir)
+        make_motion_plot(self.group_conf_summary, self.pipeline_name, self.output_dir)
 
     def _run_interface(self, runtime):
         self._validate_group_conf_summary()
@@ -270,7 +270,6 @@ class MergeGroupQualityMeasuresInputSpec(BaseInterfaceInputSpec):
 class MergeGroupQualityMeasures(SimpleInterface):
     input_spec = MergeGroupQualityMeasuresInputSpec
     output_spec = MergeGroupQualityMeasuresOutputSpec
-    
 
     def _run_interface(self, runtime):
         self._results['fc_fd_summary'] = self.inputs.fc_fd_summary
@@ -281,182 +280,142 @@ class MergeGroupQualityMeasures(SimpleInterface):
 
 
 class PipelinesQualityMeasuresInputSpec(BaseInterfaceInputSpec):
-
     fc_fd_summary = traits.List(
         exists=True,
         desc="QC-FC quality measures")
 
-    edges_weight = traits.List(
+    edges_weight = traits.Dict(
         exists=True,
         desc="Weights of individual edges")
 
-    edges_weight_clean = traits.List( # TODO: Fix me
+    edges_weight_clean = traits.Dict(
         exists=True,
-        desc="Weights of individual edges")
+        desc="Mean weights of individual edges (no high motion)")
 
-    output_dir = File(          # needed to save data in other directory
-        desc="Output path")     # TODO: Implement temp dir
+    output_dir = File(  # needed to save data in other directory
+        desc="Output path")  # TODO: Implement temp dir
+
 
 class PipelinesQualityMeasuresOutputSpec(TraitedSpec):
-
     pipelines_fc_fd_summary = File(
-        exists=True,
+        exists=False,
         desc="Group QC-FC quality measures")
 
     pipelines_edges_weight = File(
-        exists=True,
+        exists=False,
         desc="Group weights of individual edges")
 
     pipelines_edges_weight_clean = File(
-        exists=True,
+        exists=False,
         desc="Group weights of individual edges")
 
     plot_pipeline_edges_density = File(
-        exists=True,
+        exists=False,
         desc="Density of edge weights (all subjects)"
     )
 
     plot_pipelines_edges_density_no_high_motion = File(
-        exist=True,
+        exist=False,
         desc="Density of edge weights (no high motion)"
     )
 
     plot_pipelines_fc_fd_pearson = File(
-        exist=True
+        exist=False
     )
 
     plot_pipelines_fc_fd_uncorr = File(
-        exist=True
+        exist=False
     )
 
     plot_pipelines_distance_dependence = File(
-        exist=True
+        exist=False
     )
 
     plot_pipelines_tdof_loss = File(
-        exist=True
+        exist=False
     )
+
 
 class PipelinesQualityMeasures(SimpleInterface):
     input_spec = PipelinesQualityMeasuresInputSpec
     output_spec = PipelinesQualityMeasuresOutputSpec
 
+    def _get_pipeline_summaries(self):
+        """Gets and saves table with quality measures for each pipeline"""
+        self.pipelines_fc_fd_summary = pd.DataFrame()
+
+        for pipeline in self.inputs.fc_fd_summary:
+            self.pipelines_fc_fd_summary = pd.concat([self.pipelines_fc_fd_summary,
+                                                      pd.DataFrame(pipeline, index=[0])],
+                                                     axis=0)
+
+        self.fname1 = join(self.inputs.output_dir, f"pipelines_fc_fd_summary.tsv")
+        self.pipelines_fc_fd_summary.to_csv(self.fname1, sep='\t', index=False)
+
+    def _get_pipelines_edges_weight(self):
+        """Gets and saves tables with mean edges weights for raw and cleaned data"""
+        self.pipelines_edges_weight = pd.DataFrame()
+        self.pipelines_edges_weight_clean = pd.DataFrame()
+
+        for edges, edges_clean in zip(self.inputs.edges_weight, self.inputs.edges_weight_clean):
+            self.pipelines_edges_weight = pd.concat([self.pipelines_edges_weight,
+                                                     pd.DataFrame(self.inputs.edges_weight[edges],
+                                                                  columns=[edges])],
+                                                    axis=1)
+            self.pipelines_edges_weight_clean = pd.concat([self.pipelines_edges_weight_clean,
+                                                           pd.DataFrame(self.inputs.edges_weight[edges_clean],
+                                                                        columns=[edges_clean])],
+                                                          axis=1)
+        self.fname2 = join(self.inputs.output_dir, f"pipelines_edges_weight.tsv")
+        self.fname3 = join(self.inputs.output_dir, f"pipelines_edges_weight_clean.tsv")
+        self.pipelines_edges_weight.to_csv(self.fname2, sep='\t', index=False)
+        self.pipelines_edges_weight_clean.to_csv(self.fname3, sep='\t', index=False)
+
+    def _make_summary_figures(self):
+        """Makes summary figures for all quality mesures"""
+        self.plot_pipelines_edges_density = make_kdeplot(data=pipelines_edges_weight,
+                                                         title="Density of edge weights (all subjects)",
+                                                         filename="pipelines_edges_density",
+                                                         output_dir=self.inputs.output_dir)
+        self.plot_pipelines_edges_density_clean = make_kdeplot(data=pipelines_edges_weight_clean,
+                                                               title="Density of edge weights (no high motion)",
+                                                               filename="pipelines_edges_density_no_high_motion",
+                                                               output_dir=self.inputs.output_dir)
+        self.plot_fc_fd_pearson = make_catplot(x="pearson_fc_fd",
+                                               data=self.pipelines_fc_fd_summary,
+                                               xlabel="QC-FC (Pearson's r)",
+                                               filename="plot-fc_fd_pearson",
+                                               output_dir=self.inputs.output_dir)
+        self.perc_plot_fc_fd_uncorr = make_catplot(x="perc_fc_fd_uncorr",
+                                                   data=self.pipelines_fc_fd_summary,
+                                                   xlabel="QC-FC uncorrected (%)",
+                                                   filename="plot-perc_fc_fd_uncorr",
+                                                   output_dir=self.inputs.output_dir)
+        self.plot_distance_dependence = make_catplot(x="distance_dependence",
+                                                     data=self.pipelines_fc_fd_summary,
+                                                     xlabel="Distance-dependence",
+                                                     filename="plot-distance_dependence",
+                                                     output_dir=self.inputs.output_dir)
+        self.plot_tdof_loss = make_catplot(x="tdof_loss",
+                                           data=self.pipelines_fc_fd_summary,
+                                           xlabel="fDOF-loss",
+                                           filename="plot-tdof_loss",
+                                           output_dir=self.inputs.output_dir)
+
     def _run_interface(self, runtime):
+        self._get_pipeline_summaries()
+        self._get_pipelines_edges_weight()
+        self._make_summary_figures()
 
-        # Convert merged quality measures to pd.DataFrame
-        pipelines_fc_fd_summary = pd.DataFrame(
-            list(chain.from_iterable(list(chain.from_iterable(self.inputs.fc_fd_summary)))))
-
-        pipelines_edges_weight = pd.DataFrame()
-        pipelines_edges_weight_clean = pd.DataFrame()
-
-        for edges in zip(self.inputs.edges_weight):
-            pipelines_edges_weight = pd.concat([pipelines_edges_weight, pd.DataFrame(edges[0][0])], axis=1)
-
-        for edges_clean in zip(self.inputs.edges_weight_clean):
-            pipelines_edges_weight_clean = pd.concat([pipelines_edges_weight_clean, pd.DataFrame(edges_clean[0][0])], axis=1)
-
-        fname1 = join(self.inputs.output_dir, f"pipelines_fc_fd_summary.tsv")
-        fname2 = join(self.inputs.output_dir, f"pipelines_edges_weight.tsv")
-        fname3 = join(self.inputs.output_dir, f"pipelines_edges_weight_clean.tsv")
-
-        pipelines_fc_fd_summary.to_csv(fname1, sep='\t', index=False)
-        pipelines_edges_weight.to_csv(fname2, sep='\t', index=False)
-        pipelines_edges_weight_clean.to_csv(fname3, sep='\t', index=False)
-
-        # ----------------------
-        # Plot quality measures
-        # ----------------------
-
-        # Reset color palette
-        sns.set_palette("colorblind", 8)
-
-        # Density plot (all subjects)
-        fig1, ax = plt.subplots(1, 1)
-
-        for col in pipelines_edges_weight:
-            sns.kdeplot(pipelines_edges_weight[col], shade=True)
-            plt.axvline(0, 0, 2, color='gray', linestyle='dashed', linewidth=1.5)
-            plt.title("Density of edge weights (all subjects)")
-
-        plot_pipeline_edges_density = f"{self.inputs.output_dir}/pipelines_edges_density.svg"
-        fig1.savefig(plot_pipeline_edges_density, dpi=300,  bbox_inches='tight')
-        plt.legend(bbox_to_anchor=(1.05, 1), loc=2, borderaxespad=0.)
-
-        fig1.savefig(f"{self.inputs.output_dir}/pipelines_edges_density.svg", dpi=300,  bbox_inches='tight')
-
-        # Density plot (no high motion)
-        fig1_2, ax = plt.subplots(1, 1)
-
-        for col in pipelines_edges_weight_clean:
-            sns.kdeplot(pipelines_edges_weight_clean[col], shade=True)
-            plt.axvline(0, 0, 2, color='gray', linestyle='dashed', linewidth=1.5)
-            plt.title("Density of edge weights (no high motion)")
-            plt.legend(bbox_to_anchor=(1.05, 1), loc=2, borderaxespad=0.)
-
-        plot_pipelines_edges_density_no_high_motion = f"{self.inputs.output_dir}/pipelines_edges_density_no_high_motion.svg"
-        fig1_2.savefig(plot_pipelines_edges_density_no_high_motion, dpi=300,  bbox_inches='tight')
-
-        # Boxplot (Pearson's r FC-DC)
-        fig2 = sns.catplot(x="pearson_fc_fd",
-                    y="pipeline",
-                    col='subjects',
-                    kind='bar',
-                    data=pipelines_fc_fd_summary,
-                    orient="h").set(xlabel="QC-FC (Pearson's r)",
-                                    ylabel='Pipeline')
-
-        plot_pipelines_fc_fd_pearson = f"{self.inputs.output_dir}/pipelines_fc_fd_pearson.svg"
-        fig2.savefig(plot_pipelines_fc_fd_pearson, dpi=300, bbox_inches="tight")
-
-        # Boxplot (% correlated edges)
-        fig3 = sns.catplot(x="perc_fc_fd_uncorr",
-                    y="pipeline",
-                    col='subjects',
-                    kind='bar',
-                    data=pipelines_fc_fd_summary,
-                    orient="h").set(xlabel="QC-FC uncorrected (%)",
-                                    ylabel='Pipeline')
-
-        plot_pipelines_fc_fd_uncorr = f"{self.inputs.output_dir}/pipelines_fc_fd_uncorr.svg"
-        fig3.savefig(plot_pipelines_fc_fd_uncorr, dpi=300, bbox_inches="tight")
-
-        # Boxplot (Pearson's r FC-DC with distance)
-
-        fig4 = sns.catplot(x="distance_dependence",
-                    y="pipeline",
-                    col='subjects',
-                    kind='bar',
-                    data=pipelines_fc_fd_summary,
-                    orient="h").set(xlabel="Distance-dependence",
-                                    ylabel='Pipeline')
-        
-        plot_pipelines_distance_dependence = f"{self.inputs.output_dir}/pipelines_distance_dependence.svg"
-        fig4.savefig(plot_pipelines_distance_dependence, dpi=300, bbox_inches="tight")
-
-        # Boxplot (fDOF-loss)
-
-        fig5 = sns.catplot(x="tdof_loss",
-                           y="pipeline",
-                           kind='bar',
-                           data=pipelines_fc_fd_summary,
-                           orient="h").set(xlabel="fDOF-loss",
-                                           ylabel='Pipeline')
-
-        plot_pipelines_tdof_loss = f"{self.inputs.output_dir}/pipelines_tdof_loss.svg"
-        fig5.savefig(plot_pipelines_tdof_loss, dpi=300, bbox_inches="tight")
-
-        self._results['pipelines_fc_fd_summary'] = fname1
-        self._results['pipelines_edges_weight'] = fname2
-        self._results['pipelines_edges_weight_clean'] = fname3
-        self._results['plot_pipeline_edges_density'] = plot_pipeline_edges_density
-        self._results['plot_pipelines_distance_dependence'] = plot_pipelines_distance_dependence
-        self._results['plot_pipelines_edges_density_no_high_motion'] = plot_pipelines_edges_density_no_high_motion
-        self._results['plot_pipelines_fc_fd_pearson'] = plot_pipelines_fc_fd_pearson
-        self._results['plot_pipelines_fc_fd_uncorr'] = plot_pipelines_fc_fd_uncorr
-        self._results['plot_pipelines_tdof_loss'] = plot_pipelines_fc_fd_uncorr
+        self._results['pipelines_fc_fd_summary'] = self.fname1
+        self._results['pipelines_edges_weight'] = self.fname2
+        self._results['pipelines_edges_weight_clean'] = self.fname3
+        self._results['plot_pipeline_edges_density'] = self.plot_pipelines_edges_density
+        self._results['plot_pipelines_edges_density_no_high_motion'] = self.plot_pipelines_edges_density_clean
+        self._results['plot_pipelines_distance_dependence'] = self.plot_distance_dependence
+        self._results['plot_pipelines_fc_fd_pearson'] = self.plot_fc_fd_pearson
+        self._results['plot_pipelines_fc_fd_uncorr'] = self.perc_plot_fc_fd_uncorr
+        self._results['plot_pipelines_tdof_loss'] = self.plot_tdof_loss
 
         return runtime
-
-
 

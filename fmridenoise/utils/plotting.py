@@ -4,8 +4,8 @@ import seaborn as sns
 from os.path import join
 
 
-def motion_plot(group_conf_summary, pipeline_name, output_dir,
-                mean_fd_th=0.2, max_fd_th=5, perc_spikes_th=20):
+def make_motion_plot(group_conf_summary, pipeline_name, output_dir,
+                     mean_fd_th=0.2, max_fd_th=5, perc_spikes_th=20):
     """Generates plot presenting number of subjects excluded with high morion
     according specified thresholds."""
 
@@ -60,3 +60,38 @@ def motion_plot(group_conf_summary, pipeline_name, output_dir,
     fig.savefig(join(output_dir, f"motion_criterion_pipeline-{pipeline_name}.svg"), dpi=300)
 
     return fig
+
+
+def make_kdeplot(dataframe, title, filename, output_dir):
+    """Creates and saves kdeplot from dataframes with edges."""
+    sns.set_palette('colorblind', 8)
+
+    fig, ax = plt.subplots(1, 1)
+    for col in dataframe:
+        sns.kdeplot(dataframe[col], shade=True)
+
+    plt.axvline(0, 0, 2, color='gray', linestyle='dashed', linewidth=1.5)
+    plt.title(title)
+    plt.legend(bbox_to_anchor=(1.05, 1), loc=2, borderaxespad=0.)
+
+    figure_path = join(output_dir, f'{filename}.svg')
+    fig.savefig(figure_path, dpi=300, bbox_inches='tight')
+
+    return figure_path
+
+
+def make_catplot(x, data, xlabel, filename, output_dir):
+    """Creates and saves catplot from summary dataframes """
+
+    sns.set_palette('colorblind', 8)
+    fig = sns.catplot(x=x,
+                      y='pipeline',
+                      col='all',
+                      kind='bar',
+                      data=data,
+                      orient="h").set(xlabel=xlabel,
+                                      ylabel='Pipeline')
+
+    figure_path = join(output_dir, f'{filename}.svg')
+    fig.savefig(figure_path, dpi=300, bbox_inches='tight')
+    return figure_path
