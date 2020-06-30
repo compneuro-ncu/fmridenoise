@@ -35,7 +35,7 @@ test = list(chain(relative_paths(get_pipelines_paths()),
 setuptools.setup(
     name="fmridenoise",
     version="0.1.5",
-    author="Karolina Finc, Mateusz Chojnowski, Kamil Bona",
+    author="Karolina Finc, Mateusz Chojnowski, Kamil Bonna",
     author_email="karolinafinc@gmail.com, zygfrydwagner@gmail.com, kongokou@gmail.com",
     description="fMRIDenoise - automated denoising, denoising strategies comparison, and functional connectivity data quality control.",
     long_description=long_description,

@@ -4,6 +4,60 @@ import json
 import shutil
 import nipype as ni
 
+
+pipeline_null = {
+    'name': '',
+    'description': '',
+    'confounds': {
+        'white_matter': {
+            'raw': False,
+            'derivative1': False,
+            'power2': False,
+            'derivative1_power2': False
+        },
+        'csf': {
+            'raw': False,
+            'derivative1': False,
+            'power2': False,
+            'derivative1_power2': False
+        },
+        'global_signal': {
+            'raw': False,
+            'derivative1': False,
+            'power2': False,
+            'derivative1_power2': False
+        },
+        'motion': {
+            'raw': False,
+            'derivative1': False,
+            'power2': False,
+            'derivative1_power2': False
+        },
+        'acompcor': False
+    },
+    'aroma': False,
+    'spikes': False
+}
+
+
+def confound_filename(sub, task, ses, ext):
+    '''Create proper filename for raw confounds given BIDS entity.'''
+    sub_substr = f'sub-{sub}_'
+    ses_substr = f'ses-{ses}_' if ses else ''
+    task_substr = f'task-{task}_'
+    return f'{sub_substr}{ses_substr}{task_substr}desc-confounds_regressors.{ext}'
+
+
+def fmri_prep_filename(sub, ses, task, aroma):
+    '''Create proper filename for preprocessed fmri file given BIDS entity.'''
+    sub_substr = f'sub-{sub}_'
+    ses_substr = f'ses-{ses}_' if ses else ''
+    task_substr = f'task-{task}_'
+    desc_substr =  'desc-smoothAROMAnonaggr_' if aroma else 'desc-preproc_'
+    return f'{sub_substr}{ses_substr}{task_substr}' + \
+           f'space-MNI152NLin2009cAsym_{desc_substr}bold.nii.gz'
+
+
 def create_dummy_bids(root: str, subjects: int, sessions: int,
                       derivatives: list=[], tasks: list=[],
                       *args: callable) -> None:  # TODO: Finish or delete
@@ -46,7 +100,7 @@ def create_dummy_bids(root: str, subjects: int, sessions: int,
 
 def create_dummy_data_description(dir_path: str) -> None:
     """
-    Creates dummy dataset_description.json in specified directory.
+    Creates dummy_complete dataset_description.json in specified directory.
     
     Arguments:
         dir_path {str} -- path do destination directory
@@ -74,7 +128,7 @@ def copy_as_dummy_dataset(source_bids_dir: str, new_path: str, ext_to_copy=tuple
     
     Arguments:
         source_bids_dir {str} -- source of BIDS dataset
-        new_path {str} -- destination of new dummy dataset
+        new_path {str} -- destination of new dummy_complete dataset
     
     Keyword Arguments:
         ext_to_copy {tuple or str} -- files with given extensions
@@ -111,11 +165,11 @@ if __name__ == '__main__':
     parser.add_argument("bids_dir",
                         help="Data source bids directory.")
     parser.add_argument("target_directory",
-                        help="Directory in which dummy dataset will be saved")
+                        help="Directory in which dummy_complete dataset will be saved")
     parser.add_argument("-c", "--copy",
                         nargs="+",
                         default=['.json'],
-                        help="Extensions of files that should be copied instead of creating dummy")
+                        help="Extensions of files that should be copied instead of creating dummy_complete")
     args = parser.parse_args()
 
     copy_as_dummy_dataset(source_bids_dir=args.bids_dir,

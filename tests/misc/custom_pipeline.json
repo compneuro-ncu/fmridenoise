@@ -1,19 +1,36 @@
 {
-    "name": "Custom",
-    "description": "testing purpose only",
-    "confounds":
-    {
-      "wm": "False",
-      "csf": "False",
-      "gs": "False",
-      "motion":
-        {"temp_deriv": "True",
-         "quad_terms": "True"},
-      "acompcor": "True"
-    },
-    "aroma": "False",
-    "spikes":
-      {"fd_th": 0.5,
-       "dvars_th": 3}
+  "name": "Custom",
+  "description": "For testing only",
+  "confounds": {
+    "white_matter": {
+      "raw": "True",
+      "derivative1": "True",
+      "power2": "True",
+      "derivative1_power2": "True"
+      },
+    "csf": {
+      "raw": "True",
+      "derivative1": "True",
+      "power2": "True",
+      "derivative1_power2":  "True"
+      },
+    "global_signal": {
+      "raw": "False",
+      "derivative1": "False",
+      "power2": "False",
+      "derivative1_power2": "False"
+      },
+    "motion": {
+      "raw": "True",
+      "derivative1": "True",
+      "power2": "True",
+      "derivative1_power2": "True"
+      },
+    "acompcor": "False"
+  },
+  "aroma": "False",
+  "spikes": {
+    "fd_th": 10,
+    "dvars_th": 20
+  }
 }
-  

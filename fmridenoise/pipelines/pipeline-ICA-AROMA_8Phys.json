@@ -1,16 +1,31 @@
 {
   "name": "ICAAROMA8Phys",
   "description": "Denoising strategy based on ICA-AROMA - method that automatically identifies and removes motion artifacts from fMRI data (Prium et al., 2015). Pipeline additionally regress out 8Phys - mean physiological signals from white matter (WM) and cerebrospinal fluid (CSF), their quadratic terms (Satterthwaite et al., 2013).",
-  "confounds":
-  {
-    "wm":
-      {"temp_deriv": "True",
-       "quad_terms": "True"},
-    "csf":
-      {"temp_deriv": "True",
-       "quad_terms": "True"},
-    "gs": "False",
-    "motion": "False",
+  "confounds": {
+    "white_matter": {
+       "raw": "True",
+       "derivative1": "True",
+       "power2": "True",
+       "derivative1_power2": "True"
+      },
+    "csf": {
+      "raw": "True",
+      "derivative1": "True",
+      "power2": "True",
+      "derivative1_power2":  "True"
+      },
+    "global_signal": {
+      "raw": "False",
+      "derivative1": "False",
+      "power2": "False",
+      "derivative1_power2": "False"
+      },
+    "motion": {
+      "raw": "False",
+      "derivative1": "False",
+      "power2": "False",
+      "derivative1_power2": "False"
+      },
     "acompcor": "False"
   },
   "aroma": "True",

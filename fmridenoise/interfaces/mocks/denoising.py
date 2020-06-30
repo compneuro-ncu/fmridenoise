@@ -1,6 +1,6 @@
 from fmridenoise.interfaces.denoising import Denoise, DenoiseInputSpec
 from traits.trait_types import Dict, Str, Float, Directory, File
-from .mock_tools import *
+from fmridenoise.utils.entities import *
 from .settings import MockSettings
 from os.path import join
 from glob import glob

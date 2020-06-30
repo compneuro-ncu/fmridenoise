@@ -1,108 +1,96 @@
-import fmridenoise.utils as ut
 import jsonschema
-import copy
-import numbers
-pipeline_schema = {
-    "type": "object",
-    "required": ["name", "description", "confounds", "aroma", "spikes"],
-    "additionalProperties": False,
-    "properties": {
-        "name": {"type": "string"},
-        "description": {"type": "string"},
-        "confounds": {
-            "type": "object",
-            "required": ["wm", "csf", "gs", "motion", "acompcor"],
-            "additionalProperties": False,
-            "properties": {
-                    "wm": {"type": "confound"},
-                    "csf": {"type": "confound"},
-                    "gs": {"type": "confound"},
-                    "motion": {"type": "confound"},
-                    "acompcor": {"type": "boolean"}
-                }
+
+confound_schema = {
+    'type': 'object',
+    'properties': {
+        'raw': {'type': 'boolean'},
+        'derivative1': {'type': 'boolean'},
+        'power2': {'type': 'boolean'},
+        'derivative1_power2': {'type': 'boolean'},
+        },
+    'required': ['raw', 'derivative1', 'power2', 'derivative1_power2'],
+    'additionalProperties': False
+}
+
+spike_schema = {
+    'anyOf': [
+        {'enum': [ False ]},
+        {
+            'type': 'object',
+            'properties': {
+                'fd_th': {'type': 'number', 'minimum': 0},
+                'dvars_th': {'type': 'number', 'minimum': 0}
             },
-        "aroma": {"type": "boolean"},
-        "spikes": {"type": "spike"}#,
-        # "filter": {
-        #     "type": "object",
-        #     "required": ["low_pass", "high_pass"],
-        #     "additionalProperties": False,
-        #     "properties": {
-        #         "low_pass": {"type": "number"},  # TODO: allow None type
-        #         "high_pass": {"type": "number"}  # TODO: allow None type
-        #     }
-        # },
-        # "detrend": {"type":"boolean"},
-        # "standardize": {"type": "boolean"}
-    }
+        'required': ['fd_th', 'dvars_th'],
+        'additionalProperties': False
+        }        
+    ]
+}
+
+pipeline_schema = {
+    'type': 'object',
+    'properties': {
+        'name': {
+            'type': 'string',
+            'minLength': 1
+            },
+        'description': {'type': 'string'}, 
+        'confounds': {
+            'type': 'object',
+            'properties': {
+                'white_matter': confound_schema,
+                'csf': confound_schema,    
+                'global_signal': confound_schema,
+                'motion': confound_schema,
+                'acompcor': {'type': 'boolean'}
+                },
+            'required': ['white_matter', 'csf', 'global_signal', 'motion', 'acompcor'],
+            'additionalProperties': False
+            },
+        'aroma': {'type': 'boolean'},
+        'spikes': spike_schema
+        },
+    'required': ['name', 'confounds', 'aroma', 'spikes'],
+    'additionalProperties': False
 }
 
 
-def __is_confound(checker, instance) -> bool:
-    if instance is False:
+def validate(pipeline: dict) -> None:
+    '''Checks if denoising pipeline is valied.
+    
+    Checks if pipeline dictionary conforms to denoising pipeline schema. 
+    Denoising pipeline unambigously defines denoising strategy.
+
+    Args:
+        pipeline: Denoising pipeline dictionary.
+
+    Returns:
+        None if pipeline is valid.
+
+    Raises:
+        ValidationError or SchemaError if pipeline is not valid.
+    '''
+    jsonschema.validate(instance=pipeline, schema=pipeline_schema)
+
+
+def is_valid(pipeline: dict, silent=False) -> bool:
+    '''Returns decision if denoising pipeline is valid.
+    
+    Args:
+        pipeline: 
+            Denoising pipeline dictionary.
+        silent (default False): 
+            If silent is True, errors won't be printed to the console.
+    '''
+    if not isinstance(pipeline, dict):
+        raise TypeError('pipeline should be dictionary')
+    
+    validator = jsonschema.Draft7Validator(pipeline_schema)
+    
+    if validator.is_valid(pipeline):
         return True
-    elif isinstance(instance, dict):
-        if tuple(instance.keys()) == ('temp_deriv', 'quad_terms'):
-            if isinstance(instance['quad_terms'], bool) and isinstance(instance['temp_deriv'], bool):
-                return True
-            else:
-                return False
-        else:
-            return False
     else:
+        if not silent:
+            for error in validator.iter_errors(pipeline):
+                print(40 * '-' + '\n', error)
         return False
-
-def __is_spike(checker, instance) -> bool:
-    if instance is False:
-        return True
-    elif isinstance(instance, dict):
-        if tuple(instance.keys()) == ('fd_th', 'dvars_th'):
-            if isinstance(instance['fd_th'], numbers.Real) and isinstance(instance['dvars_th'], numbers.Real):
-                return True
-            else:
-                return False
-        else:
-            return False
-    else:
-        return False
-
-__new_types = jsonschema.Draft7Validator.TYPE_CHECKER.redefine("confound", __is_confound)  # TODO: Fix adding extra types
-__new_types = __new_types.redefine("spike", __is_spike)  # TODO: Fix adding extra types
-__new_meta_schema = copy.deepcopy(jsonschema.Draft7Validator.META_SCHEMA)
-__new_meta_schema['definitions']['simpleTypes']['enum'].append("confound")
-__new_meta_schema['definitions']['simpleTypes']['enum'].append('spike')
-__new_validator = jsonschema.Draft7Validator.VALIDATORS
-PipelineValidator = jsonschema.validators.create(meta_schema=__new_meta_schema,
-                                                 validators=__new_validator,
-                                                 type_checker=__new_types)
-__pipeline_validator = PipelineValidator(pipeline_schema)
-
-
-def is_valid(pipeline: dict) -> bool:
-    """
-    Checks if pipeline is valid using PipelineValidator and pipeline_schema.
-    :param pipeline: pipeline in jsonlike dictionary format
-    :return: True if pipeline is valid, False if not
-    """
-    return __pipeline_validator.is_valid(instance=pipeline)
-
-
-def validate(instance: dict, schema: dict=pipeline_schema, cls=PipelineValidator) -> None:
-    """
-    Validates jsonlike dictionary.
-    Raises jsonschema.exceptions.ValidationError on failed validation.
-    :param instance: json (as dictionary) to validate
-    :param schema: schema used as validation template
-    :param cls: Validator class used for validation
-    :return: None
-    """
-    jsonschema.validate(instance, schema, cls)
-
-
-validate.__doc__ = jsonschema.validators.validate.__doc__
-
-if __name__ == '__main__':
-    #rudimentary example/quickcheck of validity
-    jdicto = ut.load_pipeline_from_json("../pipelines/36_parameters_spikes.json")
-    validate(jdicto, pipeline_schema, cls=PipelineValidator) #  Better for standalone validation
-    print(is_valid(jdicto))

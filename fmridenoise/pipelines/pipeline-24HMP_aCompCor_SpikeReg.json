@@ -1,18 +1,36 @@
 {
   "name": "24HMPaCompCorSpikeReg",
   "description": "Denoising strategy based on regressing out: 24HMP - 24 head motion parameters including: 3 translations, 3 rotations, their temporal derivatives, and their quadratic terms (Satterthwaite et al., 2013), aCompCor - signals extracted from 10 orthogonal principal components (PCs) obtained separately from the eroded white matter (WM; 5 PCs) and cerebrospinal fluid (CSF; 5 PCs) masks (Muschelli et al., 2014), SpikeReg - spike regressors based on FD and DVARS thresholds (Power et al., 2013). This denoising pipeline is complementary to the pipeline used in Functional Connectivity Toolbox (CONN, Whitfield-Gabrieli & Nieto-Castanon, 2012).",
-  "confounds":
-  {
-    "wm": "False",
-    "csf": "False",
-    "gs": "False",
-    "motion":
-      {"temp_deriv": "True",
-       "quad_terms": "True"},
+  "confounds": {
+    "white_matter": {
+      "raw": "False",
+      "derivative1": "False",
+      "power2": "False",
+      "derivative1_power2": "False"
+    },
+    "csf": {
+      "raw": "False",
+      "derivative1": "False",
+      "power2": "False",
+      "derivative1_power2": "False"
+    },
+    "global_signal": {
+      "raw": "False",
+      "derivative1": "False",
+      "power2": "False",
+      "derivative1_power2": "False"
+    },
+    "motion": {
+      "raw": "True",
+      "derivative1": "True",
+      "power2": "True",
+      "derivative1_power2": "True"
+    },
     "acompcor": "True"
   },
   "aroma": "False",
-  "spikes":
-    {"fd_th": 0.5,
-     "dvars_th": 3}
+  "spikes": {
+    "fd_th": 0.5,
+    "dvars_th": 3
+  }
 }
