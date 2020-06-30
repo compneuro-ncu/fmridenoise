@@ -1,12 +1,12 @@
 from nipype.interfaces.base import (
     BaseInterfaceInputSpec, TraitedSpec, SimpleInterface,
-    InputMultiPath, OutputMultiPath, File, Directory,
-    traits, isdefined
+    File,
+    traits
 )
 
 import numpy as np
 import pandas as pd
-from nilearn.connectome import sym_matrix_to_vec, vec_to_sym_matrix
+from nilearn.connectome import sym_matrix_to_vec
 from scipy.stats import pearsonr
 from os.path import join
 from itertools import chain
