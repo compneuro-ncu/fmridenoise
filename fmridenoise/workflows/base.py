@@ -233,9 +233,9 @@ class BaseWorkflow(pe.Workflow):
             (self.pipelineselector, self.group_connectivity, [("pipeline_name", "pipeline_name")]),
             (self.taskselector, self.group_connectivity, [('task', 'task')]),
             # quality measures
-            # (self.pipelineselector, self.quality_measures, [('pipeline_name', 'pipeline_name')]),
-            # (self.group_connectivity, self.quality_measures, [('group_corr_mat', 'group_corr_mat')]),
-            # (self.group_conf_summary, self.quality_measures, [('group_conf_summary', 'group_conf_summary')]),
+            (self.pipelineselector, self.quality_measures, [('pipeline_name', 'pipeline_name')]),
+            (self.group_connectivity, self.quality_measures, [('group_corr_mat', 'group_corr_mat')]),
+            (self.group_conf_summary, self.quality_measures, [('group_conf_summary', 'group_conf_summary')]),
             # all datasinks
             ## ds_denoise
             (self.subjectselector, self.ds_denoise, [("subject", "subject")]),
@@ -251,6 +251,7 @@ class BaseWorkflow(pe.Workflow):
             (self.subjectselector, self.ds_confounds, [("subject", "subject")]),
             (self.prep_conf, self.ds_confounds, [("conf_prep", "in_file")]),
         ])
+
 
 class BaseWorkflowWithSessions(BaseWorkflow):
 
