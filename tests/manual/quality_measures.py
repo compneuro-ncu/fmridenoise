@@ -11,12 +11,12 @@ def run(output_dir: str, pipeline_name: str, group_corr_mat: str, group_conf_sum
         IdentityInterface(fields=["pipeline_name", "group_corr_mat", "distance_matrix", "group_conf_summary"]),
         name="SomeInputSource")
     identity_node.inputs.pipeline_name = pipeline_name
-    identity_node.inputs.group_corr_matt = group_corr_mat
+    identity_node.inputs.group_corr_mat = group_corr_mat
     identity_node.inputs.distance_matrix = get_distance_matrix_file_path()
     identity_node.inputs.group_conf_summary = group_conf_summary
     quality_node = Node(QualityMeasures(
         output_dir=output_dir),
-        name="Confprep")
+        name="QualitMeasures")
     workflow.connect([(identity_node, quality_node, [
         ("pipeline_name", "pipeline_name"),
         ("group_corr_mat", "group_corr_mat"),

@@ -59,52 +59,52 @@ class QualityMeasures(SimpleInterface):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-
-        self.pipeline_name = self.inputs.pipeline_name
-        self.output_dir = self.inputs.output_dir
         self.quality_measures = []
         self.edges_weights = {}
         self.edges_weights_clean = {}
         self.sample_dict = {'All': True, 'No_high_motion': False}
+        self.group_conf_summary_df: pd.DataFrame = ...  # initialized in _run_interface
+        self.group_corr_mat_arr: np.ndarray = ...  # initialized in _run_interface
+        self.distance_matrix_arr: np.ndarray = ...  # initialized in _run_interface
 
     def _validate_group_conf_summary(self):
         """Checks if correct summary data are provided.
         Each row should contain data for one subject."""
 
         # Checks if file have data inside
-        try:
-            self.group_conf_summary.values
-        except pd.errors.EmptyDataError:
-            print('Missing confounds summary data')
+        if self.group_conf_summary_df.empty:
+            raise ValueError('Missing confounds summary data (empty dataframe)')
 
         # Check if number of subjects corresponds to data frame size
-        if len(self.group_conf_summary) != len(np.unique(self.group_conf_summary['subject'])):
+        if len(self.group_conf_summary_df) != len(np.unique(self.group_conf_summary_df['subject'])):
             raise ValueError('Each subject should have only one ' +
                              'corresponding summary values.')
 
         # Check if summary contains data from a one task
-        if len(np.unique(self.group_conf_summary['task'])) > 1:
+        if len(np.unique(self.group_conf_summary_df['task'])) > 1:
             raise ValueError('Summary confouds data should contain ' +
                              'data from a one task at time.')
 
         # Check if subjects' data are not idenical
-        if check_identity(self.group_conf_summary.iloc[:, 2:].values):
+        if check_identity(self.group_conf_summary_df.iloc[:, 2:].values):
             raise ValueError('Confounds summary data of some subjects are identical.')
 
         # Check if number of subject allows to calculate summary measures
-        if len(self.group_conf_summary['subject']) < 10:
+        if len(self.group_conf_summary_df['subject']) < 10:
             warnings.warn('Quality measures may be not meaningful ' +
-                          'for small sample sizes.')
+                          'for small sample sizes.')  # TODO: Maybe push all messages like this to interface output and present it in final raport?
 
-    def _validate_fc_matrices(self):
+    def _validate_fc_matrices(self):  # NOTE: A bit of anti-patter. Name of method - validate something.
+                                      #       Does not corespond to it's functionality which validades value
+                                      #       AND assigns new object variable.
         """Checks if correct FC matrices are provided."""
 
         # Check if each matrix is symmetrical
-        for matrix in self.group_corr_mat:
+        for matrix in self.group_corr_mat_arr:
             if not check_symmetry(matrix):
                 raise ValueError('Correlation matrix is not symmetrical.')
 
-        self.group_corr_vec = sym_matrix_to_vec(self.group_corr_mat)
+        self.group_corr_vec = sym_matrix_to_vec(self.group_corr_mat_arr) # FIX: why completly new variable is created in validation method
 
         # Check if subjects' data are not idenical
         if check_identity(self.group_corr_vec):
@@ -113,7 +113,7 @@ class QualityMeasures(SimpleInterface):
 
         # Check if a number of FC matrices is the same as the nymber
         # of subjects
-        if len(self.group_corr_vec) != len(self.group_conf_summary):
+        if len(self.group_corr_vec) != len(self.group_conf_summary_df):
             raise ValueError('Number of FC matrices does not correspond ' +
                              'to the number of confound summaries.')
 
@@ -121,28 +121,28 @@ class QualityMeasures(SimpleInterface):
         """Validates distance matrix."""
 
         # Check if distance matrix has the same shape as FC matrix
-        if self.group_corr_mat[0].shape != self.distance_matrix.shape:
-            raise ValueError(f'FC matrices have shape {self.distance_matrix.shape} ' +
-                             f'while distance matrix {self.group_corr_mat[0].shape}')
+        if self.group_corr_mat_arr[0].shape != self.distance_matrix_arr.shape:
+            raise ValueError(f'FC matrices have shape {self.group_corr_mat_arr.shape} ' +
+                             f'while distance matrix {self.distance_matrix_arr.shape}')
 
-        self.distance_vector = sym_matrix_to_vec(self.distance_matrix)
+        self.distance_vector = sym_matrix_to_vec(self.distance_matrix_arr)  # FIX: same as above, function naming convention
 
     @property
     def n_subjects(self):
         """Returns total number of subjects."""
-        return len(self.group_conf_summary)
+        return len(self.group_conf_summary_df)
 
     @property
     def subjects_list(self):
         """Returns list of all subjects."""
-        return [f"sub-{sub + 1:02}" for sub in self.group_conf_summary['subject']]
+        return [f"sub-{sub}" for sub in self.group_conf_summary_df['subject']]
 
     def _get_subject_filter(self, all_subjects=True):
         """Returns filter vector with subjects included in analysis."""
         if all_subjects:
-            self.subject_filter = np.ones((self.n_subjects), dtype=bool)
+            self.subject_filter = np.ones(self.n_subjects, dtype=bool)
         else:
-            self.subject_filter = self.group_conf_summary['include'].values.astype('bool')
+            self.subject_filter = self.group_conf_summary_df['include'].values.astype('bool')
 
     def _get_n_excluded(self, subjects_filter):
         """Gets lumber of excluded subjests."""
@@ -160,7 +160,7 @@ class QualityMeasures(SimpleInterface):
 
         for i in range(n_edges):
             fc = self.group_corr_vec[subjects_filter, i]
-            fd = self.group_conf_summary['mean_fd'].values[subjects_filter]
+            fd = self.group_conf_summary_df['mean_fd'].values[subjects_filter]
             corr = pearsonr(x=fc, y=fd)
             fc_fd_corr[i], fc_fd_pval[i] = corr
 
@@ -186,15 +186,15 @@ class QualityMeasures(SimpleInterface):
 
     def dof_loss(self):
         """Calculates degrees of freedom loss."""
-        return self.group_conf_summary['n_conf'].mean()
+        return self.group_conf_summary_df['n_conf'].mean()
 
     def _get_mean_edges_dict(self, subject_filter):
         """Greates fictionary with mean edge weights for selected subject filter."""
-        self.edges_dict = {self.pipeline_name: self.group_corr_vec[subject_filter].mean(axis=0)}
+        self.edges_dict = {self.inputs.pipeline_name: self.group_corr_vec[subject_filter].mean(axis=0)}
 
     def _create_summary_dict(self, all_subjects=None, n_excluded=None):
         """Generates dictionary with all summary measures."""
-        self.fc_fd_summary = {'pipeline': self.pipeline_name,
+        self.fc_fd_summary = {'pipeline': self.inputs.pipeline_name,
                               'perc_fc_fd_uncorr': self.perc_fc_fd_uncorr(),
                               'pearson_fc_fd': self.pearson_fc_fd_median(),
                               'distance_dependence': self.distance_dependence(),
@@ -222,9 +222,12 @@ class QualityMeasures(SimpleInterface):
 
     def _make_figures(self):
         """Generates figures."""
-        make_motion_plot(self.group_conf_summary, self.pipeline_name, self.output_dir)
+        make_motion_plot(self.group_conf_summary_df, self.inputs.pipeline_name, self.inputs.output_dir)
 
     def _run_interface(self, runtime):
+        self.group_conf_summary_df = pd.read_csv(self.inputs.group_conf_summary, sep='\t', header=0)
+        self.group_corr_mat_arr = np.load(self.inputs.group_corr_mat)
+        self.distance_matrix_arr = np.load(self.inputs.distance_matrix)
         self._validate_group_conf_summary()
         self._validate_fc_matrices()
         self._validate_distance_matrix()
