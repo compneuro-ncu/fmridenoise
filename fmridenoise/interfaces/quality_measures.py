@@ -74,6 +74,12 @@ class QualityMeasures(SimpleInterface):
         # Checks if file have data inside
         if self.group_conf_summary_df.empty:
             raise ValueError('Missing confounds summary data (empty dataframe)')
+        # Checks if data frame contains proper columns
+        # confounds_fields - from confound output definition
+        confounds_fields = ['subject', 'task', 'mean_fd', 'max_fd', 'n_conf', 'include', 'n_spikes', 'perc_spikes']
+        if any(field not in self.group_conf_summary_df.columns for field in confounds_fields):
+            raise ValueError(f'Confounds file require to have columns of\n{confounds_fields}\n'
+                             f'but data frame contains only columns of\n{self.group_conf_summary_df.columns}')
 
         # Check if number of subjects corresponds to data frame size
         if len(self.group_conf_summary_df) != len(np.unique(self.group_conf_summary_df['subject'])):
@@ -92,7 +98,7 @@ class QualityMeasures(SimpleInterface):
         # Check if number of subject allows to calculate summary measures
         if len(self.group_conf_summary_df['subject']) < 10:
             warnings.warn('Quality measures may be not meaningful ' +
-                          'for small sample sizes.')  # TODO: Maybe push all messages like this to interface output and present it in final raport?
+                          'for small (lesser than 10) sample sizes.')  # TODO: Maybe push all messages like this to interface output and present it in final raport?
 
     def _validate_fc_matrices(self):  # NOTE: A bit of anti-patter. Name of method - validate something.
                                       #       Does not corespond to it's functionality which validades value
@@ -104,7 +110,7 @@ class QualityMeasures(SimpleInterface):
             if not check_symmetry(matrix):
                 raise ValueError('Correlation matrix is not symmetrical.')
 
-        self.group_corr_vec = sym_matrix_to_vec(self.group_corr_mat_arr) # FIX: why completly new variable is created in validation method
+        self.group_corr_vec = sym_matrix_to_vec(self.group_corr_mat_arr)  # FIX: why completly new variable is created in validation method
 
         # Check if subjects' data are not idenical
         if check_identity(self.group_corr_vec):
@@ -242,7 +248,7 @@ class QualityMeasures(SimpleInterface):
         return runtime
 
 
-def check_identity(matrix):
+def check_identity(matrix):  # FIX: This function does not calculates/checks what it's suppose to
     """Checks whether any row of the matrix is identical with any other row."""
     identical = []
     for a in range(len(matrix)):
