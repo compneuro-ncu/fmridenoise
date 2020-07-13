@@ -12,6 +12,7 @@ from os.path import join
 from itertools import chain
 import warnings
 from fmridenoise.utils.plotting import make_motion_plot, make_kdeplot, make_catplot
+from fmridenoise.utils.numeric import array_2d_row_identity, check_symmetry
 
 
 class QualityMeasuresInputSpec(BaseInterfaceInputSpec):
@@ -92,7 +93,7 @@ class QualityMeasures(SimpleInterface):
                              'data from a one task at time.')
 
         # Check if subjects' data are not idenical
-        if check_identity(self.group_conf_summary_df.iloc[:, 2:].values):
+        if array_2d_row_identity(self.group_conf_summary_df.iloc[:, 2:].values):
             raise ValueError('Confounds summary data of some subjects are identical.')
 
         # Check if number of subject allows to calculate summary measures
@@ -113,7 +114,7 @@ class QualityMeasures(SimpleInterface):
         self.group_corr_vec = sym_matrix_to_vec(self.group_corr_mat_arr)  # FIX: why completly new variable is created in validation method
 
         # Check if subjects' data are not idenical
-        if check_identity(self.group_corr_vec):
+        if array_2d_row_identity(self.group_corr_vec):
             raise ValueError('Connectivity values of some subjects ' +
                              'are identical.')
 
@@ -248,6 +249,8 @@ class QualityMeasures(SimpleInterface):
         return runtime
 
 
+#  NOTE: check_identity and check_symmetry moved to fmridenoise.utils.numeric
+#  NOTE: Function renamed to array_2d_row_identity
 def check_identity(matrix):  # FIX: This function does not calculates/checks what it's suppose to
     """Checks whether any row of the matrix is identical with any other row."""
     identical = []
@@ -257,9 +260,9 @@ def check_identity(matrix):  # FIX: This function does not calculates/checks wha
     return any(identical)
 
 
-def check_symmetry(matrix):
-    """Checks if matrix is symmetrical."""
-    return np.allclose(matrix, matrix.T, rtol=1e-05, atol=1e-08)
+# def check_symmetry(matrix):
+#     """Checks if matrix is symmetrical."""
+#     return np.allclose(matrix, matrix.T, rtol=1e-05, atol=1e-08)
 
 
 class MergeGroupQualityMeasuresOutputSpec(TraitedSpec):
