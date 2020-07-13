@@ -92,9 +92,11 @@ class QualityMeasures(SimpleInterface):
             raise ValueError('Summary confouds data should contain ' +
                              'data from a one task at time.')
 
-        # Check if subjects' data are not idenical
-        if array_2d_row_identity(self.group_conf_summary_df.iloc[:, 2:].values):
-            raise ValueError('Confounds summary data of some subjects are identical.')
+        # Check if subjects' numerical data are not idenical
+        num_data_columns = ['mean_fd', 'max_fd', 'n_conf', 'n_spikes', 'perc_spikes']
+        result = array_2d_row_identity(self.group_conf_summary_df[num_data_columns].values)
+        if result is not False:
+            raise ValueError('Confounds summary data of some subjects are identical')
 
         # Check if number of subject allows to calculate summary measures
         if len(self.group_conf_summary_df['subject']) < 10:
@@ -144,12 +146,12 @@ class QualityMeasures(SimpleInterface):
         """Returns list of all subjects."""
         return [f"sub-{sub}" for sub in self.group_conf_summary_df['subject']]
 
-    def _get_subject_filter(self, all_subjects=True):
+    def _get_subject_filter(self, all_subjects=True) -> np.ndarray:
         """Returns filter vector with subjects included in analysis."""
         if all_subjects:
-            self.subject_filter = np.ones(self.n_subjects, dtype=bool)
+            return np.ones(self.n_subjects, dtype=bool)
         else:
-            self.subject_filter = self.group_conf_summary_df['include'].values.astype('bool')
+            return self.group_conf_summary_df['include'].values.astype('bool')
 
     def _get_n_excluded(self, subjects_filter):
         """Gets lumber of excluded subjests."""
@@ -214,13 +216,13 @@ class QualityMeasures(SimpleInterface):
     def _quality_measures(self):
         """Iterates over subject filters to get summary measures."""
         for key, value in self.sample_dict.items():
-            self._get_subject_filter(all_subjects=value)
-            self._get_n_excluded(self.subject_filter)
-            self._get_excluded_subjects(self.subject_filter)
-            self._get_fc_fd_correlations(self.subject_filter)
+            subject_filter = self._get_subject_filter(all_subjects=value)
+            self._get_n_excluded(subject_filter)
+            self._get_excluded_subjects(subject_filter)
+            self._get_fc_fd_correlations(subject_filter)
             self._create_summary_dict(all_subjects=value, n_excluded=self.n_excluded)
             self.quality_measures.append(self.fc_fd_summary)
-            self._get_mean_edges_dict(self.subject_filter)
+            self._get_mean_edges_dict(subject_filter)
 
             if value:
                 self.edges_weight = self.edges_dict
@@ -251,6 +253,7 @@ class QualityMeasures(SimpleInterface):
 
 #  NOTE: check_identity and check_symmetry moved to fmridenoise.utils.numeric
 #  NOTE: Function renamed to array_2d_row_identity
+#  NOTE: Delete both check functions
 def check_identity(matrix):  # FIX: This function does not calculates/checks what it's suppose to
     """Checks whether any row of the matrix is identical with any other row."""
     identical = []
@@ -264,31 +267,31 @@ def check_identity(matrix):  # FIX: This function does not calculates/checks wha
 #     """Checks if matrix is symmetrical."""
 #     return np.allclose(matrix, matrix.T, rtol=1e-05, atol=1e-08)
 
-
-class MergeGroupQualityMeasuresOutputSpec(TraitedSpec):
-    fc_fd_summary = traits.List()
-    edges_weight = traits.List()
-    edges_weight_clean = traits.List()
-    exclude_list = traits.Set(traits.Str())
-
-
-class MergeGroupQualityMeasuresInputSpec(BaseInterfaceInputSpec):
-    fc_fd_summary = traits.List()
-    edges_weight = traits.List()
-    edges_weight_clean = traits.List()
-    exclude_list = traits.List(default=[])
-
-
-class MergeGroupQualityMeasures(SimpleInterface):
-    input_spec = MergeGroupQualityMeasuresInputSpec
-    output_spec = MergeGroupQualityMeasuresOutputSpec
-
-    def _run_interface(self, runtime):
-        self._results['fc_fd_summary'] = self.inputs.fc_fd_summary
-        self._results['edges_weight'] = self.inputs.edges_weight
-        self._results['edges_weight_clean'] = self.inputs.edges_weight_clean
-        self._results['exclude_list'] = set(chain(*chain(*self.inputs.exclude_list)))
-        return runtime
+#  NOTE: Delete MegreGroupQualityMeasuresOutputSpec
+# class MergeGroupQualityMeasuresOutputSpec(TraitedSpec):
+#     fc_fd_summary = traits.List()
+#     edges_weight = traits.List()
+#     edges_weight_clean = traits.List()
+#     exclude_list = traits.Set(traits.Str())
+#
+#
+# class MergeGroupQualityMeasuresInputSpec(BaseInterfaceInputSpec):
+#     fc_fd_summary = traits.List()
+#     edges_weight = traits.List()
+#     edges_weight_clean = traits.List()
+#     exclude_list = traits.List(default=[])
+#
+#
+# class MergeGroupQualityMeasures(SimpleInterface):
+#     input_spec = MergeGroupQualityMeasuresInputSpec
+#     output_spec = MergeGroupQualityMeasuresOutputSpec
+#
+#     def _run_interface(self, runtime):
+#         self._results['fc_fd_summary'] = self.inputs.fc_fd_summary
+#         self._results['edges_weight'] = self.inputs.edges_weight
+#         self._results['edges_weight_clean'] = self.inputs.edges_weight_clean
+#         self._results['exclude_list'] = set(chain(*chain(*self.inputs.exclude_list)))
+#         return runtime
 
 
 class PipelinesQualityMeasuresInputSpec(BaseInterfaceInputSpec):
