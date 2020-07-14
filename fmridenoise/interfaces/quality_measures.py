@@ -3,13 +3,12 @@ from nipype.interfaces.base import (
     File,
     traits
 )
-
+import typing as t
 import numpy as np
 import pandas as pd
 from nilearn.connectome import sym_matrix_to_vec
 from scipy.stats import pearsonr
 from os.path import join
-from itertools import chain
 import warnings
 from fmridenoise.utils.plotting import make_motion_plot, make_kdeplot, make_catplot
 from fmridenoise.utils.numeric import array_2d_row_identity, check_symmetry
@@ -63,11 +62,13 @@ class QualityMeasures(SimpleInterface):
         self.edges_weights = {}
         self.edges_weights_clean = {}
         self.sample_dict = {'All': True, 'No_high_motion': False}
+        self.__group_corr_vec_cache = None  # cache for self.group_corr_vec
+        self.__distance_vector_cache = None  # cache for self.distance_vector
         self.group_conf_summary_df: pd.DataFrame = ...  # initialized in _run_interface
         self.group_corr_mat_arr: np.ndarray = ...  # initialized in _run_interface
         self.distance_matrix_arr: np.ndarray = ...  # initialized in _run_interface
 
-    def _validate_group_conf_summary(self):
+    def _validate_group_conf_summary(self) -> None:
         """Checks if correct summary data are provided.
         Each row should contain data for one subject."""
 
@@ -102,7 +103,7 @@ class QualityMeasures(SimpleInterface):
             warnings.warn('Quality measures may be not meaningful ' +
                           'for small (lesser than 10) sample sizes.')  # TODO: Maybe push all messages like this to interface output and present it in final raport?
 
-    def _validate_fc_matrices(self):  # NOTE: A bit of anti-patter. Name of method - validate something.
+    def _validate_fc_matrices(self) -> None:  # NOTE: A bit of anti-patter. Name of method - validate something.
                                       #       Does not corespond to it's functionality which validades value
                                       #       AND assigns new object variable.
         """Checks if correct FC matrices are provided."""
@@ -112,20 +113,18 @@ class QualityMeasures(SimpleInterface):
             if not check_symmetry(matrix):
                 raise ValueError('Correlation matrix is not symmetrical.')
 
-        self.group_corr_vec = sym_matrix_to_vec(self.group_corr_mat_arr)  # FIX: why completly new variable is created in validation method
-
-        # Check if subjects' data are not idenical
-        if array_2d_row_identity(self.group_corr_vec):
+        # Check if subjects' data are not identical
+        if array_2d_row_identity(self.group_corr_vec) is not False:
             raise ValueError('Connectivity values of some subjects ' +
                              'are identical.')
 
-        # Check if a number of FC matrices is the same as the nymber
+        # Check if a number of FC matrices is the same as the number
         # of subjects
         if len(self.group_corr_vec) != len(self.group_conf_summary_df):
             raise ValueError('Number of FC matrices does not correspond ' +
                              'to the number of confound summaries.')
 
-    def _validate_distance_matrix(self):
+    def _validate_distance_matrix(self) -> None:
         """Validates distance matrix."""
 
         # Check if distance matrix has the same shape as FC matrix
@@ -133,17 +132,27 @@ class QualityMeasures(SimpleInterface):
             raise ValueError(f'FC matrices have shape {self.group_corr_mat_arr.shape} ' +
                              f'while distance matrix {self.distance_matrix_arr.shape}')
 
-        self.distance_vector = sym_matrix_to_vec(self.distance_matrix_arr)  # FIX: same as above, function naming convention
-
     @property
-    def n_subjects(self):
+    def n_subjects(self) -> int:
         """Returns total number of subjects."""
         return len(self.group_conf_summary_df)
 
     @property
-    def subjects_list(self):
+    def subjects_list(self) -> t.List[str]:
         """Returns list of all subjects."""
         return [f"sub-{sub}" for sub in self.group_conf_summary_df['subject']]
+
+    @property  # TODO: Implement cached_property/changed to functools.cached_property after update to Python 3.8
+    def group_corr_vec(self) -> np.ndarray:
+        if self.__group_corr_vec_cache is None:
+            self.__group_corr_vec_cache = sym_matrix_to_vec(self.group_corr_mat_arr)
+        return self.__group_corr_vec_cache
+
+    @property  # TODO: Implement cached_property/changed to functools.cached_property after update to Python 3.8
+    def distance_vector(self) -> np.ndarray:
+        if self.__distance_vector_cache is None:
+            self.__distance_vector_cache = sym_matrix_to_vec(self.distance_matrix_arr)
+        return self.__distance_vector_cache
 
     def _get_subject_filter(self, all_subjects=True) -> np.ndarray:
         """Returns filter vector with subjects included in analysis."""
@@ -152,13 +161,9 @@ class QualityMeasures(SimpleInterface):
         else:
             return self.group_conf_summary_df['include'].values.astype('bool')
 
-    def _get_n_excluded(self, subjects_filter):
-        """Gets lumber of excluded subjests."""
-        self.n_excluded = self.n_subjects - sum(subjects_filter)
-
-    def _get_excluded_subjects(self, subjects_filter):
+    def _get_excluded_subjects(self, subjects_filter) -> t.List[str]:  # TODO: Simplify
         """Gets list of excluded subjects."""
-        self.excluded_subjects = list(np.array(self.subjects_list)[[not i for i in subjects_filter]])
+        return list(np.array(self.subjects_list)[[not i for i in subjects_filter]])
 
     def _get_fc_fd_correlations(self, subjects_filter):
         """Calculates correlations between edges weights and mean framewise displacement
@@ -176,9 +181,7 @@ class QualityMeasures(SimpleInterface):
                 fc_fd_corr = np.nan_to_num(fc_fd_corr)
                 warnings.warn('NaN values in correlation measues; ' +
                               'replaced with zeros.')
-
-        self.fc_fd_corr = fc_fd_corr
-        self.fc_fd_pval = fc_fd_pval
+        return fc_fd_corr, fc_fd_pval
 
     def pearson_fc_fd_median(self):
         """Calculates median of FC-FD correlations."""
@@ -198,7 +201,7 @@ class QualityMeasures(SimpleInterface):
 
     def _get_mean_edges_dict(self, subject_filter):
         """Greates fictionary with mean edge weights for selected subject filter."""
-        self.edges_dict = {self.inputs.pipeline_name: self.group_corr_vec[subject_filter].mean(axis=0)}
+        return {self.inputs.pipeline_name: self.group_corr_vec[subject_filter].mean(axis=0)}
 
     def _create_summary_dict(self, all_subjects=None, n_excluded=None):
         """Generates dictionary with all summary measures."""
@@ -215,19 +218,19 @@ class QualityMeasures(SimpleInterface):
     def _quality_measures(self):
         """Iterates over subject filters to get summary measures."""
         quality_measures = []
-        for key, value in self.sample_dict.items():
+        for key, value in self.sample_dict.items():  # TODO: Result of the function depends on True/False order in self.sample_dict
             subject_filter = self._get_subject_filter(all_subjects=value)
-            self._get_n_excluded(subject_filter)
-            self._get_excluded_subjects(subject_filter)
-            self._get_fc_fd_correlations(subject_filter)
-            summary = self._create_summary_dict(all_subjects=value, n_excluded=self.n_excluded)
+            self.excluded_subjects = self._get_excluded_subjects(subject_filter) # TODO: Get rid of excluded subjects
+            n_excluded = len(self.excluded_subjects)
+            self.fc_fd_corr, self.fc_fd_pval = self._get_fc_fd_correlations(subject_filter)
+            summary = self._create_summary_dict(all_subjects=value, n_excluded=n_excluded)
             quality_measures.append(summary)
-            self._get_mean_edges_dict(subject_filter)
+            edges_dict = self._get_mean_edges_dict(subject_filter)
 
             if value:
-                self.edges_weight = self.edges_dict
+                self.edges_weight = edges_dict
             else:
-                self.edges_weight_clean = self.edges_dict
+                self.edges_weight_clean = edges_dict
         return quality_measures
 
     def _make_figures(self):
