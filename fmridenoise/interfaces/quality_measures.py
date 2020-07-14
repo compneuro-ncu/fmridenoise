@@ -60,7 +60,6 @@ class QualityMeasures(SimpleInterface):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self.quality_measures = []
         self.edges_weights = {}
         self.edges_weights_clean = {}
         self.sample_dict = {'All': True, 'No_high_motion': False}
@@ -203,31 +202,33 @@ class QualityMeasures(SimpleInterface):
 
     def _create_summary_dict(self, all_subjects=None, n_excluded=None):
         """Generates dictionary with all summary measures."""
-        self.fc_fd_summary = {'pipeline': self.inputs.pipeline_name,
-                              'perc_fc_fd_uncorr': self.perc_fc_fd_uncorr(),
-                              'pearson_fc_fd': self.pearson_fc_fd_median(),
-                              'distance_dependence': self.distance_dependence(),
-                              'tdof_loss': self.dof_loss(),
-                              'n_subjects': self.n_subjects,
-                              'n_excluded': n_excluded,
-                              'all': all_subjects,
-                              }
+        return {'pipeline': self.inputs.pipeline_name,
+                'perc_fc_fd_uncorr': self.perc_fc_fd_uncorr(),
+                'pearson_fc_fd': self.pearson_fc_fd_median(),
+                'distance_dependence': self.distance_dependence(),
+                'tdof_loss': self.dof_loss(),
+                'n_subjects': self.n_subjects,
+                'n_excluded': n_excluded,
+                'all': all_subjects,
+                }
 
     def _quality_measures(self):
         """Iterates over subject filters to get summary measures."""
+        quality_measures = []
         for key, value in self.sample_dict.items():
             subject_filter = self._get_subject_filter(all_subjects=value)
             self._get_n_excluded(subject_filter)
             self._get_excluded_subjects(subject_filter)
             self._get_fc_fd_correlations(subject_filter)
-            self._create_summary_dict(all_subjects=value, n_excluded=self.n_excluded)
-            self.quality_measures.append(self.fc_fd_summary)
+            summary = self._create_summary_dict(all_subjects=value, n_excluded=self.n_excluded)
+            quality_measures.append(summary)
             self._get_mean_edges_dict(subject_filter)
 
             if value:
                 self.edges_weight = self.edges_dict
             else:
                 self.edges_weight_clean = self.edges_dict
+        return quality_measures
 
     def _make_figures(self):
         """Generates figures."""
@@ -240,10 +241,10 @@ class QualityMeasures(SimpleInterface):
         self._validate_group_conf_summary()
         self._validate_fc_matrices()
         self._validate_distance_matrix()
-        self._quality_measures()
+        quality_measures = self._quality_measures()
         self._make_figures()
 
-        self._results['fc_fd_summary'] = self.quality_measures
+        self._results['fc_fd_summary'] = quality_measures
         self._results['edges_weight'] = self.edges_weight
         self._results['edges_weight_clean'] = self.edges_weight_clean
         self._results['exclude_list'] = self.excluded_subjects
