@@ -62,13 +62,13 @@ def make_motion_plot(group_conf_summary, pipeline_name, output_dir,
     return fig
 
 
-def make_kdeplot(dataframe, title, filename, output_dir):
+def make_kdeplot(data, title, filename, output_dir):
     """Creates and saves kdeplot from dataframes with edges."""
     sns.set_palette('colorblind', 8)
 
     fig, ax = plt.subplots(1, 1)
-    for col in dataframe:
-        sns.kdeplot(dataframe[col], shade=True)
+    for col in data:
+        sns.kdeplot(data[col], shade=True)
 
     plt.axvline(0, 0, 2, color='gray', linestyle='dashed', linewidth=1.5)
     plt.title(title)

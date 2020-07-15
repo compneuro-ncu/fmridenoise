@@ -57,16 +57,32 @@ class QualityMeasures(SimpleInterface):
     input_spec = QualityMeasuresInputSpec
     output_spec = QualityMeasuresOutputSpec
 
-    def __init__(self, *args, **kwargs):
+    def __init__(self,
+                 group_conf_summary: pd.DataFrame = None,
+                 group_corr_mat: np.ndarray = None,
+                 distance_matrix: np.ndarray = None,
+                 *args, **kwargs):
+        """
+        Initializes QualityMeasures interface.
+        group_conf_summary, group_corr_mat and distance_matrix are optional parameters meant to be provided
+        if interfaces is used as standalone class and not part of nipype workflow
+        _run_interface overwrites values provided in __init__
+        Args:
+            group_conf_summary:
+            group_corr_mat_arr:
+            distance_matrix_arr:
+            *args: nipype optional arguments
+            **kwargs: nipype optional keyword arguments
+        """
         super().__init__(*args, **kwargs)
         self.edges_weights = {}
         self.edges_weights_clean = {}
         self.sample_dict = {'All': True, 'No_high_motion': False}
         self.__group_corr_vec_cache = None  # cache for self.group_corr_vec
         self.__distance_vector_cache = None  # cache for self.distance_vector
-        self.group_conf_summary_df: pd.DataFrame = ...  # initialized in _run_interface
-        self.group_corr_mat_arr: np.ndarray = ...  # initialized in _run_interface
-        self.distance_matrix_arr: np.ndarray = ...  # initialized in _run_interface
+        self.group_conf_summary_df: pd.DataFrame = group_conf_summary  # overwritten in _run_interface
+        self.group_corr_mat_arr: np.ndarray = group_corr_mat  # overwritten in _run_interface
+        self.distance_matrix_arr: np.ndarray = distance_matrix  # overwritten in _run_interface
 
     def _validate_group_conf_summary(self) -> None:
         """Checks if correct summary data are provided.
@@ -161,26 +177,33 @@ class QualityMeasures(SimpleInterface):
         else:
             return self.group_conf_summary_df['include'].values.astype('bool')
 
-    def _get_excluded_subjects(self, subjects_filter) -> t.List[str]:  # TODO: Simplify
-        """Gets list of excluded subjects."""
-        return list(np.array(self.subjects_list)[[not i for i in subjects_filter]])
+    def _get_excluded_subjects(self, subjects_filter: t.Iterable[bool]) -> t.List[str]:
+        """
+        Returns list of subjects where value in subject_filter is False
+        Args:
+            subject_list: subject codes
+            subjects_filter: boolean values where False mean subject to exclude
 
-    def _get_fc_fd_correlations(self, subjects_filter):
+        Returns: list containing excluded subjects codes
+        """
+        ret = [ self.group_conf_summary_df['subject'][index] for index, boolean in enumerate(subjects_filter) if not boolean ]
+        return ret
+
+    def _get_fc_fd_correlations(self, subjects_filter) -> t.Tuple[np.ndarray, np.ndarray]:
         """Calculates correlations between edges weights and mean framewise displacement
         for all subjects."""
         n_edges = self.group_corr_vec.shape[1]
         fc_fd_corr, fc_fd_pval = (np.zeros(n_edges) for _ in range(2))
-
+        fd = self.group_conf_summary_df['mean_fd'].values[subjects_filter]
         for i in range(n_edges):
             fc = self.group_corr_vec[subjects_filter, i]
-            fd = self.group_conf_summary_df['mean_fd'].values[subjects_filter]
             corr = pearsonr(x=fc, y=fd)
             fc_fd_corr[i], fc_fd_pval[i] = corr
 
-            if np.isnan(fc_fd_corr).any():
-                fc_fd_corr = np.nan_to_num(fc_fd_corr)
-                warnings.warn('NaN values in correlation measues; ' +
-                              'replaced with zeros.')
+        if np.isnan(fc_fd_corr).any():
+            fc_fd_corr = np.nan_to_num(fc_fd_corr)
+            warnings.warn('NaN values in correlation measues; ' +
+                          'replaced with zeros.')
         return fc_fd_corr, fc_fd_pval
 
     def pearson_fc_fd_median(self):
@@ -359,17 +382,15 @@ class PipelinesQualityMeasures(SimpleInterface):
     input_spec = PipelinesQualityMeasuresInputSpec
     output_spec = PipelinesQualityMeasuresOutputSpec
 
-    def _get_pipeline_summaries(self):
+    def _get_pipeline_summaries(self) -> pd.DataFrame:
         """Gets and saves table with quality measures for each pipeline"""
         self.pipelines_fc_fd_summary = pd.DataFrame()
 
         for pipeline in self.inputs.fc_fd_summary:
             self.pipelines_fc_fd_summary = pd.concat([self.pipelines_fc_fd_summary,
-                                                      pd.DataFrame(pipeline, index=[0])],
-                                                     axis=0)
-
-        self.fname1 = join(self.inputs.output_dir, f"pipelines_fc_fd_summary.tsv")
-        self.pipelines_fc_fd_summary.to_csv(self.fname1, sep='\t', index=False)
+                                                 pd.DataFrame(pipeline, index=[0])],
+                                                 axis=0)
+        return self.pipelines_fc_fd_summary
 
     def _get_pipelines_edges_weight(self):
         """Gets and saves tables with mean edges weights for raw and cleaned data"""
@@ -385,18 +406,15 @@ class PipelinesQualityMeasures(SimpleInterface):
                                                            pd.DataFrame(self.inputs.edges_weight[edges_clean],
                                                                         columns=[edges_clean])],
                                                           axis=1)
-        self.fname2 = join(self.inputs.output_dir, f"pipelines_edges_weight.tsv")
-        self.fname3 = join(self.inputs.output_dir, f"pipelines_edges_weight_clean.tsv")
-        self.pipelines_edges_weight.to_csv(self.fname2, sep='\t', index=False)
-        self.pipelines_edges_weight_clean.to_csv(self.fname3, sep='\t', index=False)
+        return self.pipelines_edges_weight, self.pipelines_edges_weight_clean
 
     def _make_summary_figures(self):
         """Makes summary figures for all quality mesures"""
-        self.plot_pipelines_edges_density = make_kdeplot(data=pipelines_edges_weight,
+        self.plot_pipelines_edges_density = make_kdeplot(data=self.pipelines_edges_weight,
                                                          title="Density of edge weights (all subjects)",
                                                          filename="pipelines_edges_density",
                                                          output_dir=self.inputs.output_dir)
-        self.plot_pipelines_edges_density_clean = make_kdeplot(data=pipelines_edges_weight_clean,
+        self.plot_pipelines_edges_density_clean = make_kdeplot(data=self.pipelines_edges_weight_clean,
                                                                title="Density of edge weights (no high motion)",
                                                                filename="pipelines_edges_density_no_high_motion",
                                                                output_dir=self.inputs.output_dir)
@@ -422,13 +440,23 @@ class PipelinesQualityMeasures(SimpleInterface):
                                            output_dir=self.inputs.output_dir)
 
     def _run_interface(self, runtime):
-        self._get_pipeline_summaries()
-        self._get_pipelines_edges_weight()
+        summary = self._get_pipeline_summaries()
+        pipelines_edges_weight, pipelines_edges_weight_clean = self._get_pipelines_edges_weight()
+
         self._make_summary_figures()
 
-        self._results['pipelines_fc_fd_summary'] = self.fname1
-        self._results['pipelines_edges_weight'] = self.fname2
-        self._results['pipelines_edges_weight_clean'] = self.fname3
+        pipelines_fc_fd_summary_file = join(self.inputs.output_dir, f"pipelines_fc_fd_summary.tsv")
+        summary.to_csv(pipelines_fc_fd_summary_file, sep='\t', index=False)
+
+        pipelines_edges_weigh_file = join(self.inputs.output_dir, f"pipelines_edges_weight.tsv")
+        pipelines_edges_weight.to_csv(pipelines_edges_weigh_file, sep='\t', index=False)
+
+        pipelines_edges_weight_clean_file = join(self.inputs.output_dir, f"pipelines_edges_weight_clean.tsv")
+        pipelines_edges_weight_clean.to_csv(pipelines_edges_weight_clean_file, sep='\t', index=False)
+
+        self._results['pipelines_fc_fd_summary'] = pipelines_fc_fd_summary_file
+        self._results['pipelines_edges_weight'] = pipelines_edges_weigh_file
+        self._results['pipelines_edges_weight_clean'] = pipelines_edges_weight_clean_file
         self._results['plot_pipeline_edges_density'] = self.plot_pipelines_edges_density
         self._results['plot_pipelines_edges_density_no_high_motion'] = self.plot_pipelines_edges_density_clean
         self._results['plot_pipelines_distance_dependence'] = self.plot_distance_dependence
