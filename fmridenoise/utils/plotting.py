@@ -23,10 +23,12 @@ def make_motion_plot(group_conf_summary, pipeline_name, output_dir,
     plt.rc('legend', fontsize=small)  # legend fontsize
     plt.rc('lines', linewidth=2.2, color='gray')
 
-    columns = ['mean_fd', 'max_fd', 'perc_spikes']
-    thresholds = [mean_fd_th, max_fd_th, perc_spikes_th]
-
-    fig, axes = plt.subplots(1, 3, figsize=(16, 7))
+    columns = ['mean_fd', 'max_fd']
+    thresholds = [mean_fd_th, max_fd_th]
+    if 'perc_spikes' in group_conf_summary.columns:
+        columns += ['perc_spikes']
+        thresholds += [perc_spikes_th]
+    fig, axes = plt.subplots(1, len(columns), figsize=(16, 7))
     fig.subplots_adjust(wspace=0.4, hspace=0.4)
 
     for i, (column, threshold) in enumerate(zip(columns, thresholds)):

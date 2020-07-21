@@ -5,41 +5,41 @@ from fmridenoise.utils.report import create_report
 
 class ReportCreatorInputSpec(BaseInterfaceInputSpec):
     pipelines = List(Dict(), mandatory=True)
+    tasks = List(Str(), mandaory=True)
+    output_dir = Directory(exists=True)
 
-    pipelines_names = List(Str(), mandatory=True)
+    # excluded_subjects = List(Str(), value=())
 
-    group_data_dir = Directory(exists=True)
-
-    excluded_subjects = List(Str(), value=())
-
-    plot_pipeline_edges_density = File(
+    plot_pipelines_edges_density = List(File(
         exists=True,
         desc="Density of edge weights (all subjects)"
-    )
+    ))
 
-    plot_pipelines_edges_density_no_high_motion = File(
+    plot_pipelines_edges_density_no_high_motion = List(File(
         exist=True,
         desc="Density of edge weights (no high motion)"
-    )
+    ))
 
-    plot_pipelines_fc_fd_pearson = File(
+    plot_pipelines_fc_fd_pearson = List(File(
         exist=True
-    )
+    ))
 
-    plot_pipelines_fc_fd_uncorr = File(
+    plot_pipelines_fc_fd_uncorr = List(File(
         exist=True
-    )
+    ))
 
-    plot_pipelines_distance_dependence = File(
+    plot_pipelines_distance_dependence = List(File(
         exist=True
-    )
+    ))
 
 
 class ReportCreator(SimpleInterface):
     input_spec = ReportCreatorInputSpec
 
     def _run_interface(self, runtime):
-        create_report(self.inputs.group_data_dir,
-                      self.inputs.pipelines,
-                      self.inputs.excluded_subjects)
+        # create_report(self.inputs.group_data_dir,
+        #               self.inputs.pipelines,
+        #               self.inputs.excluded_subjects)
+        with open("/home/siegfriedwagner/log.log") as f:
+            f.writelines('Called\n' + self.inputs + '\m' + self.inputs.pipelines)
         return runtime

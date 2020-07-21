@@ -12,6 +12,7 @@ from os.path import join
 import warnings
 from fmridenoise.utils.plotting import make_motion_plot, make_kdeplot, make_catplot
 from fmridenoise.utils.numeric import array_2d_row_identity, check_symmetry
+from fmridenoise.utils.entities import EntityDict
 
 
 class QualityMeasuresInputSpec(BaseInterfaceInputSpec):
@@ -58,9 +59,6 @@ class QualityMeasures(SimpleInterface):
     output_spec = QualityMeasuresOutputSpec
 
     def __init__(self,
-                 group_conf_summary: pd.DataFrame = None,
-                 group_corr_mat: np.ndarray = None,
-                 distance_matrix: np.ndarray = None,
                  *args, **kwargs):
         """
         Initializes QualityMeasures interface.
@@ -80,11 +78,11 @@ class QualityMeasures(SimpleInterface):
         self.sample_dict = {'All': True, 'No_high_motion': False}
         self.__group_corr_vec_cache = None  # cache for self.group_corr_vec
         self.__distance_vector_cache = None  # cache for self.distance_vector
-        self.group_conf_summary_df: pd.DataFrame = group_conf_summary  # overwritten in _run_interface
-        self.group_corr_mat_arr: np.ndarray = group_corr_mat  # overwritten in _run_interface
-        self.distance_matrix_arr: np.ndarray = distance_matrix  # overwritten in _run_interface
+        self.group_conf_summary_df: pd.DataFrame = ...  # initialized in _run_interface
+        self.group_corr_mat_arr: np.ndarray = ...  # initialized in _run_interface
+        self.distance_matrix_arr: np.ndarray = ...  # initialized in _run_interface
 
-    def _validate_group_conf_summary(self) -> None:
+    def _validate_group_conf_summary(self) -> None:  # TODO: Create test cases for validation covering all scenarios
         """Checks if correct summary data are provided.
         Each row should contain data for one subject."""
 
@@ -93,10 +91,16 @@ class QualityMeasures(SimpleInterface):
             raise ValueError('Missing confounds summary data (empty dataframe)')
         # Checks if data frame contains proper columns
         # confounds_fields - from confound output definition
-        confounds_fields = ['subject', 'task', 'mean_fd', 'max_fd', 'n_conf', 'include', 'n_spikes', 'perc_spikes']
-        if any(field not in self.group_conf_summary_df.columns for field in confounds_fields):
-            raise ValueError(f'Confounds file require to have columns of\n{confounds_fields}\n'
+        all_possible_fields = {'subject', 'task', 'session', 'mean_fd', 'max_fd', 'n_conf', 'include', 'n_spikes', 'perc_spikes'}
+        mandatory_fields = {'subject', 'task', 'mean_fd', 'max_fd', 'n_conf', 'include'}
+        provided_fields = set(self.group_conf_summary_df.columns)
+        excess_fields = provided_fields - all_possible_fields
+        mandatory_provided = provided_fields >= mandatory_fields
+        if not mandatory_provided:
+            raise ValueError(f'Confounds file require to have columns of\n{mandatory_fields}\n'
                              f'but data frame contains only columns of\n{self.group_conf_summary_df.columns}')
+        if len(excess_fields) > 0:
+            raise ValueError(f"Confounds file has excess fields {excess_fields}, check input dataframe")
 
         # Check if number of subjects corresponds to data frame size
         if len(self.group_conf_summary_df) != len(np.unique(self.group_conf_summary_df['subject'])):
@@ -109,8 +113,8 @@ class QualityMeasures(SimpleInterface):
                              'data from a one task at time.')
 
         # Check if subjects' numerical data are not idenical
-        num_data_columns = ['mean_fd', 'max_fd', 'n_conf', 'n_spikes', 'perc_spikes']
-        result = array_2d_row_identity(self.group_conf_summary_df[num_data_columns].values)
+        num_data_columns = {'mean_fd', 'max_fd', 'n_conf', 'n_spikes', 'perc_spikes'}
+        result = array_2d_row_identity(self.group_conf_summary_df[provided_fields & num_data_columns].values)
         if result is not False:
             raise ValueError('Confounds summary data of some subjects are identical')
 
@@ -278,64 +282,37 @@ class QualityMeasures(SimpleInterface):
         return runtime
 
 
-#  NOTE: check_identity and check_symmetry moved to fmridenoise.utils.numeric
-#  NOTE: Function renamed to array_2d_row_identity
-#  NOTE: Delete both check functions
-def check_identity(matrix):  # FIX: This function does not calculates/checks what it's suppose to
-    """Checks whether any row of the matrix is identical with any other row."""
-    identical = []
-    for a in range(len(matrix)):
-        for b in range(a):
-            identical.append(np.allclose(a, b, rtol=1e-05, atol=1e-08))
-    return any(identical)
-
-
-# def check_symmetry(matrix):
-#     """Checks if matrix is symmetrical."""
-#     return np.allclose(matrix, matrix.T, rtol=1e-05, atol=1e-08)
-
-#  NOTE: Delete MegreGroupQualityMeasuresOutputSpec
-# class MergeGroupQualityMeasuresOutputSpec(TraitedSpec):
-#     fc_fd_summary = traits.List()
-#     edges_weight = traits.List()
-#     edges_weight_clean = traits.List()
-#     exclude_list = traits.Set(traits.Str())
-#
-#
-# class MergeGroupQualityMeasuresInputSpec(BaseInterfaceInputSpec):
-#     fc_fd_summary = traits.List()
-#     edges_weight = traits.List()
-#     edges_weight_clean = traits.List()
-#     exclude_list = traits.List(default=[])
-#
-#
-# class MergeGroupQualityMeasures(SimpleInterface):
-#     input_spec = MergeGroupQualityMeasuresInputSpec
-#     output_spec = MergeGroupQualityMeasuresOutputSpec
-#
-#     def _run_interface(self, runtime):
-#         self._results['fc_fd_summary'] = self.inputs.fc_fd_summary
-#         self._results['edges_weight'] = self.inputs.edges_weight
-#         self._results['edges_weight_clean'] = self.inputs.edges_weight_clean
-#         self._results['exclude_list'] = set(chain(*chain(*self.inputs.exclude_list)))
-#         return runtime
-
-
 class PipelinesQualityMeasuresInputSpec(BaseInterfaceInputSpec):
     fc_fd_summary = traits.List(
-        exists=True,
-        desc="QC-FC quality measures")
+        traits.List(
+            traits.Dict(
+                desc="QC-FC quality measures"),
+            desc="QC-FC quality measure for all subjects and without excluded subjects"
+        ),
+        desc="QC-FC quality measures for each pipeline"
+    )
 
-    edges_weight = traits.Dict(
-        exists=True,
-        desc="Weights of individual edges")
+    edges_weight = traits.List(
+        traits.Dict(
+            mandatory=True,
+            desc="Weights of individual edges"),
+        desc="Mean weights of individual edges for each pipeline"
+    )
 
-    edges_weight_clean = traits.Dict(
-        exists=True,
-        desc="Mean weights of individual edges (no high motion)")
+    edges_weight_clean = traits.List(
+        traits.Dict(
+             desc="Mean weights of individual edges (no high motion)"),
+        desc="Mean weights of individual edges for each pipeline (no high motion)"
+    )
 
     output_dir = File(  # needed to save data in other directory
         desc="Output path")  # TODO: Implement temp dir
+
+    task = traits.Str(
+        desc="Task name")
+
+    session = traits.Str(
+        desc="Session name")
 
 
 class PipelinesQualityMeasuresOutputSpec(TraitedSpec):
@@ -351,7 +328,7 @@ class PipelinesQualityMeasuresOutputSpec(TraitedSpec):
         exists=False,
         desc="Group weights of individual edges")
 
-    plot_pipeline_edges_density = File(
+    plot_pipelines_edges_density = File(
         exists=False,
         desc="Density of edge weights (all subjects)"
     )
@@ -373,12 +350,13 @@ class PipelinesQualityMeasuresOutputSpec(TraitedSpec):
         exist=False
     )
 
-    plot_pipelines_tdof_loss = File(
+    plot_pipelines_tdof_loss = File(  # TODO: Include in final report?
         exist=False
     )
 
 
 class PipelinesQualityMeasures(SimpleInterface):
+    # TODO: Check density edges plot - looks suspicious
     input_spec = PipelinesQualityMeasuresInputSpec
     output_spec = PipelinesQualityMeasuresOutputSpec
 
@@ -386,10 +364,11 @@ class PipelinesQualityMeasures(SimpleInterface):
         """Gets and saves table with quality measures for each pipeline"""
         self.pipelines_fc_fd_summary = pd.DataFrame()
 
-        for pipeline in self.inputs.fc_fd_summary:
-            self.pipelines_fc_fd_summary = pd.concat([self.pipelines_fc_fd_summary,
-                                                 pd.DataFrame(pipeline, index=[0])],
-                                                 axis=0)
+        for quality_measures in self.inputs.fc_fd_summary:
+            for all_subjects_or_no in quality_measures:
+                self.pipelines_fc_fd_summary = pd.concat([self.pipelines_fc_fd_summary,
+                                                          pd.DataFrame(all_subjects_or_no, index=[0])],
+                                                          axis=0)
         return self.pipelines_fc_fd_summary
 
     def _get_pipelines_edges_weight(self):
@@ -398,66 +377,82 @@ class PipelinesQualityMeasures(SimpleInterface):
         self.pipelines_edges_weight_clean = pd.DataFrame()
 
         for edges, edges_clean in zip(self.inputs.edges_weight, self.inputs.edges_weight_clean):
+            pipeline_name = list(edges.keys())[0]
             self.pipelines_edges_weight = pd.concat([self.pipelines_edges_weight,
-                                                     pd.DataFrame(self.inputs.edges_weight[edges],
-                                                                  columns=[edges])],
+                                                     pd.DataFrame(edges,
+                                                                  columns=[pipeline_name])],
                                                     axis=1)
             self.pipelines_edges_weight_clean = pd.concat([self.pipelines_edges_weight_clean,
-                                                           pd.DataFrame(self.inputs.edges_weight[edges_clean],
-                                                                        columns=[edges_clean])],
+                                                           pd.DataFrame(edges_clean,
+                                                                        columns=[pipeline_name])],
                                                           axis=1)
         return self.pipelines_edges_weight, self.pipelines_edges_weight_clean
 
-    def _make_summary_figures(self):
+    def _make_summary_figures(self, entities_dict):
         """Makes summary figures for all quality mesures"""
+        if 'extension' in entities_dict.keys():
+            del entities_dict['extension']
+        entities_dict.overwrite('suffix', 'pipelinesEdgesDensity')
         self.plot_pipelines_edges_density = make_kdeplot(data=self.pipelines_edges_weight,
                                                          title="Density of edge weights (all subjects)",
-                                                         filename="pipelines_edges_density",
+                                                         filename=entities_dict.build_filename({'ses': False, 'task': True}),
                                                          output_dir=self.inputs.output_dir)
+        entities_dict.overwrite('suffix', 'pipelinesEdgesDensityNoHighMotion')
         self.plot_pipelines_edges_density_clean = make_kdeplot(data=self.pipelines_edges_weight_clean,
                                                                title="Density of edge weights (no high motion)",
-                                                               filename="pipelines_edges_density_no_high_motion",
+                                                               filename=entities_dict.build_filename({'ses': False, 'task': True}),
                                                                output_dir=self.inputs.output_dir)
+        entities_dict.overwrite('suffix', 'fcFdPearson')
         self.plot_fc_fd_pearson = make_catplot(x="pearson_fc_fd",
                                                data=self.pipelines_fc_fd_summary,
                                                xlabel="QC-FC (Pearson's r)",
-                                               filename="plot-fc_fd_pearson",
+                                               filename=entities_dict.build_filename({'ses': False, 'task': True}),
                                                output_dir=self.inputs.output_dir)
+        entities_dict.overwrite('suffix', 'percFcFdUncorr')
         self.perc_plot_fc_fd_uncorr = make_catplot(x="perc_fc_fd_uncorr",
                                                    data=self.pipelines_fc_fd_summary,
                                                    xlabel="QC-FC uncorrected (%)",
-                                                   filename="plot-perc_fc_fd_uncorr",
+                                                   filename=entities_dict.build_filename({'ses': False, 'task': True}),
                                                    output_dir=self.inputs.output_dir)
+        entities_dict.overwrite('suffix', 'distanceDependence')
         self.plot_distance_dependence = make_catplot(x="distance_dependence",
                                                      data=self.pipelines_fc_fd_summary,
                                                      xlabel="Distance-dependence",
-                                                     filename="plot-distance_dependence",
+                                                     filename=entities_dict.build_filename({'ses': False, 'task': True}),
                                                      output_dir=self.inputs.output_dir)
+        entities_dict.overwrite('suffix', 'tdofLoss')
         self.plot_tdof_loss = make_catplot(x="tdof_loss",
                                            data=self.pipelines_fc_fd_summary,
                                            xlabel="fDOF-loss",
-                                           filename="plot-tdof_loss",
+                                           filename=entities_dict.build_filename({'ses': False, 'task': True}),
                                            output_dir=self.inputs.output_dir)
 
     def _run_interface(self, runtime):
         summary = self._get_pipeline_summaries()
         pipelines_edges_weight, pipelines_edges_weight_clean = self._get_pipelines_edges_weight()
-
-        self._make_summary_figures()
-
-        pipelines_fc_fd_summary_file = join(self.inputs.output_dir, f"pipelines_fc_fd_summary.tsv")
+        self.entities_dict = EntityDict(task=self.inputs.task)
+        if self.inputs.session != traits.Undefined:
+            self.entities_dict['session'] = self.inputs.session
+        self._make_summary_figures(self.entities_dict)
+        self.entities_dict.overwrite('suffix', 'pipelinesFcFdSummary')
+        self.entities_dict.overwrite('extension', 'tsv')
+        pipelines_fc_fd_summary_file = join(self.inputs.output_dir, self.entities_dict.build_filename({
+            'ses': False,
+            'task': True}))
         summary.to_csv(pipelines_fc_fd_summary_file, sep='\t', index=False)
-
-        pipelines_edges_weigh_file = join(self.inputs.output_dir, f"pipelines_edges_weight.tsv")
+        self.entities_dict.overwrite('suffix', 'pipelinesEdgesWeight')
+        self.entities_dict.overwrite('extension', 'tsv')
+        pipelines_edges_weigh_file = join(self.inputs.output_dir, self.entities_dict.build_filename({'ses': False, 'task': True}))
         pipelines_edges_weight.to_csv(pipelines_edges_weigh_file, sep='\t', index=False)
-
-        pipelines_edges_weight_clean_file = join(self.inputs.output_dir, f"pipelines_edges_weight_clean.tsv")
+        self.entities_dict.overwrite('suffix', 'pipelinesEdgesWeightClean')
+        self.entities_dict.overwrite('extension', 'tsv')
+        pipelines_edges_weight_clean_file = join(self.inputs.output_dir, self.entities_dict.build_filename({'ses': False, 'task': True}))
         pipelines_edges_weight_clean.to_csv(pipelines_edges_weight_clean_file, sep='\t', index=False)
 
         self._results['pipelines_fc_fd_summary'] = pipelines_fc_fd_summary_file
         self._results['pipelines_edges_weight'] = pipelines_edges_weigh_file
         self._results['pipelines_edges_weight_clean'] = pipelines_edges_weight_clean_file
-        self._results['plot_pipeline_edges_density'] = self.plot_pipelines_edges_density
+        self._results['plot_pipelines_edges_density'] = self.plot_pipelines_edges_density
         self._results['plot_pipelines_edges_density_no_high_motion'] = self.plot_pipelines_edges_density_clean
         self._results['plot_pipelines_distance_dependence'] = self.plot_distance_dependence
         self._results['plot_pipelines_fc_fd_pearson'] = self.plot_fc_fd_pearson

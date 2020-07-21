@@ -278,9 +278,9 @@ class GroupConfounds(SimpleInterface):
             with open(summary_json_file, 'r') as f:
                 group_conf_summary = group_conf_summary.append(pd.DataFrame(json.load(f), index=[0]))
         if self.inputs.session:
-            base =  f"ses-{self.inputs.session}_task-{self.inputs.task}_pipeline-{self.inputs.pipeline_name}_groupConfSummary.tsv"
+            base = f"ses-{self.inputs.session}_task-{self.inputs.task}_pipeline-{self.inputs.pipeline_name}_groupConfSummary.tsv"
         else:
-            base =  f"task-{self.inputs.task}_pipeline-{self.inputs.pipeline_name}_groupConfSummary.tsv"
+            base = f"task-{self.inputs.task}_pipeline-{self.inputs.pipeline_name}_groupConfSummary.tsv"
         fname = os.path.join(self.inputs.output_dir, base)
         assert not os.path.exists(fname)
         group_conf_summary.to_csv(fname, sep='\t', index=False)

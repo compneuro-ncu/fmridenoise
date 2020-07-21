@@ -31,7 +31,7 @@ class EntityDict(dict):
     def __str__(self) -> str:
         return json.dumps(self)
 
-    def overwrite(self, key: str, value: t.Any) -> None:
+    def overwrite(self, key: str, value: t.Any) -> None:  # TODO: Replace key, value with **kwargs
         """
         Sets value no matter what previous value was
         Args:
@@ -51,7 +51,9 @@ class EntityDict(dict):
         {entity0}-{entity_val0}_{entity1}-{entity_val1}_..._{suffix}.{extension}
         Args:
             entities: dictionary of entity name keys included in building filename and boolean values determining
-            if value is mandatory in filename
+            if value is mandatory in filename. If boolean value is true and entity value is available then
+            it's included in filename. If boolean value is false then entity is included in filename if it has value.
+            If boolean is value is true and there is no corresponding value then error is raised.
         Returns: filename created using selected entities, suffix (if available) and file extension (if available)
         """
         filename = ""

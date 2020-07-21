@@ -1,19 +1,21 @@
+from nipype.interfaces.base import traits
 from nipype.pipeline import engine as pe
 from nipype import Node, IdentityInterface
+
 from fmridenoise.interfaces.smoothing import Smooth
 from fmridenoise.interfaces.bids import BIDSGrab, BIDSDataSink, BIDSValidate
 from fmridenoise.interfaces.confounds import Confounds, GroupConfounds
 from fmridenoise.interfaces.denoising import Denoise
 from fmridenoise.interfaces.connectivity import Connectivity, GroupConnectivity
 from fmridenoise.interfaces.pipeline_selector import PipelineSelector
-from fmridenoise.interfaces.quality_measures import QualityMeasures, PipelinesQualityMeasures, MergeGroupQualityMeasures
+from fmridenoise.interfaces.quality_measures import QualityMeasures, PipelinesQualityMeasures
 from fmridenoise.interfaces.report_creator import ReportCreator
 import fmridenoise.utils.temps as temps
+from fmridenoise.interfaces.utils import JoinPipelines, JoinPipelineQualityMeasures
 from fmridenoise.parcellation import get_parcelation_file_path, get_distance_matrix_file_path
 from fmridenoise.pipelines import get_pipelines_paths
 import logging
 import os
-from fmridenoise.interfaces.mocks import denoising, settings
 logger = logging.getLogger("runtime")
 handler = logging.FileHandler("./runtime.log")
 logger.setLevel(logging.DEBUG)
@@ -46,6 +48,16 @@ class BaseWorkflow(pe.Workflow):
             name="SubjectSelector")
         self.subjectselector.iterables = ('subject', bids_validate_result.outputs.subjects)
         # Outputs: subject
+
+        # Inputs: fulfilled
+        # self.sessionselector = Node(
+        #     IdentityInterface(
+        #         fields=['session']),
+        #     name="SessionSelector")
+        # if bids_validate_result.outputs.session:
+        #     self.sessionselector.iterables = ('session', bids_validate_result.outputs.sessions)
+        # else:
+        #     self.sessionselector.iterables = ('session', [traits.Undefined])
 
         # Inputs: fulfilled
         self.taskselector = Node(
@@ -101,11 +113,10 @@ class BaseWorkflow(pe.Workflow):
         # 5) --- Connectivity estimation
 
         # Inputs: fmri_denoised
-        parcellation_path = get_parcelation_file_path()
         self.connectivity = Node(
             Connectivity(
                 output_dir=temps.mkdtemp('connectivity'),
-                parcellation=parcellation_path
+                parcellation=get_parcelation_file_path()
             ),
             name='ConnCalc')
         # Outputs: conn_mat, carpet_plot
@@ -154,36 +165,43 @@ class BaseWorkflow(pe.Workflow):
             name="QualityMeasures")
         # Outputs: fc_fd_summary, edges_weight, edges_weight_clean
 
-        # 9) --- Merge quality measures into lists for further processing
-
-        # Inputs: fc_fd_summary, edges_weight, edges_weight_clean
-
-        merge_quality_measures = pe.JoinNode(MergeGroupQualityMeasures(),
-                                             joinsource=self.pipelineselector,
-                                             name="Merge")
-
-        # Outputs: fc_fd_summary, edges_weight
-
         # 10) --- Quality measures across pipelines
 
         # Inputs: fc_fd_summary, edges_weight
-
-        pipelines_quality_measures = pe.Node(
+        self.pipelines_join = pe.JoinNode(
+            JoinPipelines(),
+            name='JoinPipelines',
+            joinsource=self.pipelineselector,
+            joinfield=['pipelines']
+        )
+        self.pipelines_quality_measures = pe.JoinNode(
             PipelinesQualityMeasures(
-                output_dir=os.path.join(bids_dir, 'derivatives', 'fmridenoise'),
+                output_dir=os.path.join(bids_dir, 'derivatives', 'fmridenoise'),  # TODO: Replace with datasinks for needed output
             ),
-            name="PipelinesQC")
+            joinsource=self.pipelineselector,
+            joinfield=['fc_fd_summary', 'edges_weight', 'edges_weight_clean'],
+            name="PipelinesQualityMeasures")
 
+        self.quality_measures_join  = pe.JoinNode(
+            JoinPipelineQualityMeasures(),
+            name="JoinPipelinesQualityMeasures",
+            joinsource=self.taskselector,  # TODO: Include dataflow where sessions are present (another join)
+            joinfield=['plot_pipelines_edges_density',
+                       'plot_pipelines_edges_density_no_high_motion',
+                       'plot_pipelines_fc_fd_pearson',
+                       'plot_pipelines_fc_fd_uncorr',
+                       'plot_pipelines_distance_dependence',
+                       'tasks'],
+        )
         # Outputs: pipelines_fc_fd_summary, pipelines_edges_weight
 
         # 11) --- Report from data
-
-        report_creator = pe.JoinNode(
+        report_dir = os.path.join(bids_dir, 'derivatives', 'fmridenoise', 'report')
+        os.makedirs(report_dir, exist_ok=True)
+        self.report_creator = pe.Node(
             ReportCreator(
-                group_data_dir=os.path.join(bids_dir, 'derivatives', 'fmridenoise')
+                output_dir=report_dir
             ),
-            joinsource=self.pipelineselector,
-            joinfield=['pipelines', 'pipelines_names'],
             name='ReportCreator')
 
         # 12) --- Save derivatives
@@ -236,6 +254,30 @@ class BaseWorkflow(pe.Workflow):
             (self.pipelineselector, self.quality_measures, [('pipeline_name', 'pipeline_name')]),
             (self.group_connectivity, self.quality_measures, [('group_corr_mat', 'group_corr_mat')]),
             (self.group_conf_summary, self.quality_measures, [('group_conf_summary', 'group_conf_summary')]),
+            # pipeline quality measures
+            (self.taskselector, self.pipelines_quality_measures, [('task', 'task')]),
+            (self.quality_measures, self.pipelines_quality_measures, [('fc_fd_summary', 'fc_fd_summary'),
+                                                                      ('edges_weight', 'edges_weight'),
+                                                                      ('edges_weight_clean', 'edges_weight_clean')]),
+            # report creator
+            (self.pipelineselector, self.pipelines_join, [('pipeline', 'pipelines')]),
+            (self.pipelines_join, self.report_creator, [('pipelines', 'pipelines')]),
+            (self.pipelines_quality_measures, self.quality_measures_join,
+             [('plot_pipelines_edges_density', 'plot_pipelines_edges_density'),
+              ('plot_pipelines_edges_density_no_high_motion', 'plot_pipelines_edges_density_no_high_motion'),
+              ('plot_pipelines_fc_fd_pearson', 'plot_pipelines_fc_fd_pearson'),
+              ('plot_pipelines_fc_fd_uncorr', 'plot_pipelines_fc_fd_uncorr'),
+              ('plot_pipelines_distance_dependence', 'plot_pipelines_distance_dependence')
+              ]),
+            (self.taskselector, self.quality_measures_join, [('task', 'tasks')]),
+            (self.quality_measures_join, self.report_creator,
+             [('tasks', 'tasks'),
+              ('plot_pipelines_edges_density', 'plot_pipelines_edges_density'),
+              ('plot_pipelines_edges_density_no_high_motion', 'plot_pipelines_edges_density_no_high_motion'),
+              ('plot_pipelines_fc_fd_pearson', 'plot_pipelines_fc_fd_pearson'),
+              ('plot_pipelines_fc_fd_uncorr', 'plot_pipelines_fc_fd_uncorr'),
+              ('plot_pipelines_distance_dependence', 'plot_pipelines_distance_dependence')
+              ]),
             # all datasinks
             ## ds_denoise
             (self.subjectselector, self.ds_denoise, [("subject", "subject")]),
