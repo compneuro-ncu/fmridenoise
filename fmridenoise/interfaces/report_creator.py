@@ -9,7 +9,7 @@ class ReportCreatorInputSpec(BaseInterfaceInputSpec):
     output_dir = Directory(exists=True)
 
     # excluded_subjects = List(Str(), value=())
-
+    # sessions = List(Str(), mandatory=False)
     plot_pipelines_edges_density = List(File(
         exists=True,
         desc="Density of edge weights (all subjects)"
@@ -40,6 +40,6 @@ class ReportCreator(SimpleInterface):
         # create_report(self.inputs.group_data_dir,
         #               self.inputs.pipelines,
         #               self.inputs.excluded_subjects)
-        with open("/home/siegfriedwagner/log.log") as f:
+        with open(f"{self.inputs.output_dir}/log.log", 'a') as f:
             f.writelines('Called\n' + self.inputs + '\m' + self.inputs.pipelines)
         return runtime

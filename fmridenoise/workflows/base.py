@@ -11,7 +11,6 @@ from fmridenoise.interfaces.pipeline_selector import PipelineSelector
 from fmridenoise.interfaces.quality_measures import QualityMeasures, PipelinesQualityMeasures
 from fmridenoise.interfaces.report_creator import ReportCreator
 import fmridenoise.utils.temps as temps
-from fmridenoise.interfaces.utils import JoinPipelines, JoinPipelineQualityMeasures
 from fmridenoise.parcellation import get_parcelation_file_path, get_distance_matrix_file_path
 from fmridenoise.pipelines import get_pipelines_paths
 import logging
@@ -169,7 +168,7 @@ class BaseWorkflow(pe.Workflow):
 
         # Inputs: fc_fd_summary, edges_weight
         self.pipelines_join = pe.JoinNode(
-            JoinPipelines(),
+            IdentityInterface(fields=['pipelines']),
             name='JoinPipelines',
             joinsource=self.pipelineselector,
             joinfield=['pipelines']
@@ -183,7 +182,13 @@ class BaseWorkflow(pe.Workflow):
             name="PipelinesQualityMeasures")
 
         self.quality_measures_join  = pe.JoinNode(
-            JoinPipelineQualityMeasures(),
+            IdentityInterface(fields=
+                              ['plot_pipelines_edges_density',
+                               'plot_pipelines_edges_density_no_high_motion',
+                               'plot_pipelines_fc_fd_pearson',
+                               'plot_pipelines_fc_fd_uncorr',
+                               'plot_pipelines_distance_dependence',
+                               'tasks']),
             name="JoinPipelinesQualityMeasures",
             joinsource=self.taskselector,  # TODO: Include dataflow where sessions are present (another join)
             joinfield=['plot_pipelines_edges_density',
@@ -191,7 +196,7 @@ class BaseWorkflow(pe.Workflow):
                        'plot_pipelines_fc_fd_pearson',
                        'plot_pipelines_fc_fd_uncorr',
                        'plot_pipelines_distance_dependence',
-                       'tasks'],
+                       'tasks']
         )
         # Outputs: pipelines_fc_fd_summary, pipelines_edges_weight
 
