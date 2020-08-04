@@ -21,7 +21,7 @@ class QualityMeasuresInputSpec(BaseInterfaceInputSpec):
                           mandatory=True)
 
     group_conf_summary = File(exists=True,
-                              desc='Group confounds summmary',
+                              desc='Group confounds summary',
                               mandatory=True)
 
     distance_matrix = File(exists=True,
@@ -112,7 +112,7 @@ class QualityMeasures(SimpleInterface):
             raise ValueError('Summary confouds data should contain ' +
                              'data from a one task at time.')
 
-        # Check if subjects' numerical data are not idenical
+        # Check if subjects' numerical data are not identical
         num_data_columns = {'mean_fd', 'max_fd', 'n_conf', 'n_spikes', 'perc_spikes'}
         result = array_2d_row_identity(self.group_conf_summary_df[provided_fields & num_data_columns].values)
         if result is not False:
@@ -222,7 +222,7 @@ class QualityMeasures(SimpleInterface):
         """Calculates distance dependence of FC-FD correlations."""
         return pearsonr(self.fc_fd_corr, self.distance_vector)[0]
 
-    def dof_loss(self):
+    def dof_loss(self): # TODO: Shouldn't there be subject filter???
         """Calculates degrees of freedom loss."""
         return self.group_conf_summary_df['n_conf'].mean()
 

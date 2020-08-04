@@ -3,6 +3,7 @@ import numpy as np
 
 
 def array_2d_row_identity(array: np.ndarray) -> Union[bool, List[Tuple[int, int]]]:
+    # TODO: Make it more optimal, is it needed at all?
     """
     Checks whether any row of the numerical 2D array is identical with any other row.
     Args:
