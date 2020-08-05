@@ -88,7 +88,6 @@ def make_catplot(x, data, xlabel, filename, output_dir):
     sns.set_palette('colorblind', 8)
     fig = sns.catplot(x=x,
                       y='pipeline',
-                      col='all',
                       kind='bar',
                       data=data,
                       orient="h").set(xlabel=xlabel,
