@@ -42,25 +42,32 @@ class ModularParser:
             parsed = subparser.parse_args(args[1:])
             callback(parsed)
             print(f"Parsing {args[1]} with {args[1:]}")
+        elif len(args) == 1 or args[1] in ['-h', '--help']:
+            self.draw_help()
         else:
             print(f"Error keyword: {args[1]}")
             self.draw_help()
 
     def draw_help(self):
-        ...
+        print(f"usage: fmiridenoise [-h | --help] <command> [<args>]")
+        print("These are valid fmridenoise commands:")
+        for key in self._parsers.keys():
+            print(self._format_entry(key))
 
-    def usage(self):
-        print("usage: fmridenoise <command> [<args>]\n")
-        print("These are valid fmridenoise commands:\n")
-
-
-
-        
+    def _format_entry(self, entry_name) -> str:
+        about, _, _ = self._parsers[entry_name]
+        string = (" " * self.command_indent + entry_name).ljust(self.command_indent + self.command_help_length)
+        desc_start = self.command_indent + self.command_help_length
+        desc_len = self.terminal_line_lenght - desc_start
+        about_len = len(about)
+        for start, stop in zip(range(0, about_len + 1, min(about_len, desc_len)), range(min(about_len, desc_len), about_len + 1, min(about_len, desc_len))):
+            string += about[start:stop] + "\n" + " " * (self.command_indent + self.command_help_length)
+        return string.strip()
 
 
 if __name__ == '__main__':
     parser = ModularParser()
-    parser.add_parser('test', 'test description', ArgumentParser(), lambda x: None)
-    parser.add_parser('test', 'test description', ArgumentParser(), lambda x: None)
-    parser.add_parser('test', 'test description', ArgumentParser(), lambda x: None)
+    parser.add_parser('test', 'long long long long long long long long long long long long long long long long long long long long long long long long long long long long long ', ArgumentParser(), lambda x: None)
+    parser.add_parser('pierwsz', 'test description', ArgumentParser(), lambda x: None)
+    parser.add_parser('drugi', 'test description', ArgumentParser(), lambda x: None)
     parser.parse_arguments(*sys.argv)

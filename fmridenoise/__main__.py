@@ -1,11 +1,7 @@
 import argparse
 import logging
 import os
-from os.path import dirname, abspath, join, exists, isfile, abspath
-import sys
-# asure that fmridenoise is in path
-# if dirname(dirname(abspath(__file__))) not in sys.path:
-#         sys.path.append(dirname(dirname(abspath(__file__))))
+from os.path import dirname, join, exists, isfile, abspath
 from nipype import config
 from fmridenoise.workflows.base import init_fmridenoise_wf
 from fmridenoise.utils.profiling import profiler_callback
@@ -41,10 +37,11 @@ def get_parser() -> argparse.ArgumentParser:
                         help="List of tasks names, separated with spaces.")
     parser.add_argument("-p", "--pipelines",
                         nargs='+',
-                        help='Name of pipelines used for denoising, can be both paths to json files with pipeline or name of pipelines from package.',
+                        help='Name of pipelines used for denoising, can be both paths to json files with pipeline' \ 
+                             'or name of pipelines from package.',
                         default="all")
     parser.add_argument("-d", "--derivatives",
-                        type= str,
+                        type=str,
                         default='fmriprep',
                         help="Name (or list) of derivatives for which fmridenoise should be run.\
                         By default workflow looks for fmriprep dataset.")
@@ -110,7 +107,7 @@ def parse_pipelines(pipelines_args: str or set = "all") -> set:
     return ret
 
 
-def main() -> None:
+def main() -> int:
     args = get_parser().parse_args()
     workflow_args = dict()
     # bids dir
@@ -169,6 +166,7 @@ def main() -> None:
         else:
             workflow.run()
     return 0
+
 
 if __name__ == "__main__":
     main()
