@@ -41,5 +41,5 @@ class ReportCreator(SimpleInterface):
         #               self.inputs.pipelines,
         #               self.inputs.excluded_subjects)
         with open(f"{self.inputs.output_dir}/log.log", 'a') as f:
-            f.writelines('Called\n' + self.inputs + '\m' + self.inputs.pipelines)
+            f.writelines('Called\n' + str(self.inputs) + '\n' + str(self.inputs.pipelines))
         return runtime
