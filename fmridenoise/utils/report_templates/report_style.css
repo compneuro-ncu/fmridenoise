@@ -1,0 +1,30 @@
+svg {
+    width: 1em;
+    height: 1em;
+}
+
+table {
+    max-width: 800px;
+}
+
+.bg-true {
+    background-color: rgb(172, 246, 172) !important;
+}
+
+.bg-false {
+    background-color: rgb(255, 190, 190) !important;
+}
+
+.figure {
+    min-width: 400px;
+    max-width: min(600px, 45%);
+}
+
+h1,
+h2,
+h3,
+h4,
+h5 {
+    margin-top: 0.75em;
+    margin-bottom: 0.5em;
+}
