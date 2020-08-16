@@ -1,17 +1,10 @@
 from nipype.interfaces.base import SimpleInterface, BaseInterfaceInputSpec
 from traits.trait_types import List, Dict, Directory, File, Str
 
-
 class ReportCreatorInputSpec(BaseInterfaceInputSpec):
     pipelines = List(Dict(), mandatory=True)
     tasks = List(Str(), mandaory=True)
-    sessions = List(Str(), mandatory=False)
-    
-    output_dir = Directory(exists=True)
-
-    tasks_aggregated = List(Str(), mandaory=True)
-    sessions_aggregated = List(Str(), mandatory=False)
-    
+    sessions = List(Str(), mandatory=False)    
     output_dir = Directory(exists=True)
 
     # excluded_subjects = List(Str(), value=()) # TODO: This mayby another input field later. 
@@ -69,7 +62,5 @@ class ReportCreator(SimpleInterface):
     input_spec = ReportCreatorInputSpec
 
     def _run_interface(self, runtime):
-        # TODO: Reimplement inteface
-        with open(f"{self.inputs.output_dir}/log.log", 'a') as f:
-            f.writelines('Called\n' + str(self.inputs) + '\n' + str(self.inputs.pipelines))
+
         return runtime
