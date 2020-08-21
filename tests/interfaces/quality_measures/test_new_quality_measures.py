@@ -6,7 +6,7 @@ from nipype import Node
 import tempfile
 import shutil
 from os.path import join
-from numpy.testing import assert_array_equal
+from numpy.testing import assert_array_equal, assert_array_almost_equal
 
 
 class QualityMeasuresAsNodeTestCase(ut.TestCase):
@@ -67,7 +67,7 @@ class QualityMeasuresAsNodeTestCase(ut.TestCase):
         first: dict = tested[0]
         second: dict = tested[1]
         self.assertEqual(second.keys(), first.keys())
-        self.assertEqual(set(first.keys()), {'pipeline', 'pearson_fc_fd', 'perc_fc_fd_uncorr', 'distance_dependence',
+        self.assertEqual(set(first.keys()), {'pipeline', 'median_pearson_fc_fd', 'perc_fc_fd_uncorr', 'distance_dependence',
                                              'tdof_loss', 'n_subjects', 'n_excluded', 'all'})
         # values checks for first summary (all subjects)
         self.assertEqual(3, first['n_subjects'])
@@ -109,6 +109,32 @@ class QualityMeasuresAsNodeTestCase(ut.TestCase):
         vec: np.ndarray = sym_matrix_to_vec(group_corr_mat)
         tested_edges_weight = vec.mean(axis=0)
         assert_array_equal(edges_weight['test'], tested_edges_weight)
+
+    def test_fc_fd_vec(self):
+        corr_vec: dict = self.result.outputs.fc_fd_corr_values
+        self.assertIsInstance(corr_vec, dict)
+        self.assertTrue(all(isinstance(key, str) for key in corr_vec.keys()))
+        self.assertTrue(all(isinstance(value, np.ndarray) for value in corr_vec.values()))
+
+        # value check
+        from nilearn.connectome import sym_matrix_to_vec
+        vec = sym_matrix_to_vec(self.group_corr_mat)
+        corr, _ = QualityMeasures.calculate_fc_fd_correlations(self.group_conf_summary, vec)  # TODO: Replace method call
+        assert_array_almost_equal(corr_vec['test'], corr)
+
+    def test_fc_fd_vec_clean(self):
+        corr_vec: dict = self.result.outputs.fc_fd_corr_values_clean
+        self.assertIsInstance(corr_vec, dict)
+        self.assertTrue(all(isinstance(key, str) for key in corr_vec.keys()))
+        self.assertTrue(all(isinstance(value, np.ndarray) for value in corr_vec.values()))
+
+        # value check
+        from nilearn.connectome import sym_matrix_to_vec
+        group_corr_mat = self.group_corr_mat[[0, 2], :, :]
+        vec: np.ndarray = sym_matrix_to_vec(group_corr_mat)
+        corr, _ = QualityMeasures.calculate_fc_fd_correlations(
+            self.group_conf_summary[self.group_conf_summary['include'] == True], vec)
+        assert_array_almost_equal(corr_vec['test'], corr)
 
 
 # TODO: Check this tests
