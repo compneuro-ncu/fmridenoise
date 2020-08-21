@@ -45,13 +45,13 @@ class QualityMeasuresOutputSpec(TraitedSpec):
 
     fc_fd_corr_values = traits.Dict(
         exists=True,
-        desc='Pearson r values for correlation ' 
+        desc='Pearson r values for correlation '
              'between FD and FC calculated for each edge')
 
     fc_fd_corr_values_clean = traits.Dict(
         exists=True,
-        desc='Pearson r values for correlation ' 
-             'between FD and FC calculated for each edge' 
+        desc='Pearson r values for correlation '
+             'between FD and FC calculated for each edge'
              'after removing subjects with high motion')
 
     exclude_list = traits.List(
@@ -60,7 +60,6 @@ class QualityMeasuresOutputSpec(TraitedSpec):
 
 
 class QualityMeasures(SimpleInterface):
-
     input_spec = QualityMeasuresInputSpec
     output_spec = QualityMeasuresOutputSpec
 
@@ -99,12 +98,14 @@ class QualityMeasures(SimpleInterface):
                          distance_vec: np.ndarray,
                          group_corr_vec: np.ndarray,
                          all_subjects: bool):
-        if all_subjects:
+        if all_subjects:  # select part of original dataset based on 'Include' parameter
             group_conf_subsummary = group_conf_summary
             group_corr_subvec = group_corr_vec
         else:
-            group_conf_subsummary = group_conf_summary[group_conf_summary['include'] == True] # TODO: Check case where all subjects are high motion
+            group_conf_subsummary = group_conf_summary[
+                group_conf_summary['include'] == True]  # TODO: Check case where all subjects are high motion
             group_corr_subvec = group_corr_vec[group_conf_summary['include'].values.astype(bool), :]
+
         fc_fd_corr, fc_fd_pval = cls.calculate_fc_fd_correlations(group_conf_subsummary, group_corr_subvec)
         summary = {'perc_fc_fd_uncorr': cls._perc_fc_fd_uncorr(fc_fd_pval),
                    'median_pearson_fc_fd': np.median(fc_fd_corr),
@@ -116,33 +117,33 @@ class QualityMeasures(SimpleInterface):
                    }
         edges_weight = group_corr_subvec.mean(axis=0)
         excluded_subjects = group_conf_summary[group_conf_summary['include'] == False]['subject']
-        return summary, edges_weight, excluded_subjects, group_corr_subvec
+        return summary, edges_weight, fc_fd_corr, excluded_subjects
 
     @classmethod
     def calculate_quality_measures(
-        cls,
-        group_conf_summary: pd.DataFrame,
-        group_corr_mat: np.ndarray,
-        distance_matrix: np.ndarray) -> t.Tuple[t.List[dict], np.ndarray, np.ndarray, t.List[str]]:
+            cls,
+            group_conf_summary: pd.DataFrame,
+            group_corr_mat: np.ndarray,
+            distance_matrix: np.ndarray) -> \
+            t.Tuple[t.List[dict], np.ndarray, np.ndarray, np.ndarray, np.ndarray, t.List[str]]:
         quality_measures = []
         excluded_subjects_names = set()
-        edges_weights = []
         group_corr_vec = sym_matrix_to_vec(group_corr_mat)
         distance_vec = sym_matrix_to_vec(distance_matrix)
-        for sample, all_subjects in cls.sample_dict.items():
-            summary, edges_weight, excluded_subjects, fc_fd_corr_vector = cls._quality_measure(group_conf_summary, distance_vec,
-                                                                            group_corr_vec, all_subjects)
-            excluded_subjects_names |= set(excluded_subjects)
-            quality_measures.append(summary)
-
-            if all_subjects:
-                edges_weight = edges_dict
-
-            else:
-                edges_weight_clean = edges_dict
-
-            edges_weights.append(edges_weight)
-        return quality_measures, edges_weights[0], edges_weights[1], list(excluded_subjects_names)
+        # all subjects
+        summary, edges_weight, fc_fd_corr_vector, excluded_subjects = cls._quality_measure(
+            group_conf_summary,
+            distance_vec,
+            group_corr_vec, True)
+        quality_measures.append(summary)
+        excluded_subjects_names |= set(excluded_subjects)
+        # clean subjects
+        summary, edges_weight_clean, fc_fd_corr_vector_clean, excluded_subjects = cls._quality_measure(
+            group_conf_summary, distance_vec, group_corr_vec, False)
+        quality_measures.append(summary)
+        excluded_subjects_names |= set(excluded_subjects)
+        return quality_measures, edges_weight, edges_weight_clean, fc_fd_corr_vector, fc_fd_corr_vector_clean, \
+               list(excluded_subjects_names)
 
     @staticmethod
     def validate_group_conf_summary(group_conf_summary: pd.DataFrame) -> None:
@@ -217,19 +218,23 @@ class QualityMeasures(SimpleInterface):
         distance_matrix_arr = np.load(self.inputs.distance_matrix)
         self.validate_group_conf_summary(group_conf_summary_df)
         self.validate_fc_matrices(group_corr_mat_arr, group_conf_summary_df)
-        summaries, edges_weight, edges_weight_clean, exclude_list = self.calculate_quality_measures(
-            group_conf_summary_df,
-            group_corr_mat_arr,
-            distance_matrix_arr
-        )
+        summaries, edges_weight, edges_weight_clean, group_corr_vec, group_corr_vec_clean, exclude_list = \
+            self.calculate_quality_measures(
+                group_conf_summary_df,
+                group_corr_mat_arr,
+                distance_matrix_arr)
 
         for summary in summaries:
             summary['pipeline'] = self.inputs.pipeline_name
         edges_weight = {self.inputs.pipeline_name: edges_weight}
         edges_weight_clean = {self.inputs.pipeline_name: edges_weight_clean}
+        group_corr_vec = {self.inputs.pipeline_name: group_corr_vec}
+        group_corr_vec_clean = {self.inputs.pipeline_name: group_corr_vec_clean}
         make_motion_plot(group_conf_summary_df, self.inputs.pipeline_name, self.inputs.output_dir)
         self._results['fc_fd_summary'] = summaries
         self._results['edges_weight'] = edges_weight
         self._results['edges_weight_clean'] = edges_weight_clean
+        self._results['fc_fd_corr_values'] = group_corr_vec
+        self._results['fc_fd_corr_values_clean'] = group_corr_vec_clean
         self._results['exclude_list'] = exclude_list
         return runtime
