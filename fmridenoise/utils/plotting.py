@@ -6,10 +6,10 @@ from os.path import join
 
 def make_motion_plot(group_conf_summary, pipeline_name, output_dir,
                      mean_fd_th=0.2, max_fd_th=5, perc_spikes_th=20):
-    """Generates plot presenting number of subjects excluded with high morion
+    """Generates plot presenting number of subjects excluded with high motion
     according specified thresholds."""
 
-    plt.style.use('seaborn-white')
+    sns.set_style("ticks")
     colors = ['#00a074', '#fe6863']
     palette = sns.set_palette(colors, 2)
 
@@ -66,6 +66,7 @@ def make_motion_plot(group_conf_summary, pipeline_name, output_dir,
 
 def make_kdeplot(data, title, filename, output_dir):
     """Creates and saves kdeplot from dataframes with edges."""
+    sns.set_style("ticks")
     sns.set_palette('colorblind', 8)
 
     fig, ax = plt.subplots(1, 1)
@@ -95,4 +96,38 @@ def make_catplot(x, data, xlabel, filename, output_dir):
 
     figure_path = join(output_dir, f'{filename}.svg')
     fig.savefig(figure_path, dpi=300, bbox_inches='tight')
+    return figure_path
+
+
+def make_barplot(x, data, xlabel, filename, output_dir):
+    """Creates and saves barplot from summary dataframes """
+    sns.set_palette('colorblind', 8)
+    sns.set_style("ticks")
+
+    fig = sns.barplot(x=x,
+                      y='pipeline',
+                      data=data,
+                      edgecolor=".2",
+                      linewidth=1,
+                      orient="h").set(xlabel=xlabel,
+                                      ylabel='Pipeline')
+
+    figure_path = join(output_dir, f'{filename}.svg')
+    plt.savefig(figure_path, dpi=300, bbox_inches='tight')
+    return figure_path
+
+
+def make_violinplot(data, xlabel, filename, output_dir):
+    """Creates and saves violinplot from FC-FD correlation values"""
+    sns.set_palette('colorblind', 8)
+    sns.set_style("ticks")
+
+    sns.violinplot(data=data,
+                   edgecolor=".2",
+                   linewidth=1,
+                   orient="h").set(xlabel=xlabel,
+                                   ylabel='Pipeline')
+
+    figure_path = join(output_dir, f'{filename}.svg')
+    plt.savefig(figure_path, dpi=300, bbox_inches='tight')
     return figure_path
