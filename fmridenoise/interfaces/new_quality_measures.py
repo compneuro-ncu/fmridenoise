@@ -43,6 +43,17 @@ class QualityMeasuresOutputSpec(TraitedSpec):
         desc='Weights of individual edges after '
              'removing subjects with high motion')
 
+    fc_fd_corr_values = traits.Dict(
+        exists=True,
+        desc='Pearson r values for correlation ' 
+             'between FD and FC calculated for each edge')
+
+    fc_fd_corr_values_clean = traits.Dict(
+        exists=True,
+        desc='Pearson r values for correlation ' 
+             'between FD and FC calculated for each edge' 
+             'after removing subjects with high motion')
+
     exclude_list = traits.List(
         exists=True,
         desc="List of subjects to exclude")
@@ -96,7 +107,7 @@ class QualityMeasures(SimpleInterface):
             group_corr_subvec = group_corr_vec[group_conf_summary['include'].values.astype(bool), :]
         fc_fd_corr, fc_fd_pval = cls.calculate_fc_fd_correlations(group_conf_subsummary, group_corr_subvec)
         summary = {'perc_fc_fd_uncorr': cls._perc_fc_fd_uncorr(fc_fd_pval),
-                   'pearson_fc_fd': np.median(fc_fd_corr),
+                   'median_pearson_fc_fd': np.median(fc_fd_corr),
                    'distance_dependence': cls._distance_dependence(fc_fd_corr, distance_vec),
                    'tdof_loss': group_conf_subsummary['n_conf'].mean(),
                    'n_subjects': len(group_conf_summary),
@@ -105,7 +116,7 @@ class QualityMeasures(SimpleInterface):
                    }
         edges_weight = group_corr_subvec.mean(axis=0)
         excluded_subjects = group_conf_summary[group_conf_summary['include'] == False]['subject']
-        return summary, edges_weight, excluded_subjects
+        return summary, edges_weight, excluded_subjects, group_corr_subvec
 
     @classmethod
     def calculate_quality_measures(
@@ -119,10 +130,17 @@ class QualityMeasures(SimpleInterface):
         group_corr_vec = sym_matrix_to_vec(group_corr_mat)
         distance_vec = sym_matrix_to_vec(distance_matrix)
         for sample, all_subjects in cls.sample_dict.items():
-            summary, edges_weight, excluded_subjects = cls._quality_measure(group_conf_summary, distance_vec,
+            summary, edges_weight, excluded_subjects, fc_fd_corr_vector = cls._quality_measure(group_conf_summary, distance_vec,
                                                                             group_corr_vec, all_subjects)
             excluded_subjects_names |= set(excluded_subjects)
             quality_measures.append(summary)
+
+            if all_subjects:
+                edges_weight = edges_dict
+
+            else:
+                edges_weight_clean = edges_dict
+
             edges_weights.append(edges_weight)
         return quality_measures, edges_weights[0], edges_weights[1], list(excluded_subjects_names)
 
