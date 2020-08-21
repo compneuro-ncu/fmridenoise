@@ -15,6 +15,8 @@ from itertools import product
 from os.path import join
 import typing as t
 
+from fmridenoise.utils.data_source import FILTER_CONF, FILTER_CONF_JSON, FILTER_FMRI, FILTER_FMRI_AROMA
+
 
 class MissingFile(IOError):
     pass
@@ -278,36 +280,13 @@ class BIDSValidate(SimpleInterface):
                 (missing: bool, dict)
 
             """
-            filter_fmri = {
-                'extension': ['nii', 'nii.gz'],
-                'suffix': 'bold',
-                'desc': 'preproc',
-                'space': 'MNI152NLin2009cAsym'
-            }
-            filter_fmri_aroma = {
-                'extension': ['nii', 'nii.gz'],
-                'suffix': 'bold',
-                'desc': 'smoothAROMAnonaggr',
-                # 'space': 'MNI152NLin2009cAsym'
-            }
-            filter_conf = {
-                'extension': 'tsv',
-                'suffix': 'regressors',
-                'desc': 'confounds',
-            }
-            filter_conf_json = {
-                'extension': 'json',
-                'suffix': 'regressors',
-                'desc': 'confounds',
-            }
-
             filters_names = ['conf_raw', 'conf_json']
-            filters = [filter_conf, filter_conf_json]
+            filters = [FILTER_CONF, FILTER_CONF_JSON]
             if include_no_aroma:
-                filters.append(filter_fmri)
+                filters.append(FILTER_FMRI)
                 filters_names.append('fmri_prep')
             if include_aroma:
-                filters.append(filter_fmri_aroma)
+                filters.append(FILTER_FMRI_AROMA)
                 filters_names.append('fmri_prep_aroma')
 
             entity_files = {}

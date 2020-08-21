@@ -1,7 +1,7 @@
 import glob
 import os
 from fmridenoise.utils.utils import cast_bool, swap_booleans
-from os.path import  exists
+from os.path import exists
 import json
 
 

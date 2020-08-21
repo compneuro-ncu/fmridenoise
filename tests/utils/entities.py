@@ -12,6 +12,17 @@ class EntityDictTestCase(ut.TestCase):
         self.assertIn("new", et.keys())
         self.assertEqual(et["new"], 2)
 
+    def test_getting_multiple_values(self):
+        et = EntityDict({"test": 1, "another": 2})
+        self.assertEqual([1,2], et["test", "another"])
+        self.assertEqual([1, None], et["test", "non existing"])
+
+    def test_hashvalues(self):
+        et = EntityDict({"test": 1, "another": 2})
+        hash_value = hash(et)
+        string_hash = hash("test1another2")
+        self.assertEqual(string_hash, hash_value)
+
     def test_overwriting_protection(self):
         et = EntityDict({"test": 1})
         self.assertRaises(Exception, et.__setitem__, key="test", value=2)

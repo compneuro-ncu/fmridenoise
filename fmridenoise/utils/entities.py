@@ -4,22 +4,44 @@ import typing as t
 from nipype.utils.filemanip import split_filename
 import json
 
+
 class EntityOverwriteException(Exception):
     def __init__(self, dictionary, key, *args, **kwargs):
         self.dictionary = dictionary
         self.key = key
         super(EntityOverwriteException, self).__init__(*args, **kwargs)
 
+
 class EntityDict(dict):
     """
     Dictionary that returns None string if key is not in keys.
     Raises value error if element is tried to be overwritten with different value.
     """
-    def __getitem__(self, key: str) -> t.Any:
-        if key in self.keys():
-            return super().__getitem__(key)
-        else:
-            return None
+    def __hash__(self):
+        string = ""
+        for entity_name, entity_value in self.items():
+            string += f"{entity_name}{entity_value}"
+        return hash(string)
+
+    def __getitem__(self, *keys: str) -> t.Any:
+        """
+        Returns value for given entity or list of values if multiple entities are present.
+        If there is no key in dict return None in it's place.
+        Args:
+            key: name of entity
+            *keys: optional names
+        """
+        def _get(name):
+            if name in self.keys():
+                return super(EntityDict, self).__getitem__(name)
+            else:
+                return None
+        if not isinstance(*keys, tuple):
+            return _get(*keys)
+        ret = []
+        for _key in keys[0]:
+            ret.append(_get(_key))
+        return ret
 
     def __setitem__(self, key: str, value: t.Any) -> None:
         if key in self.keys() and value != self[key]:
@@ -97,8 +119,3 @@ def explode_into_entities(path: str) -> EntityDict:
                             f"with values: {e.dictionary[e.key]} and {entity[1]}")
 
     return ret
-
-
-if __name__ == '__main__':
-    exploded = explode_into_entities(r"/mnt/Data/new_dataset/derivatives/fmriprep/sub-m02/func/sub-m02_task-prlrew_space-MNI152NLin2009cAsym_desc-preproc_bold.nii.gz")
-    print(exploded)
