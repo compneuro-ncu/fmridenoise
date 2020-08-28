@@ -6,7 +6,7 @@ import nipype as ni
 
 
 pipeline_null = {
-    'name': '',
+    'name': 'Null',
     'description': '',
     'confounds': {
         'white_matter': {

@@ -1,9 +1,10 @@
+from bids.layout import parse_file_entities
+from bids.layout.writing import build_path
 from nipype.interfaces.base import (
     BaseInterfaceInputSpec, TraitedSpec,
     ImageFile, SimpleInterface, Directory)
 from nibabel import load, save
 from nilearn.image import smooth_img
-from fmridenoise.utils.entities import explode_into_entities
 from os.path import join, exists
 from traits.trait_types import Bool
 
@@ -29,17 +30,17 @@ class SmoothOutputSpec(TraitedSpec):
 class Smooth(SimpleInterface):
     input_spec = SmoothInputSpec
     output_spec = SmoothOutputSpec
+    smooth_file_pattern = "sub-{subject}[_ses-{session}]_task-{task}_desc-Smoothed_bold.nii.gz"
 
     def _run_interface(self, runtime):
         if exists(self.inputs.fmri_prep):
             img = load(self.inputs.fmri_prep)
             smoothed = smooth_img(img, fwhm=6)
-            et = explode_into_entities(self.inputs.fmri_prep)
-            et.overwrite("desc", et["desc"] + "Smoothed" if et["desc"] else "Smoothed")
-            self._results['fmri_smoothed'] = join(
-                self.inputs.output_directory,
-                et.build_filename())
-            save(smoothed, self._results['fmri_smoothed'])
+            entities = parse_file_entities(self.inputs.fmri_prep)
+            output_path = join(self.inputs.output_directory, build_path(entities, self.smooth_file_pattern, False))
+            assert not exists(output_path), f"Smoothing is run twice at {output_path}"
+            save(smoothed, output_path)
+            self._results['fmri_smoothed'] = output_path
         elif self.inputs.is_file_mandatory:
             raise FileExistsError(f"Mandatory fMRI image file doesn't exists (input arg {self.inputs.fmri_prep})")
         return runtime

@@ -1,14 +1,17 @@
+from os.path import join, exists
+
 import pandas as pd
 import nibabel as nb
 import os
 
+from bids.layout.writing import build_path
 from traits.trait_base import _Undefined
 from nilearn.image import clean_img
 from nipype.interfaces.base import (
     BaseInterfaceInputSpec, TraitedSpec, SimpleInterface,
     ImageFile, File, Directory, traits)
 
-from fmridenoise.utils.entities import explode_into_entities
+from fmridenoise.utils.entities import parse_file_entities
 
 
 class DenoiseInputSpec(BaseInterfaceInputSpec):
@@ -86,6 +89,7 @@ class Denoise(SimpleInterface):
     '''
     input_spec = DenoiseInputSpec
     output_spec = DenoiseOutputSpec
+    fmri_denoised_pattern = "sub-{subject}[_ses-{session]_task-{task}_pipeline-{pipeline}_desc-denoised_bold.nii.gz"
 
     def _validate_fmri_prep_files(self):
         '''Check if correct file is provided according to aroma option in 
@@ -104,27 +108,7 @@ class Denoise(SimpleInterface):
             if isinstance(self.inputs.fmri_prep_aroma, _Undefined):
                 raise FileNotFoundError('for pipeline without aroma ' + \
                                         'file fmri_prep is required')
-            self._fmri_file = self.inputs.fmri_prep_aroma             
-
-    def _create_fmri_denoised_filename(self):
-        '''Creates proper filename for fmri_denoised file.
-        
-        Creates:
-            _fmri_denoised_fname:
-                Full path to denoised fmri file.
-
-        Note that this method requires _fmri_file attribute, so it has to be
-        called after _validate_fmri_prep_files.        
-        '''
-        et = explode_into_entities(self._fmri_file)
-        et["pipeline"] = self.inputs.pipeline["name"]
-        et.overwrite("desc", "denoised")
-        et.overwrite("suffix", "bold")
-        et.overwrite("extension", "nii.gz")
-        self._fmri_denoised_fname = os.path.join(
-            self.inputs.output_dir,
-            et.build_filename()
-        )
+            self._fmri_file = self.inputs.fmri_prep_aroma
 
     def _load_confouds(self):
         '''Load confounds from tsv file. If confounds is empty file (in case of 
@@ -162,14 +146,18 @@ class Denoise(SimpleInterface):
         self._validate_fmri_prep_files()
         self._validate_filtering()
         self._load_confouds()
-        self._create_fmri_denoised_filename()
 
         fmri_denoised = clean_img(
             nb.load(self._fmri_file), 
             confounds=self._confounds, 
             **self._filtering_kwargs)
 
-        nb.save(fmri_denoised, self._fmri_denoised_fname)
-        self._results['fmri_denoised'] = self._fmri_denoised_fname
+        entities = parse_file_entities(self._fmri_file)
+        entities['pipeline'] = self.inputs.pipeline['name']
+        fmri_denoised_fname = join(self.inputs.output_dir, build_path(entities, self.fmri_denoised_pattern, False))
+        assert not exists(fmri_denoised_fname), f"Denoising is run twice at {self._fmri_file} " \
+                                                f"with result {fmri_denoised_fname}"
+        nb.save(fmri_denoised, fmri_denoised_fname)
+        self._results['fmri_denoised'] = fmri_denoised_fname
 
         return runtime
