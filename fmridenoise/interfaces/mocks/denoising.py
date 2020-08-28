@@ -4,7 +4,7 @@ from fmridenoise.utils.entities import *
 from .settings import MockSettings
 from os.path import join
 from glob import glob
-
+# TODO: This script needs fixing and testing or removing from project
 
 class DenoiseMockInputSpec(DenoiseInputSpec):
 
@@ -73,9 +73,3 @@ class Denoise(Denoise):
         check_file = lambda file_path: all(entity_value in file_path for entity_value in entities.values())
         result = list(filter(check_file, all_files_at_path))
         return result
-
-
-if __name__ == "__main__":
-    entities = explode_into_entities(r"/mnt/Data/new_dataset/derivatives/fmriprep/sub-m02/func/sub-m03_task-prlrew_space-MNI152NLin2009cAsym_desc-preproc_bold.nii.gz")
-    print(entities)
-    print(Denoise.build_denoised_file_path(entities, "Null"))

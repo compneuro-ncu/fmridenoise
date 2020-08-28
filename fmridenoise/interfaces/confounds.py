@@ -1,14 +1,16 @@
 import json
 import os
+from os.path import join
 
 import pandas as pd
 import numpy as np
+from bids.layout.writing import build_path
 
 from traits.trait_types import Dict, Str, List, Directory
 from nipype.interfaces.base import (BaseInterfaceInputSpec, File, TraitedSpec, 
     SimpleInterface)
 import typing as t
-from fmridenoise.utils.entities import explode_into_entities
+from fmridenoise.utils.entities import parse_file_entities_with_pipelines
 
 
 class ConfoundsInputSpec(BaseInterfaceInputSpec):
@@ -88,18 +90,9 @@ class Confounds(SimpleInterface):
     """
     input_spec = ConfoundsInputSpec
     output_spec = ConfoundsOutputSpec
+    conf_prep_pattern = "sub-{subject}[_ses-{session}]_task-{task}_pipeline-{pipeline}_desc-{desc}.tsv"
+    conf_summary_pattern = "sub-{subject}[_ses-{session}]_task-{task}_pipeline-{pipeline}_desc-{desc}_summary.json"
 
-    @property
-    def conf_filename(self):
-        '''Output filename for processed confounds table.'''
-        entities = explode_into_entities(self.inputs.conf_raw)
-        entities.overwrite('dataset_directory', self.inputs.output_dir)
-        entities['pipeline'] = self.inputs.pipeline['name']
-        if ('ses' in entities.keys()):
-            return "{dataset_directory}/sub-{sub}_ses-{ses}_task-{task}_desc-{desc}_pipeline-{pipeline}".format(**entities)
-        else:
-            return "{dataset_directory}/sub-{sub}_task-{task}_desc-{desc}_pipeline-{pipeline}".format(
-                **entities)
 
     def _retain(self, regressor_names: t.List[str]):
         '''Copies selected regressors from conf_raw to conf_prep.'''
@@ -234,11 +227,15 @@ class Confounds(SimpleInterface):
         self._create_summary_dict()
 
         # Store output
-        self.conf_prep.to_csv(self.conf_filename + '.tsv', sep='\t', index=False, na_rep=0)
-        with open(self.conf_filename + '.json', 'w') as f:
+        entities = parse_file_entities_with_pipelines(self.inputs.conf_raw)
+        entities['pipeline'] = self.inputs.pipeline['name']
+        conf_prep = join(self.inputs.output_dir, build_path(entities, self.conf_prep_pattern, False))
+        conf_summary = join(self.inputs.output_dir, build_path(entities, self.conf_summary_pattern, False))
+        self.conf_prep.to_csv(conf_prep, sep='\t', index=False, na_rep=0)
+        with open(conf_summary, 'w') as f:
             json.dump(self.conf_summary, f)
-        self._results['conf_prep'] = self.conf_filename + '.tsv'
-        self._results['conf_summary'] = self.conf_filename + '.json'
+        self._results['conf_prep'] = conf_prep
+        self._results['conf_summary'] = conf_summary
 
         return runtime
 
