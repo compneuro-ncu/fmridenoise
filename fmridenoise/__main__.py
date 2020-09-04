@@ -28,8 +28,8 @@ def get_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(prog='fmridenoise')
     subparsers = parser.add_subparsers(help='commands')
     quality_measures_parser = subparsers.add_parser(name='compare',
-                                                    help='image files denoising using selected strategies (pipelines)' \
-                                                         ' and denoising quality comparision')
+                                                    help='compare image files denoising using selected strategies' \
+                                                         ' (pipelines) and denoising quality comparision')
     quality_measures_parser.set_defaults(which='compare')
     quality_measures_parser.add_argument("bids_dir",
                                          help="Path do preprocessed BIDS dataset.")
@@ -174,9 +174,13 @@ def compare(args: argparse.Namespace) -> None:
 
 
 def main() -> int:
-    args = get_parser().parse_args()
+    parser = get_parser()
+    args = parser.parse_args()
+    if not hasattr(args, 'which'):
+        parser.print_help()
+        return 1
     if args.which == 'compare':
-        compare(args)
+            compare(args)
     else:
         raise NotImplementedError(f"Not implemented parser with name: {args.which}")
 
