@@ -64,7 +64,7 @@ def make_motion_plot(group_conf_summary, pipeline_name, output_dir,
     return fig
 
 
-def make_kdeplot(data, title, filename, output_dir):
+def make_kdeplot(data, title, output_path):
     """Creates and saves kdeplot from dataframes with edges."""
     sns.set_style("ticks")
     sns.set_palette('colorblind', 8)
@@ -77,13 +77,12 @@ def make_kdeplot(data, title, filename, output_dir):
     plt.title(title)
     plt.legend(bbox_to_anchor=(1.05, 1), loc=2, borderaxespad=0.)
 
-    figure_path = join(output_dir, f'{filename}.svg')
-    fig.savefig(figure_path, dpi=300, bbox_inches='tight')
+    fig.savefig(output_path, dpi=300, bbox_inches='tight')
 
-    return figure_path
+    return output_path
 
 
-def make_catplot(x, data, xlabel, filename, output_dir):
+def make_catplot(x, data, xlabel, output_path):
     """Creates and saves catplot from summary dataframes """
 
     sns.set_palette('colorblind', 8)
@@ -94,12 +93,11 @@ def make_catplot(x, data, xlabel, filename, output_dir):
                       orient="h").set(xlabel=xlabel,
                                       ylabel='Pipeline')
 
-    figure_path = join(output_dir, f'{filename}.svg')
-    fig.savefig(figure_path, dpi=300, bbox_inches='tight')
-    return figure_path
+    fig.savefig(output_path, dpi=300, bbox_inches='tight')
+    return output_path
 
 
-def make_barplot(x, data, xlabel, filename, output_dir):
+def make_barplot(x, data, xlabel, output_path):
     """Creates and saves barplot from summary dataframes """
     sns.set_palette('colorblind', 8)
     sns.set_style("ticks")
@@ -112,12 +110,11 @@ def make_barplot(x, data, xlabel, filename, output_dir):
                       orient="h").set(xlabel=xlabel,
                                       ylabel='Pipeline')
 
-    figure_path = join(output_dir, f'{filename}.svg')
-    plt.savefig(figure_path, dpi=300, bbox_inches='tight')
-    return figure_path
+    plt.savefig(output_path, dpi=300, bbox_inches='tight')
+    return output_path
 
 
-def make_violinplot(data, xlabel, filename, output_dir):
+def make_violinplot(data, xlabel, output_path):
     """Creates and saves violinplot from FC-FD correlation values"""
     sns.set_palette('colorblind', 8)
     sns.set_style("ticks")
@@ -128,6 +125,5 @@ def make_violinplot(data, xlabel, filename, output_dir):
                    orient="h").set(xlabel=xlabel,
                                    ylabel='Pipeline')
 
-    figure_path = join(output_dir, f'{filename}.svg')
-    plt.savefig(figure_path, dpi=300, bbox_inches='tight')
-    return figure_path
+    plt.savefig(output_path, dpi=300, bbox_inches='tight')
+    return output_path

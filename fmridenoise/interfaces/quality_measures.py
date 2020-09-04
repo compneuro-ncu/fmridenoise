@@ -12,7 +12,7 @@ from os.path import join
 import warnings
 from fmridenoise.utils.plotting import make_motion_plot, make_kdeplot, make_catplot
 from fmridenoise.utils.numeric import array_2d_row_identity, check_symmetry
-from fmridenoise.utils.entities import EntityDict
+from bids.layout.writing import build_path
 
 
 class QualityMeasuresInputSpec(BaseInterfaceInputSpec):
@@ -359,6 +359,8 @@ class PipelinesQualityMeasures(SimpleInterface):
     # TODO: Check density edges plot - looks suspicious
     input_spec = PipelinesQualityMeasuresInputSpec
     output_spec = PipelinesQualityMeasuresOutputSpec
+    plot_pattern = "[ses-{session}_]task_{task}_desc-{desc}_plot.svg"
+    data_files_pattern = '[ses-{session}_]task-{task}[_desc-{desc}]_{suffix}.{extension}'
 
     def _get_pipeline_summaries(self) -> pd.DataFrame:
         """Gets and saves table with quality measures for each pipeline"""
@@ -390,63 +392,63 @@ class PipelinesQualityMeasures(SimpleInterface):
 
     def _make_summary_figures(self, entities_dict):
         """Makes summary figures for all quality mesures"""
-        if 'extension' in entities_dict.keys():
-            del entities_dict['extension']
-        entities_dict.overwrite('suffix', 'pipelinesEdgesDensity')
+        entities_dict['desc'] = 'pipelinesEdgesDensity'
+        path = join(self.inputs.output_dir, build_path(entities_dict, self.plot_pattern, strict=False))
         self.plot_pipelines_edges_density = make_kdeplot(data=self.pipelines_edges_weight,
                                                          title="Density of edge weights (all subjects)",
-                                                         filename=entities_dict.build_filename({'ses': False, 'task': True}),
-                                                         output_dir=self.inputs.output_dir)
-        entities_dict.overwrite('suffix', 'pipelinesEdgesDensityNoHighMotion')
+                                                         output_path=path)
+        entities_dict['desc'] = 'pipelinesEdgesDensityNoHighMotion'
+        path = join(self.inputs.output_dir, build_path(entities_dict, self.plot_pattern, strict=False))
         self.plot_pipelines_edges_density_clean = make_kdeplot(data=self.pipelines_edges_weight_clean,
                                                                title="Density of edge weights (no high motion)",
-                                                               filename=entities_dict.build_filename({'ses': False, 'task': True}),
-                                                               output_dir=self.inputs.output_dir)
-        entities_dict.overwrite('suffix', 'fcFdPearson')
+                                                               output_path = path)
+        entities_dict['desc'] = 'fcFdPearson'
+        path = join(self.inputs.output_dir, build_path(entities_dict, self.plot_pattern, strict=False))
         self.plot_fc_fd_pearson = make_catplot(x="pearson_fc_fd",
                                                data=self.pipelines_fc_fd_summary,
                                                xlabel="QC-FC (Pearson's r)",
-                                               filename=entities_dict.build_filename({'ses': False, 'task': True}),
-                                               output_dir=self.inputs.output_dir)
-        entities_dict.overwrite('suffix', 'percFcFdUncorr')
+                                               output_path=path)
+        entities_dict['desc'] = 'percFcFdUncorr'
+        path = join(self.inputs.output_dir, build_path(entities_dict, self.plot_pattern, strict=False))
         self.perc_plot_fc_fd_uncorr = make_catplot(x="perc_fc_fd_uncorr",
                                                    data=self.pipelines_fc_fd_summary,
                                                    xlabel="QC-FC uncorrected (%)",
-                                                   filename=entities_dict.build_filename({'ses': False, 'task': True}),
-                                                   output_dir=self.inputs.output_dir)
-        entities_dict.overwrite('suffix', 'distanceDependence')
+                                                   output_path = path)
+        entities_dict['desc'] = 'distanceDependence'
+        path = join(self.inputs.output_dir, build_path(entities_dict, self.plot_pattern, strict=False))
         self.plot_distance_dependence = make_catplot(x="distance_dependence",
                                                      data=self.pipelines_fc_fd_summary,
                                                      xlabel="Distance-dependence",
-                                                     filename=entities_dict.build_filename({'ses': False, 'task': True}),
-                                                     output_dir=self.inputs.output_dir)
-        entities_dict.overwrite('suffix', 'tdofLoss')
+                                                     output_path = path)
+        entities_dict['desc'] = 'tdofLoss'
         self.plot_tdof_loss = make_catplot(x="tdof_loss",
                                            data=self.pipelines_fc_fd_summary,
                                            xlabel="fDOF-loss",
-                                           filename=entities_dict.build_filename({'ses': False, 'task': True}),
-                                           output_dir=self.inputs.output_dir)
+                                           output_path=path)
 
     def _run_interface(self, runtime):
         summary = self._get_pipeline_summaries()
         pipelines_edges_weight, pipelines_edges_weight_clean = self._get_pipelines_edges_weight()
-        self.entities_dict = EntityDict(task=self.inputs.task)
+        self.entities_dict = {'task': self.inputs.task}
         if self.inputs.session != traits.Undefined:
             self.entities_dict['session'] = self.inputs.session
-        self._make_summary_figures(self.entities_dict)
-        self.entities_dict.overwrite('suffix', 'pipelinesFcFdSummary')
-        self.entities_dict.overwrite('extension', 'tsv')
-        pipelines_fc_fd_summary_file = join(self.inputs.output_dir, self.entities_dict.build_filename({
-            'ses': False,
-            'task': True}))
+        figures_entites = self.entities_dict.copy()
+
+        self._make_summary_figures(figures_entites)
+        self.entities_dict['suffix'] = 'pipelinesFcFdSummary'
+        self.entities_dict['extension'] = '.tsv'
+        pipelines_fc_fd_summary_file = join(self.inputs.output_dir,
+                                            build_path(self.entities_dict, self.data_files_pattern, strict=False))
         summary.to_csv(pipelines_fc_fd_summary_file, sep='\t', index=False)
-        self.entities_dict.overwrite('suffix', 'pipelinesEdgesWeight')
-        self.entities_dict.overwrite('extension', 'tsv')
-        pipelines_edges_weigh_file = join(self.inputs.output_dir, self.entities_dict.build_filename({'ses': False, 'task': True}))
+        self.entities_dict['suffix'] = 'pipelinesEdgesWeight'
+        self.entities_dict['extension'] = 'tsv'
+        pipelines_edges_weigh_file = join(self.inputs.output_dir,
+                                          build_path(self.entities_dict, self.data_files_pattern, strict=False))
         pipelines_edges_weight.to_csv(pipelines_edges_weigh_file, sep='\t', index=False)
-        self.entities_dict.overwrite('suffix', 'pipelinesEdgesWeightClean')
-        self.entities_dict.overwrite('extension', 'tsv')
-        pipelines_edges_weight_clean_file = join(self.inputs.output_dir, self.entities_dict.build_filename({'ses': False, 'task': True}))
+        self.entities_dict['suffix'] = 'pipelinesEdgesWeightClean'
+        self.entities_dict['extension'] = 'tsv'
+        pipelines_edges_weight_clean_file = join(self.inputs.output_dir,
+                                                 build_path(self.entities_dict, self.data_files_pattern, strict=False))
         pipelines_edges_weight_clean.to_csv(pipelines_edges_weight_clean_file, sep='\t', index=False)
 
         self._results['pipelines_fc_fd_summary'] = pipelines_fc_fd_summary_file
