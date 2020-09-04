@@ -3,6 +3,7 @@ import os
 from fmridenoise.utils.utils import cast_bool, swap_booleans
 from os.path import  exists
 import json
+import re
 
 
 def get_pipeline_path(name: str) -> str:
@@ -55,3 +56,10 @@ def load_pipeline_from_json(json_path: str) -> dict:
         js = json.load(json_file)
     js = swap_booleans(js, inplace=True)
     return js
+
+
+def extract_pipeline_from_path(path: str) -> str:
+    match = re.search(r'(?<=pipeline-)(.*?)(?=_)', path)
+    if match is not None:
+        return match.group()
+    return ""

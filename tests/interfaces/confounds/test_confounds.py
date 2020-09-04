@@ -218,8 +218,8 @@ class TestConfoundsStandardCase(unittest.TestCase):
 
         expected_name = os.path.join(
             self.temp_dir.name,
-            f"{self.conf_filename_tsv.replace('_regressors.tsv', '')}" + \
-            f"_pipeline-{pipeline['name']}.tsv"
+            f"{self.conf_filename_tsv.replace('_desc-confounds_regressors.tsv', '')}" + \
+            f"_pipeline-{pipeline['name']}_desc-confounds.tsv"
         )
 
         self.assertEqual(expected_name, conf_prep_name)
@@ -236,8 +236,8 @@ class TestConfoundsStandardCase(unittest.TestCase):
 
         expected_name = os.path.join(
             self.temp_dir.name,
-            f"{self.conf_filename_tsv.replace('_regressors.tsv', '')}" + \
-            f"_pipeline-{pipeline['name']}.json"
+            f"{self.conf_filename_tsv.replace('_desc-confounds_regressors.tsv', '')}" + \
+            f"_pipeline-{pipeline['name']}_desc-confounds_summary.json"
         )
 
         self.assertEqual(expected_name, conf_summary_name)
