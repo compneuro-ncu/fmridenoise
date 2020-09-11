@@ -84,7 +84,7 @@ class Denoise(SimpleInterface):
     '''
     input_spec = DenoiseInputSpec
     output_spec = DenoiseOutputSpec
-    fmri_denoised_pattern = "sub-{subject}[_ses-{session]_task-{task}_space-{space}_pipeline-{pipeline}_desc-denoised_bold.nii.gz"
+    fmri_denoised_pattern = "sub-{subject}[_ses-{session}]_task-{task}_space-{space}_pipeline-{pipeline}_desc-denoised_bold.nii.gz"
 
     def _validate_fmri_prep_files(self):
         '''Check if correct file is provided according to aroma option in 
