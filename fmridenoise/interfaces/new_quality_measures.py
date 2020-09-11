@@ -1,5 +1,4 @@
 import warnings
-
 from nilearn.connectome import sym_matrix_to_vec
 from nipype.interfaces.base import BaseInterfaceInputSpec, TraitedSpec, SimpleInterface
 from nipype.interfaces.base import File, traits

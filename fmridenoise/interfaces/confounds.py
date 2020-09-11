@@ -4,13 +4,11 @@ from os.path import join
 
 import pandas as pd
 import numpy as np
-from bids.layout.writing import build_path
-
 from traits.trait_types import Dict, Str, List, Directory
 from nipype.interfaces.base import (BaseInterfaceInputSpec, File, TraitedSpec, 
     SimpleInterface)
 import typing as t
-from fmridenoise.utils.entities import parse_file_entities_with_pipelines
+from fmridenoise.utils.entities import parse_file_entities_with_pipelines, build_path
 
 
 class ConfoundsInputSpec(BaseInterfaceInputSpec):

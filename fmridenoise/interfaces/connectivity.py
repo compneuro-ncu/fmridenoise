@@ -1,16 +1,14 @@
 import numpy as np
 from bids.layout import parse_file_entities
-from bids.layout.writing import build_path
-
 from nipype.interfaces.base import (BaseInterfaceInputSpec, TraitedSpec,
                                     SimpleInterface, File, Directory,
                                     traits)
 import nibabel as nb
 from nilearn.input_data import NiftiLabelsMasker
 from nilearn.connectome import ConnectivityMeasure
-
 from fmridenoise.parcellation import get_parcellation_file_path
 from fmridenoise.pipelines import extract_pipeline_from_path
+from fmridenoise.utils.entities import build_path
 from fmridenoise.utils.quality_measures import create_carpetplot
 from nilearn.plotting import plot_matrix
 from os.path import join

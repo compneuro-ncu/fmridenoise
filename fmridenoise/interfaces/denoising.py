@@ -1,17 +1,12 @@
 from os.path import join, exists
-
 import pandas as pd
 import nibabel as nb
-import os
-
-from bids.layout.writing import build_path
 from traits.trait_base import _Undefined
 from nilearn.image import clean_img
 from nipype.interfaces.base import (
     BaseInterfaceInputSpec, TraitedSpec, SimpleInterface,
     ImageFile, File, Directory, traits)
-
-from fmridenoise.utils.entities import parse_file_entities
+from fmridenoise.utils.entities import parse_file_entities, build_path
 
 
 class DenoiseInputSpec(BaseInterfaceInputSpec):

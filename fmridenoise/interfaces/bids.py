@@ -8,8 +8,6 @@ from nipype.interfaces.base import (BaseInterfaceInputSpec, SimpleInterface,
     OutputMultiPath)
 from traits.trait_base import Undefined
 from traits.trait_types import Dict, List, Either, File
-
-from fmridenoise.parcellation import get_parcellation_file_path
 from fmridenoise.pipelines import load_pipeline_from_json, is_IcaAROMA
 import json
 import os

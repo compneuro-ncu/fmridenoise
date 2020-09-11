@@ -10,9 +10,10 @@ from nilearn.connectome import sym_matrix_to_vec
 from scipy.stats import pearsonr
 from os.path import join
 import warnings
+
+from fmridenoise.utils.entities import build_path
 from fmridenoise.utils.plotting import make_motion_plot, make_kdeplot, make_catplot
 from fmridenoise.utils.numeric import array_2d_row_identity, check_symmetry
-from bids.layout.writing import build_path
 
 
 class QualityMeasuresInputSpec(BaseInterfaceInputSpec):
