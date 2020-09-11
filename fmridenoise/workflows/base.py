@@ -1,4 +1,3 @@
-from nipype.interfaces.base import traits
 from nipype.pipeline import engine as pe
 from nipype import Node, IdentityInterface
 
@@ -11,7 +10,7 @@ from fmridenoise.interfaces.pipeline_selector import PipelineSelector
 from fmridenoise.interfaces.quality_measures import QualityMeasures, PipelinesQualityMeasures
 from fmridenoise.interfaces.report_creator import ReportCreator
 import fmridenoise.utils.temps as temps
-from fmridenoise.parcellation import get_parcelation_file_path, get_distance_matrix_file_path
+from fmridenoise.parcellation import get_distance_matrix_file_path
 from fmridenoise.pipelines import get_pipelines_paths
 import logging
 import os
@@ -114,8 +113,7 @@ class BaseWorkflow(pe.Workflow):
         # Inputs: fmri_denoised
         self.connectivity = Node(
             Connectivity(
-                output_dir=temps.mkdtemp('connectivity'),
-                parcellation=get_parcelation_file_path()
+                output_dir=temps.mkdtemp('connectivity')
             ),
             name='ConnCalc')
         # Outputs: conn_mat, carpet_plot

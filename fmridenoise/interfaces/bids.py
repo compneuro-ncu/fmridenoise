@@ -8,6 +8,8 @@ from nipype.interfaces.base import (BaseInterfaceInputSpec, SimpleInterface,
     OutputMultiPath)
 from traits.trait_base import Undefined
 from traits.trait_types import Dict, List, Either, File
+
+from fmridenoise.parcellation import get_parcellation_file_path
 from fmridenoise.pipelines import load_pipeline_from_json, is_IcaAROMA
 import json
 import os
@@ -434,6 +436,12 @@ class BIDSValidate(SimpleInterface):
                 raise MissingFile(f'no imaging file found for task {task}')
             tr_dict[task] = layout_for_tr.get_metadata(example_file.path)[
                 'RepetitionTime']
+
+        # check space
+        # TODO:
+        # spaces = layout.get_entities()['space'].unique()
+        # for space in spaces:
+        #     get_parcellation_file_path(space)
 
         # Prepare outputs
         self._results['fmri_prep'] = fmri_prep

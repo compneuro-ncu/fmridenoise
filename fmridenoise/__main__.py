@@ -180,7 +180,7 @@ def main() -> int:
         parser.print_help()
         return 1
     if args.which == 'compare':
-            compare(args)
+        compare(args)
     else:
         raise NotImplementedError(f"Not implemented parser with name: {args.which}")
 
