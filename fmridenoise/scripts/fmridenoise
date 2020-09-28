@@ -1,2 +1,2 @@
 #!/bin/bash
-python -m fmridenoise $@
+python -O -m fmridenoise $@
