@@ -1,27 +1,40 @@
 import setuptools
+import re
 from os.path import join, dirname, relpath
-# from fmridenoise.pipelines import get_pipelines_paths
-# from fmridenoise.parcellation import get_parcelation_file_path, get_distance_matrix_file_path
-# from fmridenoise.utils.templates import get_all_templates
-# from itertools import chain
 dir_path = dirname(__file__)
-with open(join(dir_path, "README.md"), "r") as fh:
-    long_description = fh.read()
+
+
+def altered_long_description() -> str:
+    """
+    Swaps relative paths to images in README.md with github links for pip webpage
+    """
+    git_problem_image = r'[<img src="https://github.com/compneuro-ncu/fmridenoise/blob/master/docs/fmridenoise_problem.png?raw=true">](https://github.com/compneuro-ncu/fmridenoise/blob/master/docs/fmridenoise_problem.png)'
+    git_solution_image = r'[<img src="https://github.com/compneuro-ncu/fmridenoise/blob/master/docs/fmridenoise_solution.png?raw=true">](https://github.com/compneuro-ncu/fmridenoise/blob/master/docs/fmridenoise_solution.png)'
+    with open(join(dir_path, "README.md"), "r") as fh:
+        long_description = fh.read()
+    problem_image = re.search(r'\!\[Problem image\].*?\n', long_description)
+    if problem_image is None:
+        raise Exception("Unable to replace [Problem image]")
+    left, right = problem_image.regs[0]
+    long_description = long_description.replace(long_description[left:right], git_problem_image)
+    solution_image = re.search(r'\!\[Solution image\].*?\n', long_description)
+    if solution_image is None:
+        raise Exception("Unable to replace [Solution image]")
+    left, right = solution_image.regs[0]
+    long_description = long_description.replace(long_description[left:right], git_solution_image)
+    return long_description
+
+
 with open(join(dir_path, "requirements.txt"), 'r') as fh:
     requirements = [line.strip() for line in fh]
 
-
-def relative_paths(paths: list) -> list:
-    return [ relpath(path, join(dirname(__file__), 'fmridenoise')) for path in paths ]
-
-
 setuptools.setup(
     name="fmridenoise",
-    version="0.2.0.dev1",
+    version="0.2.0.dev8",
     author="Karolina Finc, Mateusz Chojnowski, Kamil Bonna",
     author_email="karolinafinc@gmail.com, zygfrydwagner@gmail.com, kongokou@gmail.com",
     description="fMRIDenoise - automated denoising, denoising strategies comparison, and functional connectivity data quality control.",
-    long_description=long_description,
+    long_description=altered_long_description(),
     long_description_content_type="text/markdown",
     url="https://github.com/nbraingroup/fmridenoise",
     classifiers=[
@@ -34,9 +47,6 @@ setuptools.setup(
     packages=setuptools.find_packages(exclude=["*.tests", "*.tests.*", "tests.*", "tests", "*tests*",
                                                '*build_tests*']),
     install_requires=requirements,
-    # package_data={'fmridenoise': list(chain(relative_paths(get_pipelines_paths()),
-    #                                         relative_paths(parcelation_path),
-    #                                         relative_paths(get_all_templates()))),
-    #               '.': ['README.md', 'LICENSE']},
+    include_package_data=True,
     scripts=[join(dir_path, 'fmridenoise', 'scripts','fmridenoise')]
 )

@@ -1,0 +1,4 @@
+include docs/fmridenoise_problem.png docs/fmridenoise_solution.png
+include fmridenoise/parcellation/*.npy fmridenoise/parcelation/*.nii.gz
+include fmridenoise/pipelines/*.json
+include fmridenoise/utils/templates/*
