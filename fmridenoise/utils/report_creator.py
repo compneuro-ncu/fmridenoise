@@ -5,7 +5,8 @@ def create_report(report_data, output_dir, report_name='report.html'):
 
     env = jinja2.Environment(
         loader=jinja2.FileSystemLoader(
-        searchpath=os.path.join(os.path.dirname(__file__), 'report_templates')))
+        searchpath=os.path.join(os.path.dirname(__file__), 'report_templates'))
+        )
 
     pipeline_table = env.get_template('pipeline_table.j2')
     svg_definitions = env.get_template('svg_definitions.j2')
