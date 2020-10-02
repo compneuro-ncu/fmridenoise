@@ -42,7 +42,7 @@ fc_fd_summary = [
         'distance_dependence': -0.06304964769937552,
         'n_excluded': 0,
         'n_subjects': 3,
-        'pearson_fc_fd': 0.4903626077607741,
+        'median_pearson_fc_fd': 0.4903626077607741,
         'perc_fc_fd_uncorr': 5.1393034825870645,
         'pipeline': 'Null',
         'tdof_loss': 0.0},

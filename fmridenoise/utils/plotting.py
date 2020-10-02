@@ -119,12 +119,12 @@ def make_violinplot(data, xlabel, output_path):
     sns.set_palette('colorblind', 8)
     sns.set_style("ticks")
 
-    fig = sns.violinplot(data=data,
-                         edgecolor=".2",
-                         linewidth=1,
-                         orient="h").set(xlabel=xlabel,
-                                         ylabel='Pipeline')
+    sns.violinplot(data=data,
+                   edgecolor=".2",
+                   linewidth=1,
+                   orient="h").set(xlabel=xlabel,
+                                   ylabel='Pipeline')
 
-    fig.savefig(output_path, dpi=300, bbox_inches='tight')
+    plt.savefig(output_path, dpi=300, bbox_inches='tight')
     plt.clf()
     return output_path

@@ -416,7 +416,7 @@ class PipelinesQualityMeasures(SimpleInterface):
         self.plot_pipelines_edges_density_clean = make_kdeplot(data=self.pipelines_edges_weight_clean,
                                                                title="Density of edge weights (no high motion)",
                                                                output_path = path)
-        entities_dict['desc'] = 'medianFcFdPearson'
+        entities_dict['desc'] = 'fcFdPearson'
         path = join(self.inputs.output_dir, build_path(entities_dict, self.plot_pattern, strict=False))
         self.plot_fc_fd_pearson = make_catplot(x="median_pearson_fc_fd",
                                                data=self.pipelines_fc_fd_summary,
