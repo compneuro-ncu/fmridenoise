@@ -12,8 +12,8 @@ from os.path import join
 import warnings
 
 from fmridenoise.utils.entities import build_path
-from fmridenoise.utils.plotting import make_motion_plot, make_kdeplot, make_catplot
-from fmridenoise.utils.numeric import array_2d_row_identity, check_symmetry
+from fmridenoise.utils.plotting import make_motion_plot, make_kdeplot, make_catplot, make_violinplot
+from fmridenoise.utils.numeric import array_2d_row_identity
 
 
 class QualityMeasuresInputSpec(BaseInterfaceInputSpec):
@@ -22,7 +22,7 @@ class QualityMeasuresInputSpec(BaseInterfaceInputSpec):
                           mandatory=True)
 
     group_conf_summary = File(exists=True,
-                              desc='Group confounds summary',
+                              desc='Group confounds summmary',
                               mandatory=True)
 
     distance_matrix = File(exists=True,
@@ -48,160 +48,104 @@ class QualityMeasuresOutputSpec(TraitedSpec):
         desc='Weights of individual edges after '
              'removing subjects with high motion')
 
+    fc_fd_corr_values = traits.Dict(
+        exists=True,
+        desc='Pearson r values for correlation '
+             'between FD and FC calculated for each edge')
+
+    fc_fd_corr_values_clean = traits.Dict(
+        exists=True,
+        desc='Pearson r values for correlation '
+             'between FD and FC calculated for each edge'
+             'after removing subjects with high motion')
+
     exclude_list = traits.List(
         exists=True,
         desc="List of subjects to exclude")
 
 
 class QualityMeasures(SimpleInterface):
-    """Calculates quality measures based on confound summary and connectivity matrices."""
-
     input_spec = QualityMeasuresInputSpec
     output_spec = QualityMeasuresOutputSpec
 
-    def __init__(self,
-                 *args, **kwargs):
-        """
-        Initializes QualityMeasures interface.
-        group_conf_summary, group_corr_mat and distance_matrix are optional parameters meant to be provided
-        if interfaces is used as standalone class and not part of nipype workflow
-        _run_interface overwrites values provided in __init__
-        Args:
-            group_conf_summary:
-            group_corr_mat_arr:
-            distance_matrix_arr:
-            *args: nipype optional arguments
-            **kwargs: nipype optional keyword arguments
-        """
-        super().__init__(*args, **kwargs)
-        self.edges_weights = {}
-        self.edges_weights_clean = {}
-        self.sample_dict = {'All': True, 'No_high_motion': False}
-        self.__group_corr_vec_cache = None  # cache for self.group_corr_vec
-        self.__distance_vector_cache = None  # cache for self.distance_vector
-        self.group_conf_summary_df: pd.DataFrame = ...  # initialized in _run_interface
-        self.group_corr_mat_arr: np.ndarray = ...  # initialized in _run_interface
-        self.distance_matrix_arr: np.ndarray = ...  # initialized in _run_interface
+    pval_tresh = 0.05
 
-    def _validate_group_conf_summary(self) -> None:  # TODO: Create test cases for validation covering all scenarios
-        """Checks if correct summary data are provided.
-        Each row should contain data for one subject."""
+    @staticmethod
+    def validate_group_conf_summary(group_conf_summary: pd.DataFrame) -> None:
+        # TODO: Check 'include' - what should happen if only one participant is not high motion
+        # TODO: or all participants are high motion (is there even possible?)
+        # TODO: Hint - interface collapse when either of cases are present (during correlations calc, look at tests)
+        """
+        Checks if correct summary data are provided.
+        Raises exceptions when data is not valid.
+        Each row should contain data for one subject.
+        """
 
         # Checks if file have data inside
-        if self.group_conf_summary_df.empty:
+        if group_conf_summary.empty:
             raise ValueError('Missing confounds summary data (empty dataframe)')
-        # Checks if data frame contains proper columns
-        # confounds_fields - from confound output definition
-        all_possible_fields = {'subject', 'task', 'session', 'mean_fd', 'max_fd', 'n_conf', 'include', 'n_spikes', 'perc_spikes'}
+            # Checks if data frame contains proper columns
+            # confounds_fields - from confound output definition
+        all_possible_fields = {'subject', 'task', 'session', 'mean_fd', 'max_fd', 'n_conf', 'include', 'n_spikes',
+                               'perc_spikes'}
         mandatory_fields = {'subject', 'task', 'mean_fd', 'max_fd', 'n_conf', 'include'}
-        provided_fields = set(self.group_conf_summary_df.columns)
+        provided_fields = set(group_conf_summary.columns)
         excess_fields = provided_fields - all_possible_fields
-        mandatory_provided = provided_fields >= mandatory_fields
+        mandatory_provided = provided_fields >= mandatory_fields  # TODO: Test this line
         if not mandatory_provided:
             raise ValueError(f'Confounds file require to have columns of\n{mandatory_fields}\n'
-                             f'but data frame contains only columns of\n{self.group_conf_summary_df.columns}')
+                             f'but data frame contains only columns of\n{group_conf_summary.columns}')
         if len(excess_fields) > 0:
             raise ValueError(f"Confounds file has excess fields {excess_fields}, check input dataframe")
 
         # Check if number of subjects corresponds to data frame size
-        if len(self.group_conf_summary_df) != len(np.unique(self.group_conf_summary_df['subject'])):
+        if len(group_conf_summary) != len(np.unique(group_conf_summary['subject'])):
             raise ValueError('Each subject should have only one ' +
                              'corresponding summary values.')
 
         # Check if summary contains data from a one task
-        if len(np.unique(self.group_conf_summary_df['task'])) > 1:
+        if len(np.unique(group_conf_summary['task'])) > 1:
             raise ValueError('Summary confouds data should contain ' +
                              'data from a one task at time.')
 
         # Check if subjects' numerical data are not identical
         num_data_columns = {'mean_fd', 'max_fd', 'n_conf', 'n_spikes', 'perc_spikes'}
-        result = array_2d_row_identity(self.group_conf_summary_df[provided_fields & num_data_columns].values)
+        result = array_2d_row_identity(group_conf_summary[provided_fields & num_data_columns].values)
         if result is not False:
             raise ValueError('Confounds summary data of some subjects are identical')
 
         # Check if number of subject allows to calculate summary measures
-        if len(self.group_conf_summary_df['subject']) < 10:
+        if len(group_conf_summary['subject']) < 10:
             warnings.warn('Quality measures may be not meaningful ' +
                           'for small (lesser than 10) sample sizes.')  # TODO: Maybe push all messages like this to interface output and present it in final raport?
+        # TODO: Make same warring as above for less than 10 'clean' subjects
 
-    def _validate_fc_matrices(self) -> None:  # NOTE: A bit of anti-patter. Name of method - validate something.
-                                      #       Does not corespond to it's functionality which validades value
-                                      #       AND assigns new object variable.
-        """Checks if correct FC matrices are provided."""
-
-        # Check if each matrix is symmetrical
-        for matrix in self.group_corr_mat_arr:
-            if not check_symmetry(matrix):
-                raise ValueError('Correlation matrix is not symmetrical.')
-
-        # Check if subjects' data are not identical
-        if array_2d_row_identity(self.group_corr_vec) is not False:
-            raise ValueError('Connectivity values of some subjects ' +
-                             'are identical.')
-
-        # Check if a number of FC matrices is the same as the number
-        # of subjects
-        if len(self.group_corr_vec) != len(self.group_conf_summary_df):
-            raise ValueError('Number of FC matrices does not correspond ' +
-                             'to the number of confound summaries.')
-
-    def _validate_distance_matrix(self) -> None:
-        """Validates distance matrix."""
-
-        # Check if distance matrix has the same shape as FC matrix
-        if self.group_corr_mat_arr[0].shape != self.distance_matrix_arr.shape:
-            raise ValueError(f'FC matrices have shape {self.group_corr_mat_arr.shape} ' +
-                             f'while distance matrix {self.distance_matrix_arr.shape}')
-
-    @property
-    def n_subjects(self) -> int:
-        """Returns total number of subjects."""
-        return len(self.group_conf_summary_df)
-
-    @property
-    def subjects_list(self) -> t.List[str]:
-        """Returns list of all subjects."""
-        return [f"sub-{sub}" for sub in self.group_conf_summary_df['subject']]
-
-    @property  # TODO: Implement cached_property/changed to functools.cached_property after update to Python 3.8
-    def group_corr_vec(self) -> np.ndarray:
-        if self.__group_corr_vec_cache is None:
-            self.__group_corr_vec_cache = sym_matrix_to_vec(self.group_corr_mat_arr)
-        return self.__group_corr_vec_cache
-
-    @property  # TODO: Implement cached_property/changed to functools.cached_property after update to Python 3.8
-    def distance_vector(self) -> np.ndarray:
-        if self.__distance_vector_cache is None:
-            self.__distance_vector_cache = sym_matrix_to_vec(self.distance_matrix_arr)
-        return self.__distance_vector_cache
-
-    def _get_subject_filter(self, all_subjects=True) -> np.ndarray:
-        """Returns filter vector with subjects included in analysis."""
-        if all_subjects:
-            return np.ones(self.n_subjects, dtype=bool)
-        else:
-            return self.group_conf_summary_df['include'].values.astype('bool')
-
-    def _get_excluded_subjects(self, subjects_filter: t.Iterable[bool]) -> t.List[str]:
+    @classmethod
+    def _perc_fc_fd_uncorr(cls, fc_fd_pval: np.ndarray) -> float:
         """
-        Returns list of subjects where value in subject_filter is False
-        Args:
-            subject_list: subject codes
-            subjects_filter: boolean values where False mean subject to exclude
-
-        Returns: list containing excluded subjects codes
+        Calculates percent of significant FC-FD correlations (uncorrected).
         """
-        ret = [ self.group_conf_summary_df['subject'][index] for index, boolean in enumerate(subjects_filter) if not boolean ]
-        return ret
+        return np.sum(fc_fd_pval < cls.pval_tresh) / len(fc_fd_pval) * 100
 
-    def _get_fc_fd_correlations(self, subjects_filter) -> t.Tuple[np.ndarray, np.ndarray]:
-        """Calculates correlations between edges weights and mean framewise displacement
-        for all subjects."""
-        n_edges = self.group_corr_vec.shape[1]
-        fc_fd_corr, fc_fd_pval = (np.zeros(n_edges) for _ in range(2))
-        fd = self.group_conf_summary_df['mean_fd'].values[subjects_filter]
+    @staticmethod
+    def _distance_dependence(fc_fd_corr, distance_vector):  # TODO: Type hints
+        """
+        Calculates percent of significant FC-FD correlations (uncorrected).
+        """
+        return pearsonr(fc_fd_corr, distance_vector)[0]
+
+    @staticmethod
+    def calculate_fc_fd_correlations(group_conf_summary: pd.DataFrame,
+                                     group_corr_vec: np.ndarray) -> t.Tuple[np.ndarray, np.ndarray]:
+        """
+        Calculates correlations between edges weights and mean framewise displacement.
+        """
+        assert not group_corr_vec.size == 0, "Empty arguments in calculate_fc_fd_correlations"
+        n_edges = group_corr_vec.shape[1]
+        fc_fd_corr, fc_fd_pval = np.zeros(n_edges), np.zeros(n_edges)
+        fd = group_conf_summary['mean_fd'].values
         for i in range(n_edges):
-            fc = self.group_corr_vec[subjects_filter, i]
+            fc = group_corr_vec[:, i]
             corr = pearsonr(x=fc, y=fd)
             fc_fd_corr[i], fc_fd_pval[i] = corr
 
@@ -211,75 +155,102 @@ class QualityMeasures(SimpleInterface):
                           'replaced with zeros.')
         return fc_fd_corr, fc_fd_pval
 
-    def pearson_fc_fd_median(self):
-        """Calculates median of FC-FD correlations."""
-        return np.median(self.fc_fd_corr)
+    @classmethod
+    def _quality_measure(cls,
+                         group_conf_summary: pd.DataFrame,
+                         distance_vec: np.ndarray,
+                         group_corr_vec: np.ndarray,
+                         all_subjects: bool) -> t.Tuple[dict, np.ndarray, np.ndarray, t.List[str]]:
+        """
+        Calculates
+        Args:
+            group_conf_summary: Conf summary for all subjects
+            distance_vec: Distance matrix flatten into vector
+            group_corr_vec:
+            all_subjects: True if all subjects should be included, False if only 'low motion' subjects
 
-    def perc_fc_fd_uncorr(self):
-        """Calculates percent of significant FC-FD correlations (uncorrected)."""
-        return np.sum(self.fc_fd_pval < 0.05) / len(self.fc_fd_pval) * 100
+        Returns:
+           Tuple with:
+               dictionary with summary of various numerical parameters of processed data
+               vector of mean correlations between edges
+               vector of correlations between edges weights and mean framewise displacement
+               list of excluded subjects
+        """
+        # select part of original dataset based on 'Include' parameter (all subjects or without high motion
+        if all_subjects:
+            group_conf_subsummary = group_conf_summary
+            group_corr_subvec = group_corr_vec
+        else:
+            group_conf_subsummary = group_conf_summary[
+                group_conf_summary['include'] == True]  # TODO: Check case where all subjects are high motion
+            group_corr_subvec = group_corr_vec[group_conf_summary['include'].values.astype(bool), :]
 
-    def distance_dependence(self):
-        """Calculates distance dependence of FC-FD correlations."""
-        return pearsonr(self.fc_fd_corr, self.distance_vector)[0]
+        fc_fd_corr, fc_fd_pval = cls.calculate_fc_fd_correlations(group_conf_subsummary, group_corr_subvec)
+        summary = {'perc_fc_fd_uncorr': cls._perc_fc_fd_uncorr(fc_fd_pval),
+                   'median_pearson_fc_fd': np.median(fc_fd_corr),
+                   'distance_dependence': cls._distance_dependence(fc_fd_corr, distance_vec),
+                   'tdof_loss': group_conf_subsummary['n_conf'].mean(),
+                   'n_subjects': len(group_conf_summary),
+                   'n_excluded': len(group_conf_summary) - len(group_conf_subsummary),
+                   'all': all_subjects,
+                   }
+        edges_weight = group_corr_subvec.mean(axis=0)
+        excluded_subjects = group_conf_summary[group_conf_summary['include'] == False]['subject']
+        return summary, edges_weight, fc_fd_corr, excluded_subjects
 
-    def dof_loss(self): # TODO: Shouldn't there be subject filter???
-        """Calculates degrees of freedom loss."""
-        return self.group_conf_summary_df['n_conf'].mean()
-
-    def _get_mean_edges_dict(self, subject_filter):
-        """Greates fictionary with mean edge weights for selected subject filter."""
-        return {self.inputs.pipeline_name: self.group_corr_vec[subject_filter].mean(axis=0)}
-
-    def _create_summary_dict(self, all_subjects=None, n_excluded=None):
-        """Generates dictionary with all summary measures."""
-        return {'pipeline': self.inputs.pipeline_name,
-                'perc_fc_fd_uncorr': self.perc_fc_fd_uncorr(),
-                'pearson_fc_fd': self.pearson_fc_fd_median(),
-                'distance_dependence': self.distance_dependence(),
-                'tdof_loss': self.dof_loss(),
-                'n_subjects': self.n_subjects,
-                'n_excluded': n_excluded,
-                'all': all_subjects,
-                }
-
-    def _quality_measures(self):
-        """Iterates over subject filters to get summary measures."""
+    @classmethod
+    def calculate_quality_measures(
+            cls,
+            group_conf_summary: pd.DataFrame,
+            group_corr_mat: np.ndarray,
+            distance_matrix: np.ndarray) -> \
+            t.Tuple[t.List[dict], np.ndarray, np.ndarray, np.ndarray, np.ndarray, t.List[str]]:
         quality_measures = []
-        for key, value in self.sample_dict.items():  # TODO: Result of the function depends on True/False order in self.sample_dict
-            subject_filter = self._get_subject_filter(all_subjects=value)
-            self.excluded_subjects = self._get_excluded_subjects(subject_filter) # TODO: Get rid of excluded subjects
-            n_excluded = len(self.excluded_subjects)
-            self.fc_fd_corr, self.fc_fd_pval = self._get_fc_fd_correlations(subject_filter)
-            summary = self._create_summary_dict(all_subjects=value, n_excluded=n_excluded)
-            quality_measures.append(summary)
-            edges_dict = self._get_mean_edges_dict(subject_filter)
-
-            if value:
-                self.edges_weight = edges_dict
-            else:
-                self.edges_weight_clean = edges_dict
-        return quality_measures
-
-    def _make_figures(self):
-        """Generates figures."""
-        make_motion_plot(self.group_conf_summary_df, self.inputs.pipeline_name, self.inputs.output_dir)
+        excluded_subjects_names = set()
+        group_corr_vec = sym_matrix_to_vec(group_corr_mat)
+        distance_vec = sym_matrix_to_vec(distance_matrix)
+        # TODO: Execute _quality_measures only if there any subjects in corresponding groups
+        # all subjects
+        summary, edges_weight, fc_fd_corr_vector, excluded_subjects = cls._quality_measure(
+            group_conf_summary,
+            distance_vec,
+            group_corr_vec, True)
+        quality_measures.append(summary)
+        excluded_subjects_names |= set(excluded_subjects)
+        # clean subjects (no high motion)
+        summary, edges_weight_clean, fc_fd_corr_vector_clean, excluded_subjects = cls._quality_measure(
+            group_conf_summary, distance_vec, group_corr_vec, False)
+        quality_measures.append(summary)
+        excluded_subjects_names |= set(excluded_subjects)
+        return quality_measures, edges_weight, edges_weight_clean, fc_fd_corr_vector, fc_fd_corr_vector_clean, \
+               list(excluded_subjects_names)
 
     def _run_interface(self, runtime):
-        self.group_conf_summary_df = pd.read_csv(self.inputs.group_conf_summary, sep='\t', header=0)
-        self.group_corr_mat_arr = np.load(self.inputs.group_corr_mat)
-        self.distance_matrix_arr = np.load(self.inputs.distance_matrix)
-        self._validate_group_conf_summary()
-        self._validate_fc_matrices()
-        self._validate_distance_matrix()
-        quality_measures = self._quality_measures()
-        self._make_figures()
+        # TODO: Validation, consider removing or checking other data properties
+        group_conf_summary_df = pd.read_csv(self.inputs.group_conf_summary, sep='\t', header=0)
+        group_corr_mat_arr = np.load(self.inputs.group_corr_mat)
+        distance_matrix_arr = np.load(self.inputs.distance_matrix)
+        self.validate_group_conf_summary(group_conf_summary_df)
+        summaries, edges_weight, edges_weight_clean, group_corr_vec, group_corr_vec_clean, exclude_list = \
+            self.calculate_quality_measures(
+                group_conf_summary_df,
+                group_corr_mat_arr,
+                distance_matrix_arr)
 
-        self._results['fc_fd_summary'] = quality_measures
-        self._results['edges_weight'] = self.edges_weight
-        self._results['edges_weight_clean'] = self.edges_weight_clean
-        self._results['exclude_list'] = self.excluded_subjects
-
+        for summary in summaries:
+            summary['pipeline'] = self.inputs.pipeline_name
+        edges_weight = {self.inputs.pipeline_name: edges_weight}
+        edges_weight_clean = {self.inputs.pipeline_name: edges_weight_clean}
+        group_corr_vec = {self.inputs.pipeline_name: group_corr_vec}
+        group_corr_vec_clean = {self.inputs.pipeline_name: group_corr_vec_clean}
+        make_motion_plot(group_conf_summary_df, self.inputs.pipeline_name, self.inputs.output_dir)  # TODO: Add output for report
+        # TODO: Plot files bids convetion names
+        self._results['fc_fd_summary'] = summaries
+        self._results['edges_weight'] = edges_weight
+        self._results['edges_weight_clean'] = edges_weight_clean
+        self._results['fc_fd_corr_values'] = group_corr_vec
+        self._results['fc_fd_corr_values_clean'] = group_corr_vec_clean
+        self._results['exclude_list'] = exclude_list
         return runtime
 
 
@@ -293,6 +264,21 @@ class PipelinesQualityMeasuresInputSpec(BaseInterfaceInputSpec):
         desc="QC-FC quality measures for each pipeline"
     )
 
+    fc_fd_corr_values = traits.List(
+        traits.Dict(
+            exists=True,
+            desc='Pearson r values for correlation '
+            'between FD and FC calculated for each edge'),
+        desc="Pearson r values for correlation for each pipeline"
+    )
+    fc_fd_corr_values_clean = traits.List(
+        traits.Dict(
+            exists=True,
+            desc='Pearson r values for correlation '
+            'between FD and FC calculated for each edge'
+            'after removing subjects with high motion'),
+        desc="Pearson r values for correlation for each pipeline (no high motion)"
+    )
     edges_weight = traits.List(
         traits.Dict(
             mandatory=True,
@@ -338,7 +324,7 @@ class PipelinesQualityMeasuresOutputSpec(TraitedSpec):
         exist=False,
         desc="Density of edge weights (no high motion)"
     )
-
+    # TODO: Add description
     plot_pipelines_fc_fd_pearson = File(
         exist=False
     )
@@ -374,8 +360,10 @@ class PipelinesQualityMeasures(SimpleInterface):
                                                           axis=0)
         return self.pipelines_fc_fd_summary
 
-    def _get_pipelines_edges_weight(self):
-        """Gets and saves tables with mean edges weights for raw and cleaned data"""
+    def _get_pipelines_edges_weight(self) -> t.Tuple[pd.DataFrame, pd.DataFrame]:
+        """
+        Gets and saves tables with mean edges weights for raw and cleaned data
+        """
         self.pipelines_edges_weight = pd.DataFrame()
         self.pipelines_edges_weight_clean = pd.DataFrame()
 
@@ -391,8 +379,29 @@ class PipelinesQualityMeasures(SimpleInterface):
                                                           axis=1)
         return self.pipelines_edges_weight, self.pipelines_edges_weight_clean
 
-    def _make_summary_figures(self, entities_dict):
-        """Makes summary figures for all quality mesures"""
+    def _get_fc_fd_corr_values(self) -> t.Tuple[pd.DataFrame, pd.DataFrame]:
+        """
+        Gets and saves tables with fc-fd correlation values weights for raw and cleaned data
+        """
+        self.pipelines_fc_fd_values = pd.DataFrame()
+        self.pipelines_fc_fd_values_clean = pd.DataFrame()
+
+        for corr, corr_clean in zip(self.inputs.fc_fd_corr_values, self.inputs.fc_fd_corr_values_clean):
+            pipeline_name = list(corr.keys())[0]
+            self.pipelines_fc_fd_values = pd.concat([self.pipelines_fc_fd_values,
+                                                     pd.DataFrame(corr,
+                                                                  columns=[pipeline_name])],
+                                                    axis=1)
+            self.pipelines_fc_fd_values_clean = pd.concat([self.pipelines_fc_fd_values_clean,
+                                                           pd.DataFrame(corr_clean,
+                                                                        columns=[pipeline_name])],
+                                                          axis=1)
+        return self.pipelines_fc_fd_values, self.pipelines_fc_fd_values_clean
+
+    def _make_summary_figures(self, entities_dict: dict) -> None:
+        """
+        Makes summary figures for all quality measures
+        """
         entities_dict['desc'] = 'pipelinesEdgesDensity'
         path = join(self.inputs.output_dir, build_path(entities_dict, self.plot_pattern, strict=False))
         self.plot_pipelines_edges_density = make_kdeplot(data=self.pipelines_edges_weight,
@@ -422,14 +431,26 @@ class PipelinesQualityMeasures(SimpleInterface):
                                                      xlabel="Distance-dependence",
                                                      output_path = path)
         entities_dict['desc'] = 'tdofLoss'
+        path = join(self.inputs.output_dir, build_path(entities_dict, self.plot_pattern, strict=False))
         self.plot_tdof_loss = make_catplot(x="tdof_loss",
                                            data=self.pipelines_fc_fd_summary,
                                            xlabel="fDOF-loss",
                                            output_path=path)
+        entities_dict['desc'] = 'violinPlot' # TODO: Rename
+        path = join(self.inputs.output_dir, build_path(entities_dict, self.plot_pattern, strict=False))
+        self.plot_violin_plot = make_violinplot(data=self.pipelines_fc_fd_values,
+                                                xlabel="fc_fd_correlation",
+                                                output_path=path)
+        entities_dict['desc'] = 'violinPlotNoHighMotion'  # TODO: Rename
+        path = join(self.inputs.output_dir, build_path(entities_dict, self.plot_pattern, strict=False))
+        self.plot_violin_plot = make_violinplot(data=self.pipelines_fc_fd_values_clean,
+                                                xlabel="fc_fd_correlation",
+                                                output_path=path)
 
     def _run_interface(self, runtime):
         summary = self._get_pipeline_summaries()
         pipelines_edges_weight, pipelines_edges_weight_clean = self._get_pipelines_edges_weight()
+        self._get_fc_fd_corr_values()
         self.entities_dict = {'task': self.inputs.task}
         if self.inputs.session != traits.Undefined:
             self.entities_dict['session'] = self.inputs.session

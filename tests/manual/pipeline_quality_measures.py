@@ -2,7 +2,6 @@ import argparse
 from fmridenoise.interfaces import PipelinesQualityMeasures
 from nipype import Node, Workflow
 from nipype.interfaces.utility import IdentityInterface
-from fmridenoise.parcellation import get_distance_matrix_file_path
 from numpy import array
 edges_weight = [
     {'24HMP8PhysSpikeReg': array([0.70710678, 0.48339738, 0.70710678, 0.2699669, 0.64224707, 0.70710678])},
@@ -11,6 +10,14 @@ edges_weight = [
 edges_weight_clean = [
     {'24HMP8PhysSpikeReg': array([0.70710678, 0.48339738, 0.70710678, 0.2699669, 0.64224707, 0.70710678])},
     {'Null': array([0.70710678, 0.7526871, 0.70710678, 0.6626035, 0.81092814, 0.70710678])}]
+fc_fd_corr_values = [
+    {'24HMP8PhysSpikeReg': array([0.0, 0.7071686637722878, 0.0, 0.937709680044116, 0.6133452558083143, 0.0])},
+    {'Null': array([0.0, 0.7071686637722878, 0.0, 0.937709680044116, 0.6133452558083143, 0.0])}
+]
+fc_fd_corr_values_clean = [
+    {'24HMP8PhysSpikeReg': array([0.0, 0.7071686637722878, 0.0, 0.937709680044116, 0.6133452558083143, 0.0])},
+    {'Null': array([0.0, 0.7071686637722878, 0.0, 0.937709680044116, 0.6133452558083143, 0.0])}
+]
 fc_fd_summary = [
     [
         {'all': True,
@@ -55,18 +62,23 @@ task = 'prlrew'
 def run(output_dir: str):
     workflow = Workflow(name="test_workflow", base_dir=output_dir)
     identity_node = Node(
-        IdentityInterface(fields=["edges_weight", "edges_weight_clean", "fc_fc_summary", "task"]),
+        IdentityInterface(fields=["edges_weight", "edges_weight_clean", "fc_fd_corr_values", "fc_df_corr_values_clean",
+                                  "fc_fc_summary", "task"]),
         name="SomeInputSource")
     identity_node.inputs.edges_weight = edges_weight
     identity_node.inputs.edges_weight_clean = edges_weight_clean
     identity_node.inputs.fc_fd_summary = fc_fd_summary
     identity_node.inputs.task = task
+    identity_node.inputs.fc_fd_corr_values = fc_fd_corr_values
+    identity_node.inputs.fc_fd_corr_values_clean = fc_fd_corr_values_clean
     quality_node = Node(PipelinesQualityMeasures(
         output_dir=output_dir),
         name="PipelineQualitMeasures")
     workflow.connect([(identity_node, quality_node, [
         ("edges_weight_clean", "edges_weight_clean"),
         ("edges_weight", "edges_weight"),
+        ("fc_fd_corr_values", "fc_fd_corr_values"),
+        ("fc_fd_corr_values_clean", "fc_fd_corr_values_clean"),
         ("fc_fd_summary", "fc_fd_summary"),
         ("task", "task")
     ])])
