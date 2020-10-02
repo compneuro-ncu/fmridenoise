@@ -1,7 +1,6 @@
 import numpy as np
 import matplotlib.pyplot as plt
 import seaborn as sns
-from os.path import join
 
 
 def make_motion_plot(group_conf_summary, output_path, mean_fd_th=0.2, max_fd_th=5, perc_spikes_th=20):
@@ -59,7 +58,7 @@ def make_motion_plot(group_conf_summary, output_path, mean_fd_th=0.2, max_fd_th=
 
     fig.suptitle(f"Excluding high motion subjects", va="top")
     fig.savefig(output_path, dpi=300)
-
+    plt.clf()
     return fig
 
 
@@ -77,7 +76,7 @@ def make_kdeplot(data, title, output_path):
     plt.legend(bbox_to_anchor=(1.05, 1), loc=2, borderaxespad=0.)
 
     fig.savefig(output_path, dpi=300, bbox_inches='tight')
-
+    plt.clf()
     return output_path
 
 
@@ -93,6 +92,7 @@ def make_catplot(x, data, xlabel, output_path):
                                       ylabel='Pipeline')
 
     fig.savefig(output_path, dpi=300, bbox_inches='tight')
+    plt.clf()
     return output_path
 
 
@@ -109,7 +109,8 @@ def make_barplot(x, data, xlabel, output_path):
                       orient="h").set(xlabel=xlabel,
                                       ylabel='Pipeline')
 
-    plt.savefig(output_path, dpi=300, bbox_inches='tight')
+    fig.savefig(output_path, dpi=300, bbox_inches='tight')
+    plt.clf()
     return output_path
 
 
@@ -118,11 +119,12 @@ def make_violinplot(data, xlabel, output_path):
     sns.set_palette('colorblind', 8)
     sns.set_style("ticks")
 
-    sns.violinplot(data=data,
-                   edgecolor=".2",
-                   linewidth=1,
-                   orient="h").set(xlabel=xlabel,
-                                   ylabel='Pipeline')
+    fig = sns.violinplot(data=data,
+                         edgecolor=".2",
+                         linewidth=1,
+                         orient="h").set(xlabel=xlabel,
+                                         ylabel='Pipeline')
 
-    plt.savefig(output_path, dpi=300, bbox_inches='tight')
+    fig.savefig(output_path, dpi=300, bbox_inches='tight')
+    plt.clf()
     return output_path

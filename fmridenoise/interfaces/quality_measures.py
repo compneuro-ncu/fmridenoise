@@ -77,9 +77,6 @@ class QualityMeasures(SimpleInterface):
 
     @staticmethod
     def validate_group_conf_summary(group_conf_summary: pd.DataFrame) -> None:
-        # TODO: Check 'include' - what should happen if only one participant is not high motion
-        # TODO: or all participants are high motion (is there even possible?)
-        # TODO: Hint - interface collapse when either of cases are present (during correlations calc, look at tests)
         """
         Checks if correct summary data are provided.
         Raises exceptions when data is not valid.
@@ -96,7 +93,7 @@ class QualityMeasures(SimpleInterface):
         mandatory_fields = {'subject', 'task', 'mean_fd', 'max_fd', 'n_conf', 'include'}
         provided_fields = set(group_conf_summary.columns)
         excess_fields = provided_fields - all_possible_fields
-        mandatory_provided = provided_fields >= mandatory_fields  # TODO: Test this line
+        mandatory_provided = provided_fields >= mandatory_fields
         if not mandatory_provided:
             raise ValueError(f'Confounds file require to have columns of\n{mandatory_fields}\n'
                              f'but data frame contains only columns of\n{group_conf_summary.columns}')
@@ -122,8 +119,7 @@ class QualityMeasures(SimpleInterface):
         # Check if number of subject allows to calculate summary measures
         if len(group_conf_summary['subject']) < 10:
             warnings.warn('Quality measures may be not meaningful ' +
-                          'for small (lesser than 10) sample sizes.')  # TODO: Maybe push all messages like this to interface output and present it in final raport?
-        # TODO: Make same warring as above for less than 10 'clean' subjects
+                          'for small (lesser than 10) sample sizes.')
 
     @classmethod
     def _perc_fc_fd_uncorr(cls, fc_fd_pval: np.ndarray) -> float:
@@ -133,7 +129,7 @@ class QualityMeasures(SimpleInterface):
         return np.sum(fc_fd_pval < cls.pval_tresh) / len(fc_fd_pval) * 100
 
     @staticmethod
-    def _distance_dependence(fc_fd_corr, distance_vector):  # TODO: Type hints
+    def _distance_dependence(fc_fd_corr: np.ndarray, distance_vector: np.ndarray) -> float:
         """
         Calculates percent of significant FC-FD correlations (uncorrected).
         """
@@ -187,7 +183,7 @@ class QualityMeasures(SimpleInterface):
             group_corr_subvec = group_corr_vec
         else:
             group_conf_subsummary = group_conf_summary[
-                group_conf_summary['include'] == True]  # TODO: Check case where all subjects are high motion
+                group_conf_summary['include'] == True]
             group_corr_subvec = group_corr_vec[group_conf_summary['include'].values.astype(bool), :]
 
         fc_fd_corr, fc_fd_pval = cls.calculate_fc_fd_correlations(group_conf_subsummary, group_corr_subvec)
@@ -214,7 +210,6 @@ class QualityMeasures(SimpleInterface):
         excluded_subjects_names = set()
         group_corr_vec = sym_matrix_to_vec(group_corr_mat)
         distance_vec = sym_matrix_to_vec(distance_matrix)
-        # TODO: Execute _quality_measures only if there any subjects in corresponding groups
         # all subjects
         summary, edges_weight, fc_fd_corr_vector, excluded_subjects = cls._quality_measure(
             group_conf_summary,
@@ -231,7 +226,6 @@ class QualityMeasures(SimpleInterface):
                list(excluded_subjects_names)
 
     def _run_interface(self, runtime):
-        # TODO: Validation, consider removing or checking other data properties
         group_conf_summary_df = pd.read_csv(self.inputs.group_conf_summary, sep='\t', header=0)
         group_corr_mat_arr = np.load(self.inputs.group_corr_mat)
         distance_matrix_arr = np.load(self.inputs.distance_matrix)
@@ -299,8 +293,8 @@ class PipelinesQualityMeasuresInputSpec(BaseInterfaceInputSpec):
         desc="Mean weights of individual edges for each pipeline (no high motion)"
     )
 
-    output_dir = File(  # needed to save data in other directory
-        desc="Output path")  # TODO: Implement temp dir
+    output_dir = File(
+        desc="Output path")
 
     task = traits.Str(
         desc="Task name")
@@ -331,26 +325,29 @@ class PipelinesQualityMeasuresOutputSpec(TraitedSpec):
         exist=False,
         desc="Density of edge weights (no high motion)"
     )
-    # TODO: Add description
+
     plot_pipelines_fc_fd_pearson = File(
-        exist=False
+        exist=False,
+        desc=""
     )
 
     plot_pipelines_fc_fd_uncorr = File(
-        exist=False
+        exist=False,
+        desc=""
     )
 
     plot_pipelines_distance_dependence = File(
-        exist=False
+        exist=False,
+        desc=""
     )
 
-    plot_pipelines_tdof_loss = File(  # TODO: Include in final report?
-        exist=False
+    plot_pipelines_tdof_loss = File(
+        exist=False,
+        desc=""
     )
 
 
 class PipelinesQualityMeasures(SimpleInterface):
-    # TODO: Check density edges plot - looks suspicious
     input_spec = PipelinesQualityMeasuresInputSpec
     output_spec = PipelinesQualityMeasuresOutputSpec
     plot_pattern = "[ses-{session}_]task_{task}_desc-{desc}_plot.svg"
@@ -419,11 +416,11 @@ class PipelinesQualityMeasures(SimpleInterface):
         self.plot_pipelines_edges_density_clean = make_kdeplot(data=self.pipelines_edges_weight_clean,
                                                                title="Density of edge weights (no high motion)",
                                                                output_path = path)
-        entities_dict['desc'] = 'fcFdPearson'
+        entities_dict['desc'] = 'medianFcFdPearson'
         path = join(self.inputs.output_dir, build_path(entities_dict, self.plot_pattern, strict=False))
-        self.plot_fc_fd_pearson = make_catplot(x="pearson_fc_fd",
+        self.plot_fc_fd_pearson = make_catplot(x="median_pearson_fc_fd",
                                                data=self.pipelines_fc_fd_summary,
-                                               xlabel="QC-FC (Pearson's r)",
+                                               xlabel="Median QC-FC (Pearson's r)",
                                                output_path=path)
         entities_dict['desc'] = 'percFcFdUncorr'
         path = join(self.inputs.output_dir, build_path(entities_dict, self.plot_pattern, strict=False))
@@ -491,4 +488,3 @@ class PipelinesQualityMeasures(SimpleInterface):
         self._results['plot_pipelines_tdof_loss'] = self.plot_tdof_loss
 
         return runtime
-
