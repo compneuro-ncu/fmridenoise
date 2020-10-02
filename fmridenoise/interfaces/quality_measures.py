@@ -31,7 +31,7 @@ class QualityMeasuresInputSpec(BaseInterfaceInputSpec):
 
     output_dir = File(desc='Output path')
 
-    pipeline_name = traits.Str(mandatory=True)
+    pipeline = traits.Dict(mandatory=True)
 
 
 class QualityMeasuresOutputSpec(TraitedSpec):
@@ -63,11 +63,16 @@ class QualityMeasuresOutputSpec(TraitedSpec):
         exists=True,
         desc="List of subjects to exclude")
 
+    motion_plot = traits.File(
+        exists=True,
+        desc="Motion criterion plot"
+    )
+
 
 class QualityMeasures(SimpleInterface):
     input_spec = QualityMeasuresInputSpec
     output_spec = QualityMeasuresOutputSpec
-
+    motion_plot_pattern = "pipeline-{pipeline}_desc-motionCriterion_plot.svg"
     pval_tresh = 0.05
 
     @staticmethod
@@ -236,21 +241,23 @@ class QualityMeasures(SimpleInterface):
                 group_conf_summary_df,
                 group_corr_mat_arr,
                 distance_matrix_arr)
-
+        pipeline_name = self.inputs.pipeline['name']
         for summary in summaries:
-            summary['pipeline'] = self.inputs.pipeline_name
-        edges_weight = {self.inputs.pipeline_name: edges_weight}
-        edges_weight_clean = {self.inputs.pipeline_name: edges_weight_clean}
-        group_corr_vec = {self.inputs.pipeline_name: group_corr_vec}
-        group_corr_vec_clean = {self.inputs.pipeline_name: group_corr_vec_clean}
-        make_motion_plot(group_conf_summary_df, self.inputs.pipeline_name, self.inputs.output_dir)  # TODO: Add output for report
-        # TODO: Plot files bids convetion names
+            summary['pipeline'] = pipeline_name
+        edges_weight = {pipeline_name: edges_weight}
+        edges_weight_clean = {pipeline_name: edges_weight_clean}
+        group_corr_vec = {pipeline_name: group_corr_vec}
+        group_corr_vec_clean = {pipeline_name: group_corr_vec_clean}
+        motion_plot_path = join(self.inputs.output_dir, build_path({'pipeline': pipeline_name},
+                                                                   self.motion_plot_pattern, strict=False))
+        make_motion_plot(group_conf_summary_df, motion_plot_path)
         self._results['fc_fd_summary'] = summaries
         self._results['edges_weight'] = edges_weight
         self._results['edges_weight_clean'] = edges_weight_clean
         self._results['fc_fd_corr_values'] = group_corr_vec
         self._results['fc_fd_corr_values_clean'] = group_corr_vec_clean
         self._results['exclude_list'] = exclude_list
+        self._results['motion_plot'] = motion_plot_path
         return runtime
 
 

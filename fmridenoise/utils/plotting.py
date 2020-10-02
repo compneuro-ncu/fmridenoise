@@ -4,8 +4,7 @@ import seaborn as sns
 from os.path import join
 
 
-def make_motion_plot(group_conf_summary, pipeline_name, output_dir,
-                     mean_fd_th=0.2, max_fd_th=5, perc_spikes_th=20):
+def make_motion_plot(group_conf_summary, output_path, mean_fd_th=0.2, max_fd_th=5, perc_spikes_th=20):
     """Generates plot presenting number of subjects excluded with high motion
     according specified thresholds."""
 
@@ -59,7 +58,7 @@ def make_motion_plot(group_conf_summary, pipeline_name, output_dir,
         p.tick_params(axis='both', which='both', length=6, width=2.2)
 
     fig.suptitle(f"Excluding high motion subjects", va="top")
-    fig.savefig(join(output_dir, f"motion_criterion_pipeline-{pipeline_name}.svg"), dpi=300)
+    fig.savefig(output_path, dpi=300)
 
     return fig
 

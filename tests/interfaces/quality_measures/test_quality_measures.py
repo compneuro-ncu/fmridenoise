@@ -7,6 +7,7 @@ import tempfile
 import shutil
 from os.path import join
 from numpy.testing import assert_array_equal, assert_array_almost_equal
+from fmridenoise.pipelines import load_pipeline_from_json, get_pipeline_path
 
 
 class QualityMeasuresAsNodeTestCase(ut.TestCase):
@@ -37,7 +38,7 @@ class QualityMeasuresAsNodeTestCase(ut.TestCase):
             [1, 9, 3, 0]
         ],
     ])
-    pipeline = 'test'
+    pipeline = load_pipeline_from_json(get_pipeline_path('pipeline-Null'))
 
     @classmethod
     def tearDownClass(cls) -> None:
@@ -56,7 +57,7 @@ class QualityMeasuresAsNodeTestCase(ut.TestCase):
         cls.quality_measures_node.inputs.group_conf_summary = group_conf_summary_file
         cls.quality_measures_node.inputs.distance_matrix = distance_matrix_file
         cls.quality_measures_node.inputs.group_corr_mat = group_corr_mat_file
-        cls.quality_measures_node.inputs.pipeline_name = cls.pipeline
+        cls.quality_measures_node.inputs.pipeline = cls.pipeline
         cls.quality_measures_node.inputs.output_dir = cls.tempdir
         cls.result = cls.quality_measures_node.run()
 
@@ -95,7 +96,7 @@ class QualityMeasuresAsNodeTestCase(ut.TestCase):
         from nilearn.connectome import sym_matrix_to_vec
         vec: np.ndarray = sym_matrix_to_vec(self.group_corr_mat)
         tested_edges_weight = vec.mean(axis=0)
-        assert_array_equal(edges_weight['test'], tested_edges_weight)
+        assert_array_equal(edges_weight[self.pipeline['name']], tested_edges_weight)
 
     def test_edges_weight_clean(self):
         edges_weight: dict = self.result.outputs.edges_weight_clean
@@ -108,7 +109,7 @@ class QualityMeasuresAsNodeTestCase(ut.TestCase):
         group_corr_mat = self.group_corr_mat[[0, 2], :, :]
         vec: np.ndarray = sym_matrix_to_vec(group_corr_mat)
         tested_edges_weight = vec.mean(axis=0)
-        assert_array_equal(edges_weight['test'], tested_edges_weight)
+        assert_array_equal(edges_weight[self.pipeline['name']], tested_edges_weight)
 
     def test_fc_fd_vec(self):
         corr_vec: dict = self.result.outputs.fc_fd_corr_values
@@ -120,7 +121,7 @@ class QualityMeasuresAsNodeTestCase(ut.TestCase):
         from nilearn.connectome import sym_matrix_to_vec
         vec = sym_matrix_to_vec(self.group_corr_mat)
         corr, _ = QualityMeasures.calculate_fc_fd_correlations(self.group_conf_summary, vec)  # TODO: Replace method call
-        assert_array_almost_equal(corr_vec['test'], corr)
+        assert_array_almost_equal(corr_vec[self.pipeline['name']], corr)
 
     def test_fc_fd_vec_clean(self):
         corr_vec: dict = self.result.outputs.fc_fd_corr_values_clean
@@ -134,7 +135,7 @@ class QualityMeasuresAsNodeTestCase(ut.TestCase):
         vec: np.ndarray = sym_matrix_to_vec(group_corr_mat)
         corr, _ = QualityMeasures.calculate_fc_fd_correlations(
             self.group_conf_summary[self.group_conf_summary['include'] == True], vec)
-        assert_array_almost_equal(corr_vec['test'], corr)
+        assert_array_almost_equal(corr_vec[self.pipeline['name']], corr)
 
 
 # TODO: Check this tests

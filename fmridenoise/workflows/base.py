@@ -176,7 +176,8 @@ class BaseWorkflow(pe.Workflow):
                 output_dir=os.path.join(bids_dir, 'derivatives', 'fmridenoise'),  # TODO: Replace with datasinks for needed output
             ),
             joinsource=self.pipelineselector,
-            joinfield=['fc_fd_summary', 'edges_weight', 'edges_weight_clean'],
+            joinfield=['fc_fd_summary', 'edges_weight', 'edges_weight_clean',
+                       'fc_fd_corr_values', 'fc_fd_corr_values_clean'],
             name="PipelinesQualityMeasures")
 
         self.quality_measures_join  = pe.JoinNode(
@@ -254,14 +255,17 @@ class BaseWorkflow(pe.Workflow):
             (self.pipelineselector, self.group_connectivity, [("pipeline_name", "pipeline_name")]),
             (self.taskselector, self.group_connectivity, [('task', 'task')]),
             # quality measures
-            (self.pipelineselector, self.quality_measures, [('pipeline_name', 'pipeline_name')]),
+            (self.pipelineselector, self.quality_measures, [('pipeline', 'pipeline')]),
             (self.group_connectivity, self.quality_measures, [('group_corr_mat', 'group_corr_mat')]),
             (self.group_conf_summary, self.quality_measures, [('group_conf_summary', 'group_conf_summary')]),
             # pipeline quality measures
             (self.taskselector, self.pipelines_quality_measures, [('task', 'task')]),
-            (self.quality_measures, self.pipelines_quality_measures, [('fc_fd_summary', 'fc_fd_summary'),
-                                                                      ('edges_weight', 'edges_weight'),
-                                                                      ('edges_weight_clean', 'edges_weight_clean')]),
+            (self.quality_measures, self.pipelines_quality_measures, [
+                ('fc_fd_summary', 'fc_fd_summary'),
+                ('edges_weight', 'edges_weight'),
+                ('edges_weight_clean', 'edges_weight_clean'),
+                ('fc_fd_corr_values', 'fc_fd_corr_values'),
+                ('fc_fd_corr_values_clean', 'fc_fd_corr_values_clean')]),
             # report creator
             (self.pipelineselector, self.pipelines_join, [('pipeline', 'pipelines')]),
             (self.pipelines_join, self.report_creator, [('pipelines', 'pipelines')]),
