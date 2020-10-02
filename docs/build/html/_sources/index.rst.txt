@@ -4,11 +4,6 @@
    contain the root `toctree` directive.
 
 .. include:: ../../README.rst
-.. include:: installation.rst
-.. include:: usage.rst
-.. include:: output.rst
-.. include:: pipelines.rst
-
 
 Contents
 --------
