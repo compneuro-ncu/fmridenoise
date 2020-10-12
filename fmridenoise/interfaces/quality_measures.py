@@ -354,7 +354,9 @@ class PipelinesQualityMeasures(SimpleInterface):
     data_files_pattern = '[ses-{session}_]task-{task}[_desc-{desc}]_{suffix}.{extension}'
 
     def _get_pipeline_summaries(self) -> pd.DataFrame:
-        """Gets and saves table with quality measures for each pipeline"""
+        """
+        Gets and saves table with quality measures for each pipeline
+        """
         self.pipelines_fc_fd_summary = pd.DataFrame()
 
         for quality_measures in self.inputs.fc_fd_summary:
