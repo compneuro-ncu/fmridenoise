@@ -1,5 +1,4 @@
 from bids.layout import parse_file_entities
-from bids.layout.writing import build_path
 from nipype.interfaces.base import (
     BaseInterfaceInputSpec, TraitedSpec,
     ImageFile, SimpleInterface, Directory)
@@ -7,6 +6,8 @@ from nibabel import load, save
 from nilearn.image import smooth_img
 from os.path import join, exists
 from traits.trait_types import Bool
+
+from fmridenoise.utils.entities import build_path
 
 
 class SmoothInputSpec(BaseInterfaceInputSpec):
@@ -30,7 +31,7 @@ class SmoothOutputSpec(TraitedSpec):
 class Smooth(SimpleInterface):
     input_spec = SmoothInputSpec
     output_spec = SmoothOutputSpec
-    smooth_file_pattern = "sub-{subject}[_ses-{session}]_task-{task}_desc-Smoothed_bold.nii.gz"
+    smooth_file_pattern = "sub-{subject}[_ses-{session}]_task-{task}_space-{space}_desc-Smoothed_bold.nii.gz"
 
     def _run_interface(self, runtime):
         if exists(self.inputs.fmri_prep):

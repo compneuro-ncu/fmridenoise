@@ -4,13 +4,11 @@ from os.path import join
 
 import pandas as pd
 import numpy as np
-from bids.layout.writing import build_path
-
 from traits.trait_types import Dict, Str, List, Directory
 from nipype.interfaces.base import (BaseInterfaceInputSpec, File, TraitedSpec, 
     SimpleInterface)
 import typing as t
-from fmridenoise.utils.entities import parse_file_entities_with_pipelines
+from fmridenoise.utils.entities import parse_file_entities_with_pipelines, build_path
 
 
 class ConfoundsInputSpec(BaseInterfaceInputSpec):
@@ -275,9 +273,9 @@ class GroupConfounds(SimpleInterface):
             with open(summary_json_file, 'r') as f:
                 group_conf_summary = group_conf_summary.append(pd.DataFrame(json.load(f), index=[0]))
         if self.inputs.session:
-            base =  f"ses-{self.inputs.session}_task-{self.inputs.task}_pipeline-{self.inputs.pipeline_name}_groupConfSummary.tsv"
+            base = f"ses-{self.inputs.session}_task-{self.inputs.task}_pipeline-{self.inputs.pipeline_name}_groupConfSummary.tsv"
         else:
-            base =  f"task-{self.inputs.task}_pipeline-{self.inputs.pipeline_name}_groupConfSummary.tsv"
+            base = f"task-{self.inputs.task}_pipeline-{self.inputs.pipeline_name}_groupConfSummary.tsv"
         fname = os.path.join(self.inputs.output_dir, base)
         assert not os.path.exists(fname)
         group_conf_summary.to_csv(fname, sep='\t', index=False)
