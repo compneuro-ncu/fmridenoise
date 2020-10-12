@@ -1,7 +1,6 @@
 import numpy as np
 from bids.layout import parse_file_entities
 from bids.layout.writing import build_path
-
 from nipype.interfaces.base import (BaseInterfaceInputSpec, TraitedSpec,
                                     SimpleInterface, File, Directory,
                                     traits)
@@ -9,7 +8,11 @@ import nibabel as nb
 from nilearn.input_data import NiftiLabelsMasker
 from nilearn.connectome import ConnectivityMeasure
 
+
 from fmridenoise.pipelines import extract_pipeline_from_path
+from fmridenoise.parcellation import get_parcellation_file_path
+from fmridenoise.pipelines import extract_pipeline_from_path
+from fmridenoise.utils.entities import build_path
 from fmridenoise.utils.quality_measures import create_carpetplot
 from nilearn.plotting import plot_matrix
 from os.path import join
@@ -19,10 +22,6 @@ class ConnectivityInputSpec(BaseInterfaceInputSpec):
     fmri_denoised = File(
         exists=True,
         desc='Denoised fMRI file',
-        mandatory=True)
-    parcellation = File(
-        exists=True,
-        desc='Parcellation file',
         mandatory=True)
     output_dir = Directory(
         exists=True,
@@ -53,8 +52,10 @@ class Connectivity(SimpleInterface):
 
     def _run_interface(self, runtime):
         fname = self.inputs.fmri_denoised
+        entities = parse_file_entities(fname)
         bold_img = nb.load(fname)
-        masker = NiftiLabelsMasker(labels_img=self.inputs.parcellation, standardize=True)
+        parcellation_file = get_parcellation_file_path(entities['space'])
+        masker = NiftiLabelsMasker(labels_img=parcellation_file, standardize=True)
         time_series = masker.fit_transform(bold_img, confounds=None)
 
         corr_measure = ConnectivityMeasure(kind='correlation')

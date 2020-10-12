@@ -74,7 +74,6 @@ class ReportCreator(SimpleInterface):
     input_spec = ReportCreatorInputSpec
 
     def _run_interface(self, runtime):
-
         # Find all distinct entities
         plots_all_pipelines, plots_pipeline = [], []
         for plots_type, plots_list in self.inputs.__dict__.items():

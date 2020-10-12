@@ -2,7 +2,7 @@ import setuptools
 from os.path import join, dirname, relpath
 import glob
 from fmridenoise.pipelines import get_pipelines_paths
-from fmridenoise.parcellation import get_parcelation_file_path, get_distance_matrix_file_path
+from fmridenoise.parcellation import get_parcellation_file_path, get_distance_matrix_file_path
 from fmridenoise.utils.templates import get_all_templates
 from itertools import chain
 with open("README.md", "r") as fh:
@@ -28,9 +28,9 @@ def get_requirements() -> list:
 def relative_paths(paths: list) -> list:
     return [ relpath(path, join(dirname(__file__), 'fmridenoise')) for path in paths ]
 
-parcelation_path = [get_parcelation_file_path(), get_distance_matrix_file_path()]
+# parcelation_path = [get_parcellation_file_path(), get_distance_matrix_file_path()]
 test = list(chain(relative_paths(get_pipelines_paths()), 
-                                            relative_paths(parcelation_path),
+                                            # relative_paths(parcelation_path),
                                             relative_paths(get_all_templates())))
 setuptools.setup(
     name="fmridenoise",

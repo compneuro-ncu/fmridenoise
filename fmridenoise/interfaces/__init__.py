@@ -1,3 +1,3 @@
 from .quality_measures import (QualityMeasures,
-                               PipelinesQualityMeasures,
-                               MergeGroupQualityMeasures)
+                               PipelinesQualityMeasures)
+from .report_creator import ReportCreator

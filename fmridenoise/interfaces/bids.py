@@ -435,6 +435,12 @@ class BIDSValidate(SimpleInterface):
             tr_dict[task] = layout_for_tr.get_metadata(example_file.path)[
                 'RepetitionTime']
 
+        # check space
+        # TODO:
+        # spaces = layout.get_entities()['space'].unique()
+        # for space in spaces:
+        #     get_parcellation_file_path(space)
+
         # Prepare outputs
         self._results['fmri_prep'] = fmri_prep
         self._results['fmri_prep_aroma'] = fmri_prep_aroma

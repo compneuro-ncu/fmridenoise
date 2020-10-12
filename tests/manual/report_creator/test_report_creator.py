@@ -2,7 +2,7 @@ import os
 import pathlib
 
 from fmridenoise.interfaces.report_creator import ReportCreator
-from fmridenoise.pipelines import load_pipeline_from_json
+from fmridenoise.pipelines import load_pipeline_from_json, get_pipeline_path
 
 from .utils import create_dummy_plots
 
@@ -21,15 +21,15 @@ if __name__ == '__main__':
         {'task': 'tapping', 'ses': '1'},
         ]
     pipelines_dict = {
-        'Null': 'pipeline-Null.json', 
-        '24HMP8PhysSpikeReg': 'pipeline-24HMP_8Phys_SpikeReg.json', 
-        'ICAAROMA8Phys': 'pipeline-ICA-AROMA_8Phys.json'
+        'Null': 'pipeline-Null',
+        '24HMP8PhysSpikeReg': 'pipeline-24HMP_8Phys_SpikeReg',
+        'ICAAROMA8Phys': 'pipeline-ICA-AROMA_8Phys'
         }
     pipelines = []
-    for pipeline_file in pipelines_dict.values():
+    for pipeline_name in pipelines_dict.values():
         pipelines.append(
             load_pipeline_from_json(
-                os.path.join('fmridenoise/pipelines', pipeline_file)
+                get_pipeline_path(pipeline_name)
                 )
             )
     # Input arguments for ReportCreator interface    
