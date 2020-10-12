@@ -361,7 +361,7 @@ class PipelinesQualityMeasuresOutputSpec(TraitedSpec):
 class PipelinesQualityMeasures(SimpleInterface):
     input_spec = PipelinesQualityMeasuresInputSpec
     output_spec = PipelinesQualityMeasuresOutputSpec
-    plot_pattern = "[ses-{session}_]task_{task}_desc-{desc}_plot.svg"
+    plot_pattern = "[ses-{session}_]task-{task}_desc-{desc}_plot.svg"
     data_files_pattern = '[ses-{session}_]task-{task}[_desc-{desc}]_{suffix}.{extension}'
 
     def _get_pipeline_summaries(self) -> pd.DataFrame:
