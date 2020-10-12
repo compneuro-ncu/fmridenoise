@@ -440,12 +440,12 @@ class PipelinesQualityMeasures(SimpleInterface):
                                            data=self.pipelines_fc_fd_summary,
                                            xlabel="fDOF-loss",
                                            output_path=path)
-        entities_dict['desc'] = 'violinPlot' # TODO: Rename
+        entities_dict['desc'] = 'violinPlot'
         path = join(self.inputs.output_dir, build_path(entities_dict, self.plot_pattern, strict=False))
         self.plot_violin_plot = make_violinplot(data=self.pipelines_fc_fd_values,
                                                 xlabel="fc_fd_correlation",
                                                 output_path=path)
-        entities_dict['desc'] = 'violinPlotNoHighMotion'  # TODO: Rename
+        entities_dict['desc'] = 'violinPlotNoHighMotion'
         path = join(self.inputs.output_dir, build_path(entities_dict, self.plot_pattern, strict=False))
         self.plot_violin_plot = make_violinplot(data=self.pipelines_fc_fd_values_clean,
                                                 xlabel="fc_fd_correlation",

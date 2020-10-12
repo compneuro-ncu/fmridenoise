@@ -138,7 +138,7 @@ class QualityMeasuresAsNodeTestCase(ut.TestCase):
         assert_array_almost_equal(corr_vec[self.pipeline['name']], corr)
 
 
-# TODO: Check this tests
+
 @ut.skip
 class QualityMeasuresEdgeCases(ut.TestCase):
     
