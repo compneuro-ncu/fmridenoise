@@ -1,6 +1,7 @@
 from os.path import join, exists
 import pandas as pd
 import nibabel as nb
+from bids.layout.writing import build_path
 from traits.trait_base import _Undefined
 from nilearn.image import clean_img
 from nipype.interfaces.base import (

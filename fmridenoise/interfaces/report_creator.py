@@ -59,15 +59,16 @@ class ReportCreatorInputSpec(BaseInterfaceInputSpec):
     ))
 
     # For single pipeline
-    plots_pipeline_fc_fd_pearson_matrix = List(File(
-        exists=True,
-        desc="Matrix showing correlation between connection strength and motion for all subjects"
-    ))
-
-    plots_pipeline_fc_fd_pearson_matrix_no_high_motion = List(File(
-        exists=True,
-        desc="Matrix showing correlation between connection strength and motion without high motion subjects"
-    ))
+    # TODO: Uncomment and connect paths bellow
+    # plots_pipeline_fc_fd_pearson_matrix = List(File(
+    #     exists=True,
+    #     desc="Matrix showing correlation between connection strength and motion for all subjects"
+    # ))
+    #
+    # plots_pipeline_fc_fd_pearson_matrix_no_high_motion = List(File(
+    #     exists=True,
+    #     desc="Matrix showing correlation between connection strength and motion without high motion subjects"
+    # ))
 
 
 class ReportCreator(SimpleInterface):

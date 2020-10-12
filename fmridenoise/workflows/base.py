@@ -180,21 +180,27 @@ class BaseWorkflow(pe.Workflow):
                        'fc_fd_corr_values', 'fc_fd_corr_values_clean'],
             name="PipelinesQualityMeasures")
 
-        self.quality_measures_join  = pe.JoinNode(
-            IdentityInterface(fields=
-                              ['plot_pipelines_edges_density',
-                               'plot_pipelines_edges_density_no_high_motion',
-                               'plot_pipelines_fc_fd_pearson',
-                               'plot_pipelines_fc_fd_uncorr',
-                               'plot_pipelines_distance_dependence',
-                               'tasks']),
+        self.quality_measures_join = pe.JoinNode(
+            IdentityInterface(fields=[
+                'plot_pipelines_edges_density',
+                'plot_pipelines_edges_density_no_high_motion',
+                'plot_pipelines_fc_fd_pearson',
+                'plot_pipelines_fc_fd_pearson_no_high_motion',
+                'plot_pipelines_fc_fd_uncorr',
+                'plot_pipelines_distance_dependence',
+                'plot_pipelines_distance_dependence_no_high_motion',
+                'plot_pipelines_tdof_loss',
+                'tasks']),
             name="JoinPipelinesQualityMeasures",
             joinsource=self.taskselector,  # TODO: Include dataflow where sessions are present (another join)
             joinfield=['plot_pipelines_edges_density',
                        'plot_pipelines_edges_density_no_high_motion',
                        'plot_pipelines_fc_fd_pearson',
+                       'plot_pipelines_fc_fd_pearson_no_high_motion',
                        'plot_pipelines_fc_fd_uncorr',
                        'plot_pipelines_distance_dependence',
+                       'plot_pipelines_distance_dependence_no_high_motion',
+                       'plot_pipelines_tdof_loss',
                        'tasks']
         )
         # Outputs: pipelines_fc_fd_summary, pipelines_edges_weight
@@ -269,22 +275,31 @@ class BaseWorkflow(pe.Workflow):
             # report creator
             (self.pipelineselector, self.pipelines_join, [('pipeline', 'pipelines')]),
             (self.pipelines_join, self.report_creator, [('pipelines', 'pipelines')]),
-            (self.pipelines_quality_measures, self.quality_measures_join,
-             [('plot_pipelines_edges_density', 'plot_pipelines_edges_density'),
-              ('plot_pipelines_edges_density_no_high_motion', 'plot_pipelines_edges_density_no_high_motion'),
-              ('plot_pipelines_fc_fd_pearson', 'plot_pipelines_fc_fd_pearson'),
-              ('plot_pipelines_fc_fd_uncorr', 'plot_pipelines_fc_fd_uncorr'),
-              ('plot_pipelines_distance_dependence', 'plot_pipelines_distance_dependence')
-              ]),
+            (self.pipelines_quality_measures, self.quality_measures_join, [
+                ('pipelines_fc_fd_summary', 'pipelines_fc_fd_summary'),
+                ('plot_pipelines_edges_density', 'plot_pipelines_edges_density'),
+                ('plot_pipelines_edges_density_no_high_motion', 'plot_pipelines_edges_density_no_high_motion'),
+                ('plot_pipelines_fc_fd_pearson', 'plot_pipelines_fc_fd_pearson'),
+                ('plot_pipelines_fc_fd_pearson_no_high_motion', 'plot_pipelines_fc_fd_pearson_no_high_motion'),
+                ('plot_pipelines_fc_fd_uncorr', 'plot_pipelines_fc_fd_uncorr'),
+                ('plot_pipelines_distance_dependence', 'plot_pipelines_distance_dependence'),
+                ('plot_pipelines_distance_dependence_no_high_motion', 'plot_pipelines_distance_dependence_no_high_motion'),
+                ('plot_pipelines_tdof_loss', 'plot_pipelines_tdof_loss')
+               ]),
             (self.taskselector, self.quality_measures_join, [('task', 'tasks')]),
-            (self.quality_measures_join, self.report_creator,
-             [('tasks', 'tasks'),
-              ('plot_pipelines_edges_density', 'plot_pipelines_edges_density'),
-              ('plot_pipelines_edges_density_no_high_motion', 'plot_pipelines_edges_density_no_high_motion'),
-              ('plot_pipelines_fc_fd_pearson', 'plot_pipelines_fc_fd_pearson'),
-              ('plot_pipelines_fc_fd_uncorr', 'plot_pipelines_fc_fd_uncorr'),
-              ('plot_pipelines_distance_dependence', 'plot_pipelines_distance_dependence')
-              ]),
+            (self.quality_measures_join, self.report_creator, [
+                ('tasks', 'tasks'),
+                ('plot_pipelines_edges_density', 'plots_all_pipelines_edges_density'),
+                ('plot_pipelines_edges_density_no_high_motion', 'plots_all_pipelines_edges_density_no_high_motion'),
+                ('plot_pipelines_fc_fd_pearson', 'plots_all_pipelines_fc_fd_pearson_info'),
+                ('plot_pipelines_fc_fd_pearson_no_high_motion', 'plots_all_pipelines_fc_fd_pearson_info_no_high_motion'),
+                ('plot_pipelines_distance_dependence', 'plots_all_pipelines_distance_dependence'),
+                ('plot_pipelines_distance_dependence_no_high_motion', 'plots_all_pipelines_distance_dependence_no_high_motion'),
+                ('plot_pipelines_tdof_loss', 'plots_all_pipelines_tdof_loss'),
+                # TODO: Uncomment lines bellow
+                # ('plot_pipeline_fd_fd_pearson_matrix', 'plots_pipeline_fc_fd_pearson_matrix'),
+                # ('plot_pipeline_fd_fd_pearson_matrix_no_high_motion', 'plots_pipeline_fc_fd_pearson_matrix_no_high_motion'),
+            ]),
             # all datasinks
             ## ds_denoise
             (self.subjectselector, self.ds_denoise, [("subject", "subject")]),

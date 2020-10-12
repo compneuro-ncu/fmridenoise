@@ -157,7 +157,10 @@ def compare(args: argparse.Namespace) -> None:
     # creating graph from workflow
     if args.graph is not None:
         try:  # TODO: Look for pydot/dot and add to requirements
-            workflow.write_graph(args.graph, graph2use='flat')
+            if not os.path.isabs(args.graph):
+                workflow.write_graph(join(os.getcwd(), args.graph), graph2use='flat')
+            else:
+                workflow.write_graph(args.graph, graph2use='flat')
         except OSError as err:
             print('OSError: ' + err.args[0])
             print("         Graph file was not generated.")
