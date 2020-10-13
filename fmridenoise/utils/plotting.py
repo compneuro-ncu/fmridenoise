@@ -4,8 +4,10 @@ import seaborn as sns
 
 
 def make_motion_plot(group_conf_summary, output_path, mean_fd_th=0.2, max_fd_th=5, perc_spikes_th=20):
-    """Generates plot presenting number of subjects excluded with high motion
-    according specified thresholds."""
+    """
+    Generates plot presenting number of subjects excluded with high motion
+    according specified thresholds.
+    """
 
     sns.set_style("ticks")
     colors = ['#00a074', '#fe6863']
@@ -63,7 +65,9 @@ def make_motion_plot(group_conf_summary, output_path, mean_fd_th=0.2, max_fd_th=
 
 
 def make_kdeplot(data, title, output_path):
-    """Creates and saves kdeplot from dataframes with edges."""
+    """
+    Creates and saves kdeplot from dataframes with edges.
+    """
     sns.set_style("ticks")
     sns.set_palette('colorblind', 8)
 
@@ -81,7 +85,9 @@ def make_kdeplot(data, title, output_path):
 
 
 def make_catplot(x, data, xlabel, output_path):
-    """Creates and saves catplot from summary dataframes """
+    """
+    Creates and saves catplot from summary dataframes.
+    """
 
     sns.set_palette('colorblind', 8)
     fig = sns.catplot(x=x,
@@ -97,7 +103,9 @@ def make_catplot(x, data, xlabel, output_path):
 
 
 def make_barplot(x, data, xlabel, output_path):
-    """Creates and saves barplot from summary dataframes """
+    """
+    Creates and saves barplot from summary dataframes.
+    """
     sns.set_palette('colorblind', 8)
     sns.set_style("ticks")
 
@@ -115,7 +123,9 @@ def make_barplot(x, data, xlabel, output_path):
 
 
 def make_violinplot(data, xlabel, output_path):
-    """Creates and saves violinplot from FC-FD correlation values"""
+    """
+    Creates and saves violinplot from FC-FD correlation values.
+    """
     sns.set_palette('colorblind', 8)
     sns.set_style("ticks")
 
@@ -127,4 +137,15 @@ def make_violinplot(data, xlabel, output_path):
 
     plt.savefig(output_path, dpi=300, bbox_inches='tight')
     plt.clf()
+    return output_path
+
+
+def make_corr_matrix_plot(data: np.ndarray, title: str, ylabel: str, output_path: str) -> str:
+    fig, ax = plt.subplots(figsize=(10, 10))
+    ax.imshow(data)
+    ax.set_title(title)
+    ax.set_ylabel(ylabel)
+
+    fig.savefig(output_path)
+    plt.close('all')
     return output_path

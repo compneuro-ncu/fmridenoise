@@ -1,6 +1,5 @@
 from nipype.pipeline import engine as pe
 from nipype import Node, IdentityInterface
-
 from fmridenoise.interfaces.smoothing import Smooth
 from fmridenoise.interfaces.bids import BIDSGrab, BIDSDataSink, BIDSValidate
 from fmridenoise.interfaces.confounds import Confounds, GroupConfounds
@@ -10,10 +9,12 @@ from fmridenoise.interfaces.pipeline_selector import PipelineSelector
 from fmridenoise.interfaces.quality_measures import QualityMeasures, PipelinesQualityMeasures
 from fmridenoise.interfaces.report_creator import ReportCreator
 import fmridenoise.utils.temps as temps
+from fmridenoise.utils.utils import create_identity_join_node, create_flatten_identity_join_node
 from fmridenoise.parcellation import get_distance_matrix_file_path
 from fmridenoise.pipelines import get_pipelines_paths
 import logging
 import os
+
 logger = logging.getLogger("runtime")
 handler = logging.FileHandler("./runtime.log")
 logger.setLevel(logging.DEBUG)
@@ -161,7 +162,13 @@ class BaseWorkflow(pe.Workflow):
             ),
             name="QualityMeasures")
         # Outputs: fc_fd_summary, edges_weight, edges_weight_clean
-
+        self.quality_measures_join = create_identity_join_node(
+            name='JoinQualityMeasuresOverPipeline',
+            joinsource=self.pipelineselector,
+            fields=[
+                'corr_matrix_plot',
+                'corr_matrix_no_high_motion_plot']
+        )
         # 10) --- Quality measures across pipelines
 
         # Inputs: fc_fd_summary, edges_weight
@@ -179,9 +186,10 @@ class BaseWorkflow(pe.Workflow):
             joinfield=['fc_fd_summary', 'edges_weight', 'edges_weight_clean',
                        'fc_fd_corr_values', 'fc_fd_corr_values_clean'],
             name="PipelinesQualityMeasures")
-
-        self.quality_measures_join = pe.JoinNode(
-            IdentityInterface(fields=[
+        self.pipeline_quality_measures_join = create_flatten_identity_join_node(
+            name="JoinPipelinesQualityMeasuresOverTasks",
+            joinsource=self.taskselector,
+            fields=[
                 'plot_pipelines_edges_density',
                 'plot_pipelines_edges_density_no_high_motion',
                 'plot_pipelines_fc_fd_pearson',
@@ -190,21 +198,15 @@ class BaseWorkflow(pe.Workflow):
                 'plot_pipelines_distance_dependence',
                 'plot_pipelines_distance_dependence_no_high_motion',
                 'plot_pipelines_tdof_loss',
-                'tasks']),
-            name="JoinPipelinesQualityMeasures",
-            joinsource=self.taskselector,  # TODO: Include dataflow where sessions are present (another join)
-            joinfield=['plot_pipelines_edges_density',
-                       'plot_pipelines_edges_density_no_high_motion',
-                       'plot_pipelines_fc_fd_pearson',
-                       'plot_pipelines_fc_fd_pearson_no_high_motion',
-                       'plot_pipelines_fc_fd_uncorr',
-                       'plot_pipelines_distance_dependence',
-                       'plot_pipelines_distance_dependence_no_high_motion',
-                       'plot_pipelines_tdof_loss',
-                       'tasks']
+                'corr_matrix_plot',
+                'corr_matrix_no_high_motion_plot',
+                'tasks'],
+            flatten_fields=[
+                'corr_matrix_plot',
+                'corr_matrix_no_high_motion_plot'
+            ]
         )
         # Outputs: pipelines_fc_fd_summary, pipelines_edges_weight
-
         # 11) --- Report from data
         report_dir = os.path.join(bids_dir, 'derivatives', 'fmridenoise', 'report')
         os.makedirs(report_dir, exist_ok=True)
@@ -262,8 +264,13 @@ class BaseWorkflow(pe.Workflow):
             (self.taskselector, self.group_connectivity, [('task', 'task')]),
             # quality measures
             (self.pipelineselector, self.quality_measures, [('pipeline', 'pipeline')]),
+            (self.taskselector, self.quality_measures, [('task', 'task')]),
             (self.group_connectivity, self.quality_measures, [('group_corr_mat', 'group_corr_mat')]),
             (self.group_conf_summary, self.quality_measures, [('group_conf_summary', 'group_conf_summary')]),
+            # quality measure join over pipelines
+            (self.quality_measures, self.quality_measures_join, 
+             [('corr_matrix_plot', 'corr_matrix_plot'),
+              ('corr_matrix_no_high_motion_plot', 'corr_matrix_no_high_motion_plot')]),
             # pipeline quality measures
             (self.taskselector, self.pipelines_quality_measures, [('task', 'task')]),
             (self.quality_measures, self.pipelines_quality_measures, [
@@ -272,10 +279,10 @@ class BaseWorkflow(pe.Workflow):
                 ('edges_weight_clean', 'edges_weight_clean'),
                 ('fc_fd_corr_values', 'fc_fd_corr_values'),
                 ('fc_fd_corr_values_clean', 'fc_fd_corr_values_clean')]),
-            # report creator
+            # pipelines_join
             (self.pipelineselector, self.pipelines_join, [('pipeline', 'pipelines')]),
-            (self.pipelines_join, self.report_creator, [('pipelines', 'pipelines')]),
-            (self.pipelines_quality_measures, self.quality_measures_join, [
+            # pipeline_quality_measures_join
+            (self.pipelines_quality_measures, self.pipeline_quality_measures_join, [
                 ('pipelines_fc_fd_summary', 'pipelines_fc_fd_summary'),
                 ('plot_pipelines_edges_density', 'plot_pipelines_edges_density'),
                 ('plot_pipelines_edges_density_no_high_motion', 'plot_pipelines_edges_density_no_high_motion'),
@@ -286,8 +293,13 @@ class BaseWorkflow(pe.Workflow):
                 ('plot_pipelines_distance_dependence_no_high_motion', 'plot_pipelines_distance_dependence_no_high_motion'),
                 ('plot_pipelines_tdof_loss', 'plot_pipelines_tdof_loss')
                ]),
-            (self.taskselector, self.quality_measures_join, [('task', 'tasks')]),
-            (self.quality_measures_join, self.report_creator, [
+            (self.taskselector, self.pipeline_quality_measures_join, [('task', 'tasks')]),
+            (self.quality_measures_join, self.pipeline_quality_measures_join,
+             [('corr_matrix_plot', 'corr_matrix_plot'),
+              ('corr_matrix_no_high_motion_plot', 'corr_matrix_no_high_motion_plot')]),
+            # report creator
+            (self.pipelines_join, self.report_creator, [('pipelines', 'pipelines')]),
+            (self.pipeline_quality_measures_join, self.report_creator, [
                 ('tasks', 'tasks'),
                 ('plot_pipelines_edges_density', 'plots_all_pipelines_edges_density'),
                 ('plot_pipelines_edges_density_no_high_motion', 'plots_all_pipelines_edges_density_no_high_motion'),
@@ -296,9 +308,8 @@ class BaseWorkflow(pe.Workflow):
                 ('plot_pipelines_distance_dependence', 'plots_all_pipelines_distance_dependence'),
                 ('plot_pipelines_distance_dependence_no_high_motion', 'plots_all_pipelines_distance_dependence_no_high_motion'),
                 ('plot_pipelines_tdof_loss', 'plots_all_pipelines_tdof_loss'),
-                # TODO: Uncomment lines bellow
-                # ('plot_pipeline_fd_fd_pearson_matrix', 'plots_pipeline_fc_fd_pearson_matrix'),
-                # ('plot_pipeline_fd_fd_pearson_matrix_no_high_motion', 'plots_pipeline_fc_fd_pearson_matrix_no_high_motion'),
+                ('corr_matrix_plot', 'plots_pipeline_fc_fd_pearson_matrix'),
+                ('corr_matrix_no_high_motion_plot', 'plots_pipeline_fc_fd_pearson_matrix_no_high_motion'),
             ]),
             # all datasinks
             ## ds_denoise
@@ -335,6 +346,7 @@ class BaseWorkflowWithSessions(BaseWorkflow):
             (self.sessionselector, self.prep_conf, [('session', 'session')]),
             (self.sessionselector, self.group_conf_summary, [('session', 'session')]),
             (self.sessionselector, self.group_connectivity, [('session', 'session')]),
+            (self.sessionselector, self.quality_measures, [('session', 'session')]),
             (self.sessionselector, self.ds_denoise, [("session", "session")]),
             (self.sessionselector, self.ds_connectivity_corr_mat, [("session", "session")]),
             (self.sessionselector, self.ds_connectivity_matrix_plot, [("session", "session")]),

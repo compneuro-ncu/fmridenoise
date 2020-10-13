@@ -1,6 +1,7 @@
 import jinja2
 import os
 
+
 def create_report(report_data, output_dir, report_name='report.html'):
 
     env = jinja2.Environment(

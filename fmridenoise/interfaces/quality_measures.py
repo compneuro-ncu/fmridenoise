@@ -6,13 +6,14 @@ from nipype.interfaces.base import (
 import typing as t
 import numpy as np
 import pandas as pd
-from nilearn.connectome import sym_matrix_to_vec
+from nilearn.connectome import sym_matrix_to_vec, vec_to_sym_matrix
 from scipy.stats import pearsonr
 from os.path import join
 import warnings
-
+from traits.trait_base import _Undefined
 from fmridenoise.utils.entities import build_path
-from fmridenoise.utils.plotting import make_motion_plot, make_kdeplot, make_catplot, make_violinplot
+from fmridenoise.utils.plotting import (make_motion_plot, make_kdeplot,
+                                        make_catplot, make_violinplot, make_corr_matrix_plot)
 from fmridenoise.utils.numeric import array_2d_row_identity
 
 
@@ -31,7 +32,12 @@ class QualityMeasuresInputSpec(BaseInterfaceInputSpec):
 
     output_dir = File(desc='Output path')
 
-    pipeline = traits.Dict(mandatory=True)
+    pipeline = traits.Dict(mandatory=True,
+                           desc="Pipeline")
+    task = traits.Str(mandatory=True,
+                      desc="Task name")
+    session = traits.Str(mandatory=False,
+                         desc="Session name")
 
 
 class QualityMeasuresOutputSpec(TraitedSpec):
@@ -68,11 +74,21 @@ class QualityMeasuresOutputSpec(TraitedSpec):
         desc="Motion criterion plot"
     )
 
+    corr_matrix_plot = traits.File(
+        exists=True,
+        desc="Fc-fd correlation matrix (no high motion)"
+    )
+
+    corr_matrix_no_high_motion_plot = traits.File(
+        exists=True,
+        desc="Fc-fd correlation matrix plot (no high motion)"
+    )
+
 
 class QualityMeasures(SimpleInterface):
     input_spec = QualityMeasuresInputSpec
     output_spec = QualityMeasuresOutputSpec
-    motion_plot_pattern = "pipeline-{pipeline}_desc-motionCriterion_plot.svg"
+    plot_pattern = "task-{task}_[ses-{session}_]pipeline-{pipeline}_desc-{desc}.svg"
     pval_tresh = 0.05
 
     @staticmethod
@@ -239,20 +255,41 @@ class QualityMeasures(SimpleInterface):
         pipeline_name = self.inputs.pipeline['name']
         for summary in summaries:
             summary['pipeline'] = pipeline_name
-        edges_weight = {pipeline_name: edges_weight}
-        edges_weight_clean = {pipeline_name: edges_weight_clean}
-        group_corr_vec = {pipeline_name: group_corr_vec}
-        group_corr_vec_clean = {pipeline_name: group_corr_vec_clean}
-        motion_plot_path = join(self.inputs.output_dir, build_path({'pipeline': pipeline_name},
-                                                                   self.motion_plot_pattern, strict=False))
+        # creating plots
+        base_entites = {'task': self.inputs.task, 'pipeline': self.inputs.pipeline['name']}
+        if self.inputs.session != _Undefined:
+            base_entites['session'] = self.inputs.session
+        motion_plot_path = join(self.inputs.output_dir, build_path({**base_entites,
+                                                                    'desc': 'motionCriterion_plot'},
+                                                                   self.plot_pattern, strict=False))
         make_motion_plot(group_conf_summary_df, motion_plot_path)
+        corr_matrix_plot = build_path({**base_entites,
+                                       'desc': 'fcFdCorrMatrix_plot'},
+                                      self.plot_pattern, strict=False)
+        corr_matrix_plot = make_corr_matrix_plot(
+            data=vec_to_sym_matrix(group_corr_vec),
+            title=corr_matrix_plot.strip('.svg'),
+            ylabel=base_entites['pipeline'],
+            output_path=join(self.inputs.output_dir, corr_matrix_plot))
+        corr_matrix_plot_no_high_motion = build_path(
+            {**base_entites,
+             'desc': 'fcFdCorrMatrixNoHighMotion_plot'},
+            self.plot_pattern, strict=False)
+        corr_matrix_plot_no_high_motion = make_corr_matrix_plot(
+            data=vec_to_sym_matrix(group_corr_vec_clean),
+            title=corr_matrix_plot_no_high_motion.strip('.svg'),
+            ylabel=base_entites['pipeline'],
+            output_path=join(self.inputs.output_dir, corr_matrix_plot_no_high_motion))
+        # setting output values
         self._results['fc_fd_summary'] = summaries
-        self._results['edges_weight'] = edges_weight
-        self._results['edges_weight_clean'] = edges_weight_clean
-        self._results['fc_fd_corr_values'] = group_corr_vec
-        self._results['fc_fd_corr_values_clean'] = group_corr_vec_clean
+        self._results['edges_weight'] = {pipeline_name: edges_weight}
+        self._results['edges_weight_clean'] = {pipeline_name: edges_weight_clean}
+        self._results['fc_fd_corr_values'] = {pipeline_name: group_corr_vec}
+        self._results['fc_fd_corr_values_clean'] = {pipeline_name: group_corr_vec_clean}
         self._results['exclude_list'] = exclude_list
         self._results['motion_plot'] = motion_plot_path
+        self._results['corr_matrix_plot'] = corr_matrix_plot
+        self._results['corr_matrix_no_high_motion_plot'] = corr_matrix_plot_no_high_motion
         return runtime
 
 
@@ -374,7 +411,7 @@ class PipelinesQualityMeasures(SimpleInterface):
             for all_subjects_or_no in quality_measures:
                 self.pipelines_fc_fd_summary = pd.concat([self.pipelines_fc_fd_summary,
                                                           pd.DataFrame(all_subjects_or_no, index=[0])],
-                                                          axis=0)
+                                                         axis=0)
         return self.pipelines_fc_fd_summary
 
     def _get_pipelines_edges_weight(self) -> t.Tuple[pd.DataFrame, pd.DataFrame]:
@@ -419,62 +456,61 @@ class PipelinesQualityMeasures(SimpleInterface):
         """
         Makes summary figures for all quality measures
         """
-        entities_dict['desc'] = 'pipelinesEdgesDensity'
-        path = join(self.inputs.output_dir, build_path(entities_dict, self.plot_pattern, strict=False))
+        path = join(self.inputs.output_dir, build_path({**entities_dict, 'desc': 'pipelinesEdgesDensity'},
+                                                       self.plot_pattern, strict=False))
         self.plot_pipelines_edges_density = make_kdeplot(data=self.pipelines_edges_weight,
                                                          title="Density of edge weights (all subjects)",
                                                          output_path=path)
-        entities_dict['desc'] = 'pipelinesEdgesDensityNoHighMotion'
-        path = join(self.inputs.output_dir, build_path(entities_dict, self.plot_pattern, strict=False))
+        path = join(self.inputs.output_dir, build_path({**entities_dict, 'desc': 'pipelinesEdgesDensityNoHighMotion'},
+                                                       self.plot_pattern, strict=False))
         self.plot_pipelines_edges_density_clean = make_kdeplot(data=self.pipelines_edges_weight_clean,
                                                                title="Density of edge weights (no high motion)",
                                                                output_path = path)
-        entities_dict['desc'] = 'fcFdPearson'
-        path = join(self.inputs.output_dir, build_path(entities_dict, self.plot_pattern, strict=False))
+        path = join(self.inputs.output_dir, build_path({**entities_dict, 'desc': 'fcFdPearson'},
+                                                       self.plot_pattern, strict=False))
         self.plot_fc_fd_pearson = make_catplot(x="median_pearson_fc_fd",
                                                data=self.pipelines_fc_fd_summary[self.pipelines_fc_fd_summary['all'] == True],
                                                xlabel="Median QC-FC (Pearson's r)",
                                                output_path=path)
-        entities_dict['desc'] = 'fcFdPearsonNoHighMotion'
-        path = join(self.inputs.output_dir, build_path(entities_dict, self.plot_pattern, strict=False))
+        path = join(self.inputs.output_dir, build_path({**entities_dict, 'desc': 'fcFdPearsonNoHighMotion'},
+                                                       self.plot_pattern, strict=False))
         self.plot_fc_fd_pearson_no_high_motion = make_catplot(
             x="median_pearson_fc_fd",
             data=self.pipelines_fc_fd_summary[self.pipelines_fc_fd_summary['all'] == False],
             xlabel="Median QC-FC (Pearson's r) (no high motion)",
             output_path=path)
-        entities_dict['desc'] = 'percFcFdUncorr'
-        path = join(self.inputs.output_dir, build_path(entities_dict, self.plot_pattern, strict=False))
+        path = join(self.inputs.output_dir, build_path({**entities_dict, 'desc': 'percFcFdUncorr'},
+                                                       self.plot_pattern, strict=False))
         self.perc_plot_fc_fd_uncorr = make_catplot(x="perc_fc_fd_uncorr",
                                                    data=self.pipelines_fc_fd_summary,
                                                    xlabel="QC-FC uncorrected (%)",
                                                    output_path = path)
-        entities_dict['desc'] = 'distanceDependence'
-        path = join(self.inputs.output_dir, build_path(entities_dict, self.plot_pattern, strict=False))
+        path = join(self.inputs.output_dir, build_path({**entities_dict, 'desc': 'distanceDependence'},
+                                                       self.plot_pattern, strict=False))
         self.plot_distance_dependence = make_catplot(x="distance_dependence",
                                                      data=self.pipelines_fc_fd_summary[self.pipelines_fc_fd_summary['all'] == True],
                                                      xlabel="Distance-dependence",
                                                      output_path = path)
-        entities_dict['desc'] = 'distanceDependenceNoHighMotion'
-        path = join(self.inputs.output_dir, build_path(entities_dict, self.plot_pattern, strict=False))
+        path = join(self.inputs.output_dir, build_path({**entities_dict, 'desc': 'distanceDependenceNoHighMotion'},
+                                                       self.plot_pattern, strict=False))
         self.plot_distance_dependence_no_high_motion = make_catplot(
             x="distance_dependence",
             data=self.pipelines_fc_fd_summary[self.pipelines_fc_fd_summary['all'] == False],
             xlabel="Distance-dependence (no high motion)",
             output_path=path)
-
-        entities_dict['desc'] = 'tdofLoss'
-        path = join(self.inputs.output_dir, build_path(entities_dict, self.plot_pattern, strict=False))
+        path = join(self.inputs.output_dir, build_path({**entities_dict, 'desc': 'tdofLoss'},
+                                                       self.plot_pattern, strict=False))
         self.plot_tdof_loss = make_catplot(x="tdof_loss",
                                            data=self.pipelines_fc_fd_summary,
                                            xlabel="fDOF-loss",
                                            output_path=path)
-        entities_dict['desc'] = 'violinPlot'
-        path = join(self.inputs.output_dir, build_path(entities_dict, self.plot_pattern, strict=False))
+        path = join(self.inputs.output_dir, build_path({**entities_dict, 'desc': 'violinPlot'},
+                                                       self.plot_pattern, strict=False))
         self.plot_violin_plot = make_violinplot(data=self.pipelines_fc_fd_values,
                                                 xlabel="fc_fd_correlation",
                                                 output_path=path)
-        entities_dict['desc'] = 'violinPlotNoHighMotion'
-        path = join(self.inputs.output_dir, build_path(entities_dict, self.plot_pattern, strict=False))
+        path = join(self.inputs.output_dir, build_path({**entities_dict, 'desc': 'violinPlotNoHighMotion'},
+                                                       self.plot_pattern, strict=False))
         self.plot_violin_plot = make_violinplot(data=self.pipelines_fc_fd_values_clean,
                                                 xlabel="fc_fd_correlation",
                                                 output_path=path)

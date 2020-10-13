@@ -59,16 +59,15 @@ class ReportCreatorInputSpec(BaseInterfaceInputSpec):
     ))
 
     # For single pipeline
-    # TODO: Uncomment and connect paths bellow
-    # plots_pipeline_fc_fd_pearson_matrix = List(File(
-    #     exists=True,
-    #     desc="Matrix showing correlation between connection strength and motion for all subjects"
-    # ))
-    #
-    # plots_pipeline_fc_fd_pearson_matrix_no_high_motion = List(File(
-    #     exists=True,
-    #     desc="Matrix showing correlation between connection strength and motion without high motion subjects"
-    # ))
+    plots_pipeline_fc_fd_pearson_matrix = List(File(
+        exists=True,
+        desc="Matrix showing correlation between connection strength and motion for all subjects"
+    ))
+
+    plots_pipeline_fc_fd_pearson_matrix_no_high_motion = List(File(
+        exists=True,
+        desc="Matrix showing correlation between connection strength and motion without high motion subjects"
+    ))
 
 
 class ReportCreator(SimpleInterface):
@@ -92,11 +91,7 @@ class ReportCreator(SimpleInterface):
                 map(parse_file_entities_with_pipelines,
                     plots_all_pipelines + plots_pipeline)))
 
-        unique_pipelines = set(
-            map(lambda dict_: dict_['pipeline'], 
-                map(parse_file_entities_with_pipelines,
-                    plots_pipeline)))
-
+        unique_pipelines = set(pipeline['name'] for pipeline in self.inputs.pipelines)
         # Create input for create_report
         figures_dir = os.path.join(self.inputs.output_dir, 'figures')
         Path(figures_dir).mkdir(parents=True, exist_ok=True)

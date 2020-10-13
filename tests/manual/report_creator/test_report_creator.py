@@ -38,7 +38,6 @@ if __name__ == '__main__':
         pipeline_dict=pipelines_dict,
         path_out=os.path.join(report_dir, 'tmp')
     )
-
     # Create & run interface
     interface = ReportCreator(
         pipelines=pipelines,
