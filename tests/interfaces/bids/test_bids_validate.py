@@ -1,5 +1,5 @@
 from bids import BIDSLayout
-from fmridenoise.interfaces.bids import BIDSValidate, MissingFile
+from fmridenoise.interfaces.bids import BIDSValidate, MissingFile, _lists_to_entities
 import fmridenoise.pipelines as pipe
 import unittest as ut
 from os.path import join, dirname
@@ -10,6 +10,7 @@ from typing import List
 testDir = dirname(__file__)
 dummyDataPath = join(testDir, "dummy_complete")
 dummyMissing = join(testDir, "dummy_missing_files")
+dummyRuns = join(testDir, "dummy_runs")
 pipelinesDir = dirname(pipe.__file__)
 aromaPipelinesPaths = [join(pipelinesDir, 'pipeline-ICA-AROMA_8Phys.json')]
 noAromaPipelinePaths = [join(pipelinesDir, 'pipeline-24HMP_aCompCor_SpikeReg.json')]
@@ -31,14 +32,36 @@ class ValidateDerivativeTestCase(ut.TestCase):
         self.assertRaises(MissingFile, BIDSValidate.validate_derivatives, dummyMissing, 'notExisting')
 
 
+class ListToEntitiesTestCase(ut.TestCase):
+
+    def test_all_len(self):
+        result = _lists_to_entities(subjects=['1', '2'], tasks=['rest'], sessions=['A', 'B'], runs=['01', '02'])
+        self.assertEqual(8, len(result))
+
+    def test_all_content(self):
+        result = _lists_to_entities(subjects=['1'], tasks=['rest'], sessions=['A'], runs=['01'])
+        self.assertEqual(1, len(result))
+        self.assertEqual({'subject': '1', 'session': 'A', 'task': 'rest', 'run': '01'}, result[0])
+
+    def test_no_sessions_len(self):
+        result = _lists_to_entities(subjects=['1', '2'], tasks=['rest'], sessions=[], runs=['01', '02'])
+        self.assertEqual(4, len(result))
+
+    def test_no_sessions_content(self):
+        result = _lists_to_entities(subjects=['1'], tasks=['rest'], sessions=[], runs=['01'])
+        self.assertEqual(1, len(result))
+        self.assertEqual({'subject': '1', 'task': 'rest', 'run': '01'}, result[0])
+
+
 class BidsValidateBasicPropertiesOnCompleteDataTestCase(ut.TestCase):
 
     derivatives = ["fmriprep"]
     tasks = ["audionback", "dualnback", "rest", "spatialnback"]
     sessions = ["1", "2", "3", "4"]
     subjects = ["01", "02"]
+    runs = []
     pipelines = aromaPipelinesPaths + noAromaPipelinePaths
-    pipelinesDicts = list(map(lambda x: pipe.load_pipeline_from_json(x), pipelines))
+    pipelinesDicts = list(map(pipe.load_pipeline_from_json, pipelines))
     bids_dir = dummyDataPath
     maxDiff = None
 
@@ -56,9 +79,12 @@ class BidsValidateBasicPropertiesOnCompleteDataTestCase(ut.TestCase):
         cls.bidsValidate.inputs.bids_dir = cls.bids_dir
         cls.bidsValidate.inputs.derivatives = cls.derivatives
         cls.bidsValidate.inputs.tasks = cls.tasks
-        cls.bidsValidate.inputs.sessions = cls.sessions
+        if cls.sessions:
+            cls.bidsValidate.inputs.sessions = cls.sessions
         cls.bidsValidate.inputs.subjects = cls.subjects
         cls.bidsValidate.inputs.pipelines = cls.pipelines
+        if cls.runs:
+            cls.bidsValidate.inputs.runs = cls.runs
         cls.bidsValidate.run()
 
     def test_subject(self):
@@ -70,20 +96,29 @@ class BidsValidateBasicPropertiesOnCompleteDataTestCase(ut.TestCase):
     def test_sessions(self):
         self.assertListEqual(self.bidsValidate._results["sessions"], self.sessions)
 
+    def test_runs(self):
+        self.assertListEqual(self.bidsValidate._results['runs'], self.runs)
+
     def test_pipelines(self):
         for pipe_bidsVal, pipe_loaded in zip(self.bidsValidate._results["pipelines"], self.pipelinesDicts):
             self.assertDictEqual(pipe_loaded, pipe_bidsVal)
 
     def test_aromaFiles(self):
         if self.shouldContainAromaFiles:
-            filesCount = len(self.subjects) * len(self.sessions) * len(self.tasks)
+            filesCount = len(self.subjects) \
+                         * (len(self.sessions) if self.sessions else 1) \
+                         * len(self.tasks) \
+                         * (len(self.runs) if self.runs else 1)
             self.assertEqual(filesCount, len(self.bidsValidate._results["fmri_prep_aroma"]))
         else:
             self.assertEqual(0, len(self.bidsValidate._results["fmri_prep_aroma"]))
 
     def test_noAromaFiles(self):
         if self.shouldContainNoAromaFiles:
-            filesCount = len(self.subjects) * len(self.sessions) * len(self.tasks)
+            filesCount = len(self.subjects) \
+                         * (len(self.sessions) if self.sessions else 1) \
+                         * len(self.tasks) \
+                         * (len(self.runs) if self.runs else 1)
             self.assertEqual(filesCount, len(self.bidsValidate._results["fmri_prep"]))
         else:
             self.assertEqual(0, len(self.bidsValidate._results["fmri_prep"]))
@@ -99,7 +134,7 @@ class BidsValidateNoAromaOnCompleteDataTestCase(BidsValidateBasicPropertiesOnCom
     sessions = ["1", "2", "3", "4"]
     subjects = ["01", "02"]
     pipelines = noAromaPipelinePaths
-    pipelinesDicts = list(map(lambda x: pipe.load_pipeline_from_json(x), pipelines))
+    pipelinesDicts = list(map(pipe.load_pipeline_from_json, pipelines))
     bids_dir = dummyDataPath
     maxDiff = None
 
@@ -110,7 +145,7 @@ class BidsValidateOnlyAromaOnCompleteDataTestCase(BidsValidateBasicPropertiesOnC
     sessions = ["1", "2", "3", "4"]
     subjects = ["01", "02"]
     pipelines = aromaPipelinesPaths
-    pipelinesDicts = list(map(lambda x: pipe.load_pipeline_from_json(x), pipelines))
+    pipelinesDicts = list(map(pipe.load_pipeline_from_json, pipelines))
     bids_dir = dummyDataPath
     maxDiff = None
 
@@ -148,6 +183,7 @@ class ValidateFilesOnMissingTestCase(ut.TestCase):
                          tasks: List[str],
                          sessions: List[str],
                          subjects: List[str],
+                         runs: List[str],
                          include_aroma: bool,
                          include_no_aroma: bool,
                          should_pass: bool):
@@ -158,6 +194,7 @@ class ValidateFilesOnMissingTestCase(ut.TestCase):
                     tasks=tasks,
                     sessions=sessions,
                     subjects=subjects,
+                    runs=runs,
                     include_aroma=include_aroma,
                     include_no_aroma=include_no_aroma
                 )
@@ -167,6 +204,7 @@ class ValidateFilesOnMissingTestCase(ut.TestCase):
                 tasks=tasks,
                 sessions=sessions,
                 subjects=subjects,
+                runs=runs,
                 include_aroma=include_aroma,
                 include_no_aroma=include_no_aroma
             )
@@ -176,6 +214,7 @@ class ValidateFilesOnMissingTestCase(ut.TestCase):
             tasks=['dualnback'],
             sessions=['1'],
             subjects=['01'],
+            runs=[],
             include_no_aroma=True,
             include_aroma=True,
             should_pass=True
@@ -186,6 +225,7 @@ class ValidateFilesOnMissingTestCase(ut.TestCase):
             tasks=['audionback'],
             sessions=['1'],
             subjects=['01'],
+            runs=[],
             include_no_aroma=True,
             include_aroma=False,
             should_pass=True
@@ -197,6 +237,7 @@ class ValidateFilesOnMissingTestCase(ut.TestCase):
             tasks=['audionback'],
             sessions=['1'],
             subjects=['01'],
+            runs=[],
             include_no_aroma=True,
             include_aroma=True,
             should_pass=False
@@ -207,6 +248,7 @@ class ValidateFilesOnMissingTestCase(ut.TestCase):
             tasks=['audionback'],
             sessions=['2'],
             subjects=['01'],
+            runs=[],
             include_no_aroma=True,
             include_aroma=True,
             should_pass=True
@@ -218,6 +260,7 @@ class ValidateFilesOnMissingTestCase(ut.TestCase):
             tasks=['audionback'],
             sessions=['2'],
             subjects=['01', '02'],
+            runs=[],
             include_no_aroma=True,
             include_aroma=True,
             should_pass=False
@@ -229,7 +272,20 @@ class ValidateFilesOnMissingTestCase(ut.TestCase):
             tasks=['audionback'],
             sessions=['2'],
             subjects=['03'],
+            runs=[],
             include_no_aroma=True,
             include_aroma=True,
             should_pass=False
         )
+
+
+class BidsValidateOnRunsTestCase(BidsValidateBasicPropertiesOnCompleteDataTestCase):
+    derivatives = ['fmriprep']
+    tasks = ['rest']
+    sessions = ['LSD', 'PLCB']
+    subjects = ['001', '002', '003', '004', '006']
+    runs = ['01', '02', '03']
+    pipelines = noAromaPipelinePaths
+    pipelinesDicts = list(map(pipe.load_pipeline_from_json, pipelines))
+    bids_dir = dummyRuns
+    maxDiff = None

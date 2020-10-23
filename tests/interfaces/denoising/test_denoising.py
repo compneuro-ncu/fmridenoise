@@ -11,6 +11,7 @@ from traits.trait_base import Undefined
 from fmridenoise.interfaces.denoising import Denoise
 from tests.utils import fmri_prep_filename, confound_filename, pipeline_null
 
+
 class TestDenoising(unittest.TestCase):
     sub = '01'
     ses = '1'

@@ -1,9 +1,6 @@
 import typing as t
 from collections import namedtuple
-
-from bids.layout import parse_file_entities
 from bids.layout import parse_file_entities, writing
-
 from fmridenoise.pipelines import extract_pipeline_from_path
 
 
@@ -24,7 +21,7 @@ def entity_tuple_from_dict(entity_dict):
 
 
 def entity_tuple_to_entity_name(entity_tuple):
-    '''Converts into name of task / task+session entity used for the report 
+    '''Converts into name of task / task+session entity used for the report
     tab title.'''
     if entity_tuple.session is None:
         return f'task-{entity_tuple.task}'
@@ -33,7 +30,7 @@ def entity_tuple_to_entity_name(entity_tuple):
 
 
 def entity_tuple_to_entity_id(entity_tuple):
-    '''Converts into id of task / task+session entity used for html elements 
+    '''Converts into id of task / task+session entity used for html elements
     id.'''
     if entity_tuple.session is None:
         return f'task-{entity_tuple.task}'

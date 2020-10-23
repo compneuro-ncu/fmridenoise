@@ -1,5 +1,5 @@
-from nipype.pipeline import engine as pe
-from nipype import Node, IdentityInterface
+from nipype import Node, IdentityInterface, Workflow, JoinNode
+from traits.trait_base import _Undefined
 from fmridenoise.interfaces.smoothing import Smooth
 from fmridenoise.interfaces.bids import BIDSGrab, BIDSDataSink, BIDSValidate
 from fmridenoise.interfaces.confounds import Confounds, GroupConfounds
@@ -14,6 +14,7 @@ from fmridenoise.parcellation import get_distance_matrix_file_path
 from fmridenoise.pipelines import get_pipelines_paths
 import logging
 import os
+import typing as t
 
 logger = logging.getLogger("runtime")
 handler = logging.FileHandler("./runtime.log")
@@ -21,18 +22,21 @@ logger.setLevel(logging.DEBUG)
 logger.addHandler(handler)
 
 
-class BaseWorkflow(pe.Workflow):
-    def __init__(self, name, base_dir, bids_dir, bids_validate_result, pipelines_paths, high_pass, low_pass):
-        super().__init__(name, base_dir)
-        self._create_nodes(base_dir, bids_dir, bids_validate_result, pipelines_paths, high_pass, low_pass)
-        self._create_connections()
+class WorkflowBuilder:
 
-    def _create_nodes(self, base_dir, bids_dir, bids_validate_result, pipelines_paths, high_pass, low_pass):
-
-        mock_bids_dir = bids_dir
-        temps.base_dir = base_dir
+    def __init__(self,
+                 bids_dir: str,
+                 subjects: t.List[str],
+                 tasks: t.List[str],
+                 conf_raw: t.List[str],
+                 conf_json: t.List[str],
+                 tr_dic: dict,
+                 pipelines_paths: t.List[str],
+                 high_pass: float,
+                 low_pass: float):
+        self.fmri_prep_aroma_files = []
+        self.fmri_prep_files = []
         # 1) --- Itersources for all further processing
-
         # Inputs: fulfilled
         self.pipelineselector = Node(
             PipelineSelector(),
@@ -45,25 +49,15 @@ class BaseWorkflow(pe.Workflow):
             IdentityInterface(
                 fields=['subject']),
             name="SubjectSelector")
-        self.subjectselector.iterables = ('subject', bids_validate_result.outputs.subjects)
+        self.subjectselector.iterables = ('subject', subjects)
         # Outputs: subject
-
-        # Inputs: fulfilled
-        # self.sessionselector = Node(
-        #     IdentityInterface(
-        #         fields=['session']),
-        #     name="SessionSelector")
-        # if bids_validate_result.outputs.session:
-        #     self.sessionselector.iterables = ('session', bids_validate_result.outputs.sessions)
-        # else:
-        #     self.sessionselector.iterables = ('session', [traits.Undefined])
 
         # Inputs: fulfilled
         self.taskselector = Node(
             IdentityInterface(
                 fields=['task']),
             name="TaskSelector")
-        self.taskselector.iterables = ('task', bids_validate_result.outputs.tasks)
+        self.taskselector.iterables = ('task', tasks)
         # Outputs: task
 
         # 2) --- Loading BIDS files
@@ -71,10 +65,8 @@ class BaseWorkflow(pe.Workflow):
         # Inputs: subject, session, task
         self.bidsgrabber = Node(
             BIDSGrab(
-                fmri_prep_files=bids_validate_result.outputs.fmri_prep,
-                fmri_prep_aroma_files=bids_validate_result.outputs.fmri_prep_aroma,
-                conf_raw_files=bids_validate_result.outputs.conf_raw,
-                conf_json_files=bids_validate_result.outputs.conf_json),
+                conf_raw_files=conf_raw,
+                conf_json_files=conf_json),
             name="BidsGrabber")
         # Outputs: fmri_prep, fmri_prep_aroma, conf_raw, conf_json
 
@@ -103,7 +95,7 @@ class BaseWorkflow(pe.Workflow):
             Denoise(
                 high_pass=high_pass,
                 low_pass=low_pass,
-                tr_dict=bids_validate_result.outputs.tr_dict,
+                tr_dict=tr_dic,
                 output_dir=temps.mkdtemp('denoise')),
             name="Denoiser",
             mem_gb=8)
@@ -127,7 +119,7 @@ class BaseWorkflow(pe.Workflow):
         # Group nodes write to bids dir insted of tmp and let files be grabbed by datasink
         os.makedirs(os.path.join(bids_dir, 'derivatives', 'fmridenoise'), exist_ok=True)
         # FIXME END
-        self.group_conf_summary = pe.JoinNode(
+        self.group_conf_summary = JoinNode(
             GroupConfounds(
                 output_dir=os.path.join(bids_dir, 'derivatives', 'fmridenoise'),
             ),
@@ -141,7 +133,7 @@ class BaseWorkflow(pe.Workflow):
 
         # Inputs: corr_mat, pipeline_name
 
-        self.group_connectivity = pe.JoinNode(
+        self.group_connectivity = JoinNode(
             GroupConnectivity(
                 output_dir=os.path.join(bids_dir, 'derivatives', 'fmridenoise'),
             ),
@@ -155,7 +147,7 @@ class BaseWorkflow(pe.Workflow):
 
         # Inputs: group_corr_mat, group_conf_summary, pipeline_name
 
-        self.quality_measures = pe.Node(
+        self.quality_measures = Node(
             QualityMeasures(
                 output_dir=os.path.join(bids_dir, 'derivatives', 'fmridenoise'),
                 distance_matrix=get_distance_matrix_file_path()
@@ -172,21 +164,22 @@ class BaseWorkflow(pe.Workflow):
         # 10) --- Quality measures across pipelines
 
         # Inputs: fc_fd_summary, edges_weight
-        self.pipelines_join = pe.JoinNode(
+        self.pipelines_join = JoinNode(
             IdentityInterface(fields=['pipelines']),
             name='JoinPipelines',
             joinsource=self.pipelineselector,
             joinfield=['pipelines']
         )
-        self.pipelines_quality_measures = pe.JoinNode(
+        self.pipelines_quality_measures = JoinNode(
             PipelinesQualityMeasures(
-                output_dir=os.path.join(bids_dir, 'derivatives', 'fmridenoise'),  # TODO: Replace with datasinks for needed output
+                output_dir=os.path.join(bids_dir, 'derivatives', 'fmridenoise'),
+                # TODO: Replace with datasinks for needed output
             ),
             joinsource=self.pipelineselector,
             joinfield=['fc_fd_summary', 'edges_weight', 'edges_weight_clean',
                        'fc_fd_corr_values', 'fc_fd_corr_values_clean'],
             name="PipelinesQualityMeasures")
-        self.pipeline_quality_measures_join = create_flatten_identity_join_node(
+        self.pipeline_quality_measures_join_tasks = create_flatten_identity_join_node(
             name="JoinPipelinesQualityMeasuresOverTasks",
             joinsource=self.taskselector,
             fields=[
@@ -199,8 +192,7 @@ class BaseWorkflow(pe.Workflow):
                 'plot_pipelines_distance_dependence_no_high_motion',
                 'plot_pipelines_tdof_loss',
                 'corr_matrix_plot',
-                'corr_matrix_no_high_motion_plot',
-                'tasks'],
+                'corr_matrix_no_high_motion_plot'],
             flatten_fields=[
                 'corr_matrix_plot',
                 'corr_matrix_no_high_motion_plot'
@@ -210,31 +202,29 @@ class BaseWorkflow(pe.Workflow):
         # 11) --- Report from data
         report_dir = os.path.join(bids_dir, 'derivatives', 'fmridenoise', 'report')
         os.makedirs(report_dir, exist_ok=True)
-        self.report_creator = pe.Node(
+        self.report_creator = Node(
             ReportCreator(
                 output_dir=report_dir
             ),
             name='ReportCreator')
-
+        self.report_creator.inputs.tasks = tasks
         # 12) --- Save derivatives
         self.ds_confounds = Node(BIDSDataSink(base_directory=bids_dir),
-                            name="ds_confounds")
+                                 name="ds_confounds")
 
         self.ds_denoise = Node(BIDSDataSink(base_directory=bids_dir),
-                          name="ds_denoise")
+                               name="ds_denoise")
 
         self.ds_connectivity_corr_mat = Node(BIDSDataSink(base_directory=bids_dir),
-                                        name="ds_connectivity")
+                                             name="ds_connectivity")
 
         self.ds_connectivity_carpet_plot = Node(BIDSDataSink(base_directory=bids_dir),
-                                           name="ds_carpet_plot")
+                                                name="ds_carpet_plot")
 
         self.ds_connectivity_matrix_plot = Node(BIDSDataSink(base_directory=bids_dir),
-                                           name="ds_matrix_plot")
+                                                name="ds_matrix_plot")
 
-    def _create_connections(self):
-        # --- Connecting nodes
-        self.connect([
+        self.connections = [
             # bidsgrabber
             (self.subjectselector, self.bidsgrabber, [('subject', 'subject')]),
             (self.taskselector, self.bidsgrabber, [('task', 'task')]),
@@ -268,7 +258,7 @@ class BaseWorkflow(pe.Workflow):
             (self.group_connectivity, self.quality_measures, [('group_corr_mat', 'group_corr_mat')]),
             (self.group_conf_summary, self.quality_measures, [('group_conf_summary', 'group_conf_summary')]),
             # quality measure join over pipelines
-            (self.quality_measures, self.quality_measures_join, 
+            (self.quality_measures, self.quality_measures_join,
              [('corr_matrix_plot', 'corr_matrix_plot'),
               ('corr_matrix_no_high_motion_plot', 'corr_matrix_no_high_motion_plot')]),
             # pipeline quality measures
@@ -282,7 +272,7 @@ class BaseWorkflow(pe.Workflow):
             # pipelines_join
             (self.pipelineselector, self.pipelines_join, [('pipeline', 'pipelines')]),
             # pipeline_quality_measures_join
-            (self.pipelines_quality_measures, self.pipeline_quality_measures_join, [
+            (self.pipelines_quality_measures, self.pipeline_quality_measures_join_tasks, [
                 ('pipelines_fc_fd_summary', 'pipelines_fc_fd_summary'),
                 ('plot_pipelines_edges_density', 'plot_pipelines_edges_density'),
                 ('plot_pipelines_edges_density_no_high_motion', 'plot_pipelines_edges_density_no_high_motion'),
@@ -293,24 +283,12 @@ class BaseWorkflow(pe.Workflow):
                 ('plot_pipelines_distance_dependence_no_high_motion', 'plot_pipelines_distance_dependence_no_high_motion'),
                 ('plot_pipelines_tdof_loss', 'plot_pipelines_tdof_loss')
                ]),
-            (self.taskselector, self.pipeline_quality_measures_join, [('task', 'tasks')]),
-            (self.quality_measures_join, self.pipeline_quality_measures_join,
+            (self.taskselector, self.pipeline_quality_measures_join_tasks, [('task', 'tasks')]),
+            (self.quality_measures_join, self.pipeline_quality_measures_join_tasks,
              [('corr_matrix_plot', 'corr_matrix_plot'),
               ('corr_matrix_no_high_motion_plot', 'corr_matrix_no_high_motion_plot')]),
             # report creator
             (self.pipelines_join, self.report_creator, [('pipelines', 'pipelines')]),
-            (self.pipeline_quality_measures_join, self.report_creator, [
-                ('tasks', 'tasks'),
-                ('plot_pipelines_edges_density', 'plots_all_pipelines_edges_density'),
-                ('plot_pipelines_edges_density_no_high_motion', 'plots_all_pipelines_edges_density_no_high_motion'),
-                ('plot_pipelines_fc_fd_pearson', 'plots_all_pipelines_fc_fd_pearson_info'),
-                ('plot_pipelines_fc_fd_pearson_no_high_motion', 'plots_all_pipelines_fc_fd_pearson_info_no_high_motion'),
-                ('plot_pipelines_distance_dependence', 'plots_all_pipelines_distance_dependence'),
-                ('plot_pipelines_distance_dependence_no_high_motion', 'plots_all_pipelines_distance_dependence_no_high_motion'),
-                ('plot_pipelines_tdof_loss', 'plots_all_pipelines_tdof_loss'),
-                ('corr_matrix_plot', 'plots_pipeline_fc_fd_pearson_matrix'),
-                ('corr_matrix_no_high_motion_plot', 'plots_pipeline_fc_fd_pearson_matrix_no_high_motion'),
-            ]),
             # all datasinks
             ## ds_denoise
             (self.subjectselector, self.ds_denoise, [("subject", "subject")]),
@@ -325,23 +303,30 @@ class BaseWorkflow(pe.Workflow):
             ## ds_confounds
             (self.subjectselector, self.ds_confounds, [("subject", "subject")]),
             (self.prep_conf, self.ds_confounds, [("conf_prep", "in_file")]),
-        ])
+        ]
+        self.last_join = self.pipeline_quality_measures_join_tasks
 
+    def use_fmri_prep_aroma(self, fmri_aroma_files: t.List[str]):
+        self.fmri_prep_aroma_files = fmri_aroma_files
 
-class BaseWorkflowWithSessions(BaseWorkflow):
+    def use_fmri_prep(self, fmri_prep_files: t.List[str]):
+        self.fmri_prep_files = fmri_prep_files
 
-    def _create_nodes(self, base_dir, bids_dir, bids_validate_result, pipelines_paths, high_pass, low_pass):
-        super()._create_nodes(base_dir, bids_dir, bids_validate_result, pipelines_paths, high_pass, low_pass)
+    def with_sessions(self, sessions: t.List[str]):
         self.sessionselector = Node(
             IdentityInterface(
                 fields=['session']),
             name="SessionSelector")
-        self.sessionselector.iterables = ('session', bids_validate_result.outputs.sessions)
-        # Outputs: session
-
-    def _create_connections(self):
-        super()._create_connections()
-        self.connect([
+        self.sessionselector.iterables = ('session', sessions)
+        self.report_creator.inputs.sessions = sessions
+        fields = self.last_join.interface._fields
+        self.pipeline_quality_measures_join_sessions = create_flatten_identity_join_node(
+            name="JoinPipelinesQualityMeasuresOverSessions",
+            fields=fields,
+            joinsource=self.sessionselector,
+            flatten_fields=fields
+        )
+        self.connections += [
             (self.sessionselector, self.bidsgrabber, [('session', 'session')]),
             (self.sessionselector, self.prep_conf, [('session', 'session')]),
             (self.sessionselector, self.group_conf_summary, [('session', 'session')]),
@@ -352,7 +337,50 @@ class BaseWorkflowWithSessions(BaseWorkflow):
             (self.sessionselector, self.ds_connectivity_matrix_plot, [("session", "session")]),
             (self.sessionselector, self.ds_connectivity_carpet_plot, [("session", "session")]),
             (self.sessionselector, self.ds_confounds, [("session", "session")]),
-        ])
+            (self.last_join, self.pipeline_quality_measures_join_sessions, list(zip(fields, fields)))
+        ]
+        self.last_join = self.pipeline_quality_measures_join_sessions
+
+    def with_runs(self, runs: t.List[str]):
+        self.runselector = Node(
+            IdentityInterface(
+                fields=['run']
+            ),
+            name="RunSelector")
+        self.runselector.iterables = ('run', runs)
+        fields = self.last_join.interface._fields
+        self.pipeline_quality_measures_join_runs = create_flatten_identity_join_node(
+            name="JoinPipelinesQualityMeasuresOverRuns",
+            fields=fields,
+            joinsource=self.runselector,
+            flatten_fields=fields
+        )
+        self.connections += [
+            (self.runselector, self.bidsgrabber, [('run', 'run')]),
+            (self.last_join, self.pipeline_quality_measures_join_runs, list(zip(fields, fields)))
+        ]
+        self.last_join = self.pipeline_quality_measures_join_runs
+
+    def build(self, name: str, base_dir: str) -> Workflow:
+        if self.fmri_prep_files:
+            self.bidsgrabber.inputs.fmri_prep_files = self.fmri_prep_files
+        if self.fmri_prep_aroma_files:
+            self.bidsgrabber.inputs.fmri_prep_aroma_files = self.fmri_prep_aroma_files
+        wf = Workflow(name=name, base_dir=base_dir)
+        self.connections.append(
+            (self.last_join, self.report_creator,
+             [('plot_pipelines_edges_density', 'plots_all_pipelines_edges_density'),
+              ('plot_pipelines_edges_density_no_high_motion', 'plots_all_pipelines_edges_density_no_high_motion'),
+              ('plot_pipelines_fc_fd_pearson', 'plots_all_pipelines_fc_fd_pearson_info'),
+              ('plot_pipelines_fc_fd_pearson_no_high_motion', 'plots_all_pipelines_fc_fd_pearson_info_no_high_motion'),
+              ('plot_pipelines_distance_dependence', 'plots_all_pipelines_distance_dependence'),
+              ('plot_pipelines_distance_dependence_no_high_motion',
+              'plots_all_pipelines_distance_dependence_no_high_motion'),
+              ('plot_pipelines_tdof_loss', 'plots_all_pipelines_tdof_loss'),
+              ('corr_matrix_plot', 'plots_pipeline_fc_fd_pearson_matrix'),
+              ('corr_matrix_no_high_motion_plot', 'plots_pipeline_fc_fd_pearson_matrix_no_high_motion')]))
+        wf.connect(self.connections)
+        return wf
 
 
 def init_fmridenoise_wf(bids_dir,
@@ -360,35 +388,37 @@ def init_fmridenoise_wf(bids_dir,
                         task=[],
                         session=[],
                         subject=[],
+                        runs=[],
                         pipelines_paths=get_pipelines_paths(),
-                        smoothing=True,
-                        #ica_aroma=False, TODO: delete this later
                         high_pass=0.008,
                         low_pass=0.08,
                         base_dir='/tmp/fmridenoise', 
                         name='fmridenoise_wf'):
     pipelines_paths = list(pipelines_paths)
     bids_validate = Node(BIDSValidate(bids_dir=bids_dir,
-                               derivatives=derivatives,
-                               tasks=task,
-                               sessions=session,
-                               subjects=subject,
-                               pipelines=pipelines_paths),
+                                      derivatives=derivatives,
+                                      tasks=task,
+                                      sessions=session,
+                                      subjects=subject,
+                                      runs=runs,
+                                      pipelines=pipelines_paths),
                          name='BidsValidate')
     result = bids_validate.run()
+    builder = WorkflowBuilder(bids_dir=bids_dir,
+                              subjects=result.outputs.subjects,
+                              tasks=result.outputs.tasks,
+                              conf_raw=result.outputs.conf_raw,
+                              conf_json=result.outputs.conf_json,
+                              tr_dic=result.outputs.tr_dict,
+                              pipelines_paths=pipelines_paths,
+                              high_pass=high_pass,
+                              low_pass=low_pass)
+    if result.outputs.fmri_prep:
+        builder.use_fmri_prep(result.outputs.fmri_prep)
+    if result.outputs.fmri_prep_aroma:
+        builder.use_fmri_prep_aroma(result.outputs.fmri_prep_aroma)
     if result.outputs.sessions:
-        return BaseWorkflowWithSessions(name=name,
-                                        base_dir=base_dir,
-                                        bids_dir=bids_dir,
-                                        bids_validate_result=result,
-                                        pipelines_paths=pipelines_paths,
-                                        high_pass=high_pass,
-                                        low_pass=low_pass)
-    else:
-        return BaseWorkflow(name=name,
-                            bids_dir=bids_dir,
-                            base_dir=base_dir,
-                            bids_validate_result=result,
-                            pipelines_paths=pipelines_paths,
-                            high_pass=high_pass,
-                            low_pass=low_pass)
+        builder.with_sessions(result.outputs.sessions)
+    if result.outputs.runs:
+        builder.with_runs(result.outputs.runs)
+    return builder.build(name, base_dir)

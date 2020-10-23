@@ -57,6 +57,7 @@ class QualityMeasuresAsNodeTestCase(ut.TestCase):
         cls.quality_measures_node.inputs.group_conf_summary = group_conf_summary_file
         cls.quality_measures_node.inputs.distance_matrix = distance_matrix_file
         cls.quality_measures_node.inputs.group_corr_mat = group_corr_mat_file
+        cls.quality_measures_node.inputs.task = "test"
         cls.quality_measures_node.inputs.pipeline = cls.pipeline
         cls.quality_measures_node.inputs.output_dir = cls.tempdir
         cls.result = cls.quality_measures_node.run()

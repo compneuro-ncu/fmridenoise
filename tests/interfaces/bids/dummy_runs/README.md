@@ -1,0 +1,20 @@
+# Content
+## Derivatives
+   - fmriprep
+## Subjects
+   - 001
+   - 002
+   - 003
+   - 004
+   - 006
+## Sessions
+   - LSD
+   - PLCB
+## Tasks
+   - rest
+## Runs
+   - 01
+   - 02
+   - 03
+## Notes
+no aroma
