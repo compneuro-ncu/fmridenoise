@@ -1,7 +1,7 @@
 # Interface for loading preprocessed fMRI data and confounds table
 from bids import BIDSLayout
 from nipype.interfaces.io import IOBase
-from nipype.utils.filemanip import split_filename, copyfile
+from nipype.utils.filemanip import copyfile
 from nipype.interfaces.base import (BaseInterfaceInputSpec, SimpleInterface,
     traits, TraitedSpec,
     Directory, Str, ImageFile,
@@ -12,8 +12,8 @@ from fmridenoise.pipelines import load_pipeline_from_json, is_IcaAROMA
 import json
 import os
 from itertools import product
-from os.path import join
 import typing as t
+from fmridenoise.utils.entities import build_path, parse_file_entities_with_pipelines
 
 
 def _lists_to_entities(subjects: list, tasks: list, sessions: t.List[str], runs: t.List[str]):
@@ -94,13 +94,13 @@ class BIDSGrab(SimpleInterface):
            str: resulting file path meeting criteria
         """
         return self.select_one(_list,
-                               self.inputs.subject,
-                               self.inputs.session,
-                               self.inputs.task,
-                               self.inputs.run)
+                               subject=self.inputs.subject,
+                               session=self.inputs.session,
+                               task=self.inputs.task,
+                               run=self.inputs.run)
 
     @staticmethod
-    def select_one(_list: t.List[str], subject: str, task: str, session: str = None, run: str = None) -> str:
+    def select_one(_list: t.List[str], subject: str, task: str, session: str, run: str) -> str:
         """
         For given list of file paths returns one path for given subject, session and task.
         If no paths meet criteria empty string is returned instead.
@@ -266,7 +266,6 @@ class BIDSValidate(SimpleInterface):
         Returns:
             entity files and tuple with all tasks, subjects, sessions
         """
-
 
         def get_entity_files(include_no_aroma: bool, include_aroma: bool, entity: dict) -> tuple:
             """
@@ -460,19 +459,17 @@ class BIDSValidate(SimpleInterface):
 
 
 class BIDSDataSinkInputSpec(BaseInterfaceInputSpec):
-    base_directory = Directory(
-        mandatory=True,
-        desc='Path to BIDS (or derivatives) root directory')
+    base_entities = Dict(
+        key_trait=Str,
+        value_trait=Str,
+        value=dict(),  # default value
+        mandatory=False,
+        desc="Optional base entities that will overwrite values from incoming file"
+    )
     in_file = File(
         exists=True,
         mandatory=True,
         desc="File from tmp to save in BIDS directory")
-    subject = Str(
-        mandatory=False,
-        desc="Subject name")
-    session = Str(
-        mandatory=False,
-        desc="Session name")
 
 
 class BIDSDataSinkOutputSpec(TraitedSpec):
@@ -485,18 +482,17 @@ class BIDSDataSink(IOBase):
     """
     input_spec = BIDSDataSinkInputSpec
     output_spec = BIDSDataSinkOutputSpec
+    output_dir_pattern = "{bids_dir}/derivatives/{derivative}/[ses-{session}/]"
+    output_path_pattern = output_dir_pattern + "[sub-{subject}_][ses-{session}_][task-{task}_][run-{run}_]" \
+                          "[pipeline-{pipeline}_][desc-{desc}_]{suffix}.{extension}"
 
     _always_run = True
 
     def _list_outputs(self):
-        path = join(self.inputs.base_directory, "derivatives", "fmridenoise")
-        if self.inputs.subject:
-            path = join(path, f"sub-{self.inputs.subject}")
-        if self.inputs.session:
-            path = join(path, f"ses-{self.inputs.session}")
-        os.makedirs(path, exist_ok=True)
-        basedir, basename, ext = split_filename(self.inputs.in_file)
-        path = join(path, basename+ext)
+        entities = parse_file_entities_with_pipelines(self.inputs.in_file)
+        entities.update(self.inputs.base_entities)
+        os.makedirs(build_path(entities, self.output_dir_pattern), exist_ok=True)
+        path = build_path(entities, self.output_path_pattern)
         assert not os.path.exists(path), f"File already exists, overwriting protection: {path}"
         copyfile(self.inputs.in_file, path, copy=True)
         return {'out_file': path}

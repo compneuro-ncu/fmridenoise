@@ -1,5 +1,4 @@
 from nipype import Node, IdentityInterface, Workflow, JoinNode
-from traits.trait_base import _Undefined
 from fmridenoise.interfaces.smoothing import Smooth
 from fmridenoise.interfaces.bids import BIDSGrab, BIDSDataSink, BIDSValidate
 from fmridenoise.interfaces.confounds import Confounds, GroupConfounds
@@ -69,16 +68,6 @@ class WorkflowBuilder:
                 conf_json_files=conf_json),
             name="BidsGrabber")
         # Outputs: fmri_prep, fmri_prep_aroma, conf_raw, conf_json
-
-        # 3) --- Smoothing
-
-        # Inputs: fmri_prep
-        self.smooth_signal = Node(
-            Smooth(
-                output_directory=temps.mkdtemp('smoothing'),
-                is_file_mandatory=False),
-            name="Smoother")
-        # Outputs: fmri_smoothed
 
         # 3) --- Confounds preprocessing
 
@@ -209,52 +198,41 @@ class WorkflowBuilder:
             name='ReportCreator')
         self.report_creator.inputs.tasks = tasks
         # 12) --- Save derivatives
-        self.ds_confounds = Node(BIDSDataSink(base_directory=bids_dir),
+        base_entities = {'bids_dir': bids_dir, 'derivative': 'fmridenoise'}
+        self.ds_confounds = Node(BIDSDataSink(),
                                  name="ds_confounds")
-
-        self.ds_denoise = Node(BIDSDataSink(base_directory=bids_dir),
+        self.ds_confounds.inputs.base_entities = base_entities
+        self.ds_denoise = Node(BIDSDataSink(),
                                name="ds_denoise")
-
-        self.ds_connectivity_corr_mat = Node(BIDSDataSink(base_directory=bids_dir),
+        self.ds_denoise.inputs.base_entities = base_entities
+        self.ds_connectivity_corr_mat = Node(BIDSDataSink(),
                                              name="ds_connectivity")
-
-        self.ds_connectivity_carpet_plot = Node(BIDSDataSink(base_directory=bids_dir),
+        self.ds_connectivity_corr_mat.inputs.base_entities = base_entities
+        self.ds_connectivity_carpet_plot = Node(BIDSDataSink(),
                                                 name="ds_carpet_plot")
-
-        self.ds_connectivity_matrix_plot = Node(BIDSDataSink(base_directory=bids_dir),
+        self.ds_connectivity_carpet_plot.inputs.base_entities = base_entities
+        self.ds_connectivity_matrix_plot = Node(BIDSDataSink(),
                                                 name="ds_matrix_plot")
-
+        self.ds_connectivity_matrix_plot.inputs.base_entities = base_entities
         self.connections = [
             # bidsgrabber
             (self.subjectselector, self.bidsgrabber, [('subject', 'subject')]),
             (self.taskselector, self.bidsgrabber, [('task', 'task')]),
-            # smooth_signal
-            (self.bidsgrabber, self.smooth_signal, [('fmri_prep', 'fmri_prep')]),
             # prep_conf
             (self.pipelineselector, self.prep_conf, [('pipeline', 'pipeline')]),
-            (self.subjectselector, self.prep_conf, [('subject', 'subject')]),
-            (self.taskselector, self.prep_conf, [('task', 'task')]),
             (self.bidsgrabber, self.prep_conf, [('conf_raw', 'conf_raw'),
                                       ('conf_json', 'conf_json')]),
             # denoise
-            (self.smooth_signal, self.denoise, [('fmri_smoothed', 'fmri_prep')]),
             (self.prep_conf, self.denoise, [('conf_prep', 'conf_prep')]),
             (self.pipelineselector, self.denoise, [('pipeline', 'pipeline')]),
-            (self.bidsgrabber, self.denoise, [('fmri_prep_aroma', 'fmri_prep_aroma')]),
-            (self.taskselector, self.denoise, [('task', 'task')]),
             # group conf summary
             (self.prep_conf, self.group_conf_summary, [('conf_summary', 'conf_summary_json_files')]),
-            (self.taskselector, self.group_conf_summary, [('task', 'task')]),
-            (self.pipelineselector, self.group_conf_summary, [('pipeline_name', 'pipeline_name')]),
             # connectivity
             (self.denoise, self.connectivity, [('fmri_denoised', 'fmri_denoised')]),
             # group connectivity
             (self.connectivity, self.group_connectivity, [("corr_mat", "corr_mat")]),
-            (self.pipelineselector, self.group_connectivity, [("pipeline_name", "pipeline_name")]),
-            (self.taskselector, self.group_connectivity, [('task', 'task')]),
             # quality measures
             (self.pipelineselector, self.quality_measures, [('pipeline', 'pipeline')]),
-            (self.taskselector, self.quality_measures, [('task', 'task')]),
             (self.group_connectivity, self.quality_measures, [('group_corr_mat', 'group_corr_mat')]),
             (self.group_conf_summary, self.quality_measures, [('group_conf_summary', 'group_conf_summary')]),
             # quality measure join over pipelines
@@ -262,13 +240,13 @@ class WorkflowBuilder:
              [('corr_matrix_plot', 'corr_matrix_plot'),
               ('corr_matrix_no_high_motion_plot', 'corr_matrix_no_high_motion_plot')]),
             # pipeline quality measures
-            (self.taskselector, self.pipelines_quality_measures, [('task', 'task')]),
             (self.quality_measures, self.pipelines_quality_measures, [
                 ('fc_fd_summary', 'fc_fd_summary'),
                 ('edges_weight', 'edges_weight'),
                 ('edges_weight_clean', 'edges_weight_clean'),
                 ('fc_fd_corr_values', 'fc_fd_corr_values'),
                 ('fc_fd_corr_values_clean', 'fc_fd_corr_values_clean')]),
+            (self.taskselector, self.pipelines_quality_measures, [('task', 'task')]),
             # pipelines_join
             (self.pipelineselector, self.pipelines_join, [('pipeline', 'pipelines')]),
             # pipeline_quality_measures_join
@@ -283,7 +261,6 @@ class WorkflowBuilder:
                 ('plot_pipelines_distance_dependence_no_high_motion', 'plot_pipelines_distance_dependence_no_high_motion'),
                 ('plot_pipelines_tdof_loss', 'plot_pipelines_tdof_loss')
                ]),
-            (self.taskselector, self.pipeline_quality_measures_join_tasks, [('task', 'tasks')]),
             (self.quality_measures_join, self.pipeline_quality_measures_join_tasks,
              [('corr_matrix_plot', 'corr_matrix_plot'),
               ('corr_matrix_no_high_motion_plot', 'corr_matrix_no_high_motion_plot')]),
@@ -291,26 +268,31 @@ class WorkflowBuilder:
             (self.pipelines_join, self.report_creator, [('pipelines', 'pipelines')]),
             # all datasinks
             ## ds_denoise
-            (self.subjectselector, self.ds_denoise, [("subject", "subject")]),
             (self.denoise, self.ds_denoise, [("fmri_denoised", "in_file")]),
             ## ds_connectivity
-            (self.subjectselector, self.ds_connectivity_corr_mat, [("subject", "subject")]),
             (self.connectivity, self.ds_connectivity_corr_mat, [("corr_mat", "in_file")]),
-            (self.subjectselector, self.ds_connectivity_matrix_plot, [("subject", "subject")]),
             (self.connectivity, self.ds_connectivity_matrix_plot, [("matrix_plot", "in_file")]),
-            (self.subjectselector, self.ds_connectivity_carpet_plot, [("subject", "subject")]),
             (self.connectivity, self.ds_connectivity_carpet_plot, [("carpet_plot", "in_file")]),
             ## ds_confounds
-            (self.subjectselector, self.ds_confounds, [("subject", "subject")]),
             (self.prep_conf, self.ds_confounds, [("conf_prep", "in_file")]),
         ]
         self.last_join = self.pipeline_quality_measures_join_tasks
 
     def use_fmri_prep_aroma(self, fmri_aroma_files: t.List[str]):
-        self.fmri_prep_aroma_files = fmri_aroma_files
+        self.bidsgrabber.inputs.fmri_prep_aroma_files = fmri_aroma_files
+        self.connections += [
+            (self.bidsgrabber, self.denoise, [('fmri_prep_aroma', 'fmri_prep_aroma')])]
 
     def use_fmri_prep(self, fmri_prep_files: t.List[str]):
-        self.fmri_prep_files = fmri_prep_files
+        self.smooth_signal = Node(
+            Smooth(
+                output_directory=temps.mkdtemp('smoothing'),
+                is_file_mandatory=False),
+            name="Smoother")
+        self.connections += [
+            (self.bidsgrabber, self.smooth_signal, [('fmri_prep', 'fmri_prep')]),
+            (self.smooth_signal, self.denoise, [('fmri_smoothed', 'fmri_prep')])]
+        self.bidsgrabber.inputs.fmri_prep_files = fmri_prep_files
 
     def with_sessions(self, sessions: t.List[str]):
         self.sessionselector = Node(
@@ -328,15 +310,7 @@ class WorkflowBuilder:
         )
         self.connections += [
             (self.sessionselector, self.bidsgrabber, [('session', 'session')]),
-            (self.sessionselector, self.prep_conf, [('session', 'session')]),
-            (self.sessionselector, self.group_conf_summary, [('session', 'session')]),
-            (self.sessionselector, self.group_connectivity, [('session', 'session')]),
-            (self.sessionselector, self.quality_measures, [('session', 'session')]),
-            (self.sessionselector, self.ds_denoise, [("session", "session")]),
-            (self.sessionselector, self.ds_connectivity_corr_mat, [("session", "session")]),
-            (self.sessionselector, self.ds_connectivity_matrix_plot, [("session", "session")]),
-            (self.sessionselector, self.ds_connectivity_carpet_plot, [("session", "session")]),
-            (self.sessionselector, self.ds_confounds, [("session", "session")]),
+            (self.sessionselector, self.pipelines_quality_measures, [('session', 'session')]),
             (self.last_join, self.pipeline_quality_measures_join_sessions, list(zip(fields, fields)))
         ]
         self.last_join = self.pipeline_quality_measures_join_sessions
@@ -357,15 +331,12 @@ class WorkflowBuilder:
         )
         self.connections += [
             (self.runselector, self.bidsgrabber, [('run', 'run')]),
+            (self.runselector, self.pipelines_quality_measures, [('run', 'run')]),
             (self.last_join, self.pipeline_quality_measures_join_runs, list(zip(fields, fields)))
         ]
         self.last_join = self.pipeline_quality_measures_join_runs
 
     def build(self, name: str, base_dir: str) -> Workflow:
-        if self.fmri_prep_files:
-            self.bidsgrabber.inputs.fmri_prep_files = self.fmri_prep_files
-        if self.fmri_prep_aroma_files:
-            self.bidsgrabber.inputs.fmri_prep_aroma_files = self.fmri_prep_aroma_files
         wf = Workflow(name=name, base_dir=base_dir)
         self.connections.append(
             (self.last_join, self.report_creator,
@@ -385,10 +356,10 @@ class WorkflowBuilder:
 
 def init_fmridenoise_wf(bids_dir,
                         derivatives='fmriprep',
-                        task=[],
-                        session=[],
-                        subject=[],
-                        runs=[],
+                        task=tuple(),
+                        session=tuple(),
+                        subject=tuple(),
+                        runs=tuple(),
                         pipelines_paths=get_pipelines_paths(),
                         high_pass=0.008,
                         low_pass=0.08,

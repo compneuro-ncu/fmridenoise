@@ -1,8 +1,5 @@
 from nipype.interfaces.base import (
-    BaseInterfaceInputSpec, TraitedSpec, SimpleInterface,
-    File,
-    traits
-)
+    BaseInterfaceInputSpec, TraitedSpec, SimpleInterface, Str, File, traits)
 import typing as t
 import numpy as np
 import pandas as pd
@@ -10,8 +7,7 @@ from nilearn.connectome import sym_matrix_to_vec, vec_to_sym_matrix
 from scipy.stats import pearsonr
 from os.path import join
 import warnings
-from traits.trait_base import _Undefined
-from fmridenoise.utils.entities import build_path
+from fmridenoise.utils.entities import build_path, parse_file_entities_with_pipelines, assert_all_entities_equal
 from fmridenoise.utils.plotting import (make_motion_plot, make_kdeplot,
                                         make_catplot, make_violinplot, make_corr_matrix_plot)
 from fmridenoise.utils.numeric import array_2d_row_identity
@@ -34,10 +30,6 @@ class QualityMeasuresInputSpec(BaseInterfaceInputSpec):
 
     pipeline = traits.Dict(mandatory=True,
                            desc="Pipeline")
-    task = traits.Str(mandatory=True,
-                      desc="Task name")
-    session = traits.Str(mandatory=False,
-                         desc="Session name")
 
 
 class QualityMeasuresOutputSpec(TraitedSpec):
@@ -88,7 +80,7 @@ class QualityMeasuresOutputSpec(TraitedSpec):
 class QualityMeasures(SimpleInterface):
     input_spec = QualityMeasuresInputSpec
     output_spec = QualityMeasuresOutputSpec
-    plot_pattern = "task-{task}_[ses-{session}_]pipeline-{pipeline}_desc-{desc}.svg"
+    plot_pattern = "[ses-{session}_]task-{task}_[run-{run}_]pipeline-{pipeline}_desc-{desc}.svg"
     pval_tresh = 0.05
 
     @staticmethod
@@ -105,7 +97,7 @@ class QualityMeasures(SimpleInterface):
             # Checks if data frame contains proper columns
             # confounds_fields - from confound output definition
         all_possible_fields = {'subject', 'task', 'session', 'mean_fd', 'max_fd', 'n_conf', 'include', 'n_spikes',
-                               'perc_spikes'}
+                               'perc_spikes', 'run'}
         mandatory_fields = {'subject', 'task', 'mean_fd', 'max_fd', 'n_conf', 'include'}
         provided_fields = set(group_conf_summary.columns)
         excess_fields = provided_fields - all_possible_fields
@@ -243,6 +235,11 @@ class QualityMeasures(SimpleInterface):
                list(excluded_subjects_names)
 
     def _run_interface(self, runtime):
+        # noinspection PyUnreachableCode
+        if __debug__:
+            entities = [parse_file_entities_with_pipelines(self.inputs.group_conf_summary),
+                        parse_file_entities_with_pipelines(self.inputs.group_corr_mat)]
+            assert_all_entities_equal(entities, "session", "run", "task", "pipeline")
         group_conf_summary_df = pd.read_csv(self.inputs.group_conf_summary, sep='\t', header=0)
         group_corr_mat_arr = np.load(self.inputs.group_corr_mat)
         distance_matrix_arr = np.load(self.inputs.distance_matrix)
@@ -256,29 +253,27 @@ class QualityMeasures(SimpleInterface):
         for summary in summaries:
             summary['pipeline'] = pipeline_name
         # creating plots
-        base_entites = {'task': self.inputs.task, 'pipeline': self.inputs.pipeline['name']}
-        if self.inputs.session != _Undefined:
-            base_entites['session'] = self.inputs.session
-        motion_plot_path = join(self.inputs.output_dir, build_path({**base_entites,
+        base_entities = parse_file_entities_with_pipelines(self.inputs.group_conf_summary)
+        motion_plot_path = join(self.inputs.output_dir, build_path({**base_entities,
                                                                     'desc': 'motionCriterion_plot'},
                                                                    self.plot_pattern, strict=False))
         make_motion_plot(group_conf_summary_df, motion_plot_path)
-        corr_matrix_plot = build_path({**base_entites,
+        corr_matrix_plot = build_path({**base_entities,
                                        'desc': 'fcFdCorrMatrix_plot'},
                                       self.plot_pattern, strict=False)
         corr_matrix_plot = make_corr_matrix_plot(
             data=vec_to_sym_matrix(group_corr_vec),
             title=corr_matrix_plot.strip('.svg'),
-            ylabel=base_entites['pipeline'],
+            ylabel=base_entities['pipeline'],
             output_path=join(self.inputs.output_dir, corr_matrix_plot))
         corr_matrix_plot_no_high_motion = build_path(
-            {**base_entites,
+            {**base_entities,
              'desc': 'fcFdCorrMatrixNoHighMotion_plot'},
             self.plot_pattern, strict=False)
         corr_matrix_plot_no_high_motion = make_corr_matrix_plot(
             data=vec_to_sym_matrix(group_corr_vec_clean),
             title=corr_matrix_plot_no_high_motion.strip('.svg'),
-            ylabel=base_entites['pipeline'],
+            ylabel=base_entities['pipeline'],
             output_path=join(self.inputs.output_dir, corr_matrix_plot_no_high_motion))
         # setting output values
         self._results['fc_fd_summary'] = summaries
@@ -331,14 +326,12 @@ class PipelinesQualityMeasuresInputSpec(BaseInterfaceInputSpec):
         desc="Mean weights of individual edges for each pipeline (no high motion)"
     )
 
+    task = Str(mandatory=True)
+    session = Str(mandatory=False)
+    run = Str(mandatory=False)
+
     output_dir = File(
         desc="Output path")
-
-    task = traits.Str(
-        desc="Task name")
-
-    session = traits.Str(
-        desc="Session name")
 
 
 class PipelinesQualityMeasuresOutputSpec(TraitedSpec):
@@ -398,8 +391,8 @@ class PipelinesQualityMeasuresOutputSpec(TraitedSpec):
 class PipelinesQualityMeasures(SimpleInterface):
     input_spec = PipelinesQualityMeasuresInputSpec
     output_spec = PipelinesQualityMeasuresOutputSpec
-    plot_pattern = "[ses-{session}_]task-{task}_desc-{desc}_plot.svg"
-    data_files_pattern = '[ses-{session}_]task-{task}[_desc-{desc}]_{suffix}.{extension}'
+    plot_pattern = "[ses-{session}_]task-{task}_[run-{run}_]desc-{desc}_plot.svg"
+    data_files_pattern = '[ses-{session}_]task-{task}[_run-{run}][_desc-{desc}]_{suffix}.{extension}'
 
     def _get_pipeline_summaries(self) -> pd.DataFrame:
         """
@@ -520,7 +513,9 @@ class PipelinesQualityMeasures(SimpleInterface):
         pipelines_edges_weight, pipelines_edges_weight_clean = self._get_pipelines_edges_weight()
         self._get_fc_fd_corr_values()
         self.entities_dict = {'task': self.inputs.task}
-        if self.inputs.session != traits.Undefined:
+        if self.inputs.run:
+            self.entities_dict['run'] = self.inputs.run
+        if self.inputs.session:
             self.entities_dict['session'] = self.inputs.session
         figures_entites = self.entities_dict.copy()
 

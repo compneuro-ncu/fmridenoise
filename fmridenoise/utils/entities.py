@@ -55,5 +55,14 @@ def build_path(entities, path_patterns, strict=False):
     if path is not None:
         return path
     else:
-        raise ValueError(f"Unable to build path with given entites: {entities}\n and path pattern {path_patterns}")
+        raise ValueError(f"Unable to build path with given entities: {entities}\n and path pattern {path_patterns}")
 
+
+def assert_all_entities_equal(entities: t.List[t.Dict[str, str]], *entities_names: str) -> None:
+    if len(entities) == 0:
+        return
+    for name in entities_names:
+        first = entities[0].get(name)
+        if not all(entity.get(name) == first for entity in entities):
+            raise AssertionError(f"Not all entities equal for key: {name}\n"
+                                 f"{[entitie.get(name) for entitie in entities]}")

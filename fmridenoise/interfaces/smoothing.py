@@ -30,7 +30,7 @@ class SmoothOutputSpec(TraitedSpec):
 class Smooth(SimpleInterface):
     input_spec = SmoothInputSpec
     output_spec = SmoothOutputSpec
-    smooth_file_pattern = "sub-{subject}[_ses-{session}]_task-{task}_space-{space}_desc-Smoothed_bold.nii.gz"
+    smooth_file_pattern = "sub-{subject}[_ses-{session}]_task-{task}[_run-{run}]_space-{space}_desc-Smoothed_bold.nii.gz"
 
     def _run_interface(self, runtime):
         if exists(self.inputs.fmri_prep):

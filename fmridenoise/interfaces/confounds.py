@@ -1,7 +1,6 @@
 import json
 import os
 from os.path import join
-
 import pandas as pd
 import numpy as np
 from bids.layout.writing import build_path
@@ -9,7 +8,8 @@ from traits.trait_types import Dict, Str, List, Directory
 from nipype.interfaces.base import (BaseInterfaceInputSpec, File, TraitedSpec, 
     SimpleInterface)
 import typing as t
-from fmridenoise.utils.entities import parse_file_entities_with_pipelines, build_path
+from fmridenoise.utils.entities import parse_file_entities_with_pipelines, build_path, \
+    assert_all_entities_equal
 
 
 class ConfoundsInputSpec(BaseInterfaceInputSpec):
@@ -24,15 +24,6 @@ class ConfoundsInputSpec(BaseInterfaceInputSpec):
         exist=True,
         mandatory=True,
         desc="Confounds description (aCompCor)")
-    subject = Str(
-        mandatory=True,
-        desc="Subject name")
-    task = Str(
-        mandatory=True,
-        desc="Task name")
-    session = Str(
-        mandatory=False,
-        desc="Session name")
     output_dir = Directory(
         exists=True,
         mandatory=True,
@@ -63,12 +54,6 @@ class Confounds(SimpleInterface):
     filenames with expression pipeline-<pipeline_name>.
     
     Summary contains fields:
-        'subject': 
-            Subject label.
-        'task': 
-            Task label.
-        'session': 
-            Session label (only if session was specified).
         'mean_fd': 
             Mean framewise displacement.
         'max_fd': 
@@ -89,12 +74,14 @@ class Confounds(SimpleInterface):
     """
     input_spec = ConfoundsInputSpec
     output_spec = ConfoundsOutputSpec
-    conf_prep_pattern = "sub-{subject}[_ses-{session}]_task-{task}_pipeline-{pipeline}_desc-{desc}.tsv"
-    conf_summary_pattern = "sub-{subject}[_ses-{session}]_task-{task}_pipeline-{pipeline}_desc-{desc}_summary.json"
-
+    conf_prep_pattern = "sub-{subject}[_ses-{session}]_task-{task}[_run-{run}]_pipeline-{pipeline}_desc-{desc}.tsv"
+    conf_summary_pattern = "sub-{subject}[_ses-{session}]_task-{task}[_run-{run}]_pipeline-{pipeline}" \
+                           "_desc-{desc}_summary.json"
 
     def _retain(self, regressor_names: t.List[str]):
-        '''Copies selected regressors from conf_raw to conf_prep.'''
+        """
+        Copies selected regressors from conf_raw to conf_prep.
+        """
         if regressor_names:
             self.conf_prep = pd.concat((
                 self.conf_prep,
@@ -114,7 +101,6 @@ class Confounds(SimpleInterface):
         
         self._retain(tissue_regressors)
 
-
     def _filter_motion_parameters(self):
         hmp_regressors = []
         hmp_names = [f'{type_}_{axis}' 
@@ -131,7 +117,6 @@ class Confounds(SimpleInterface):
         
         self._retain(hmp_regressors)
 
-
     def _filter_acompcors(self):
         if not self.inputs.pipeline['confounds']['acompcor']:
             return
@@ -147,7 +132,6 @@ class Confounds(SimpleInterface):
             acompcor_regressors.extend(acompcor[0] for acompcor in acompcors[:5])
 
         self._retain(acompcor_regressors)
-
 
     def _create_spike_regressors(self):
         if not self.inputs.pipeline['spikes']:
@@ -178,11 +162,10 @@ class Confounds(SimpleInterface):
         
         self.n_spikes = len(outliers)
 
-
-    def _create_summary_dict(self):
+    def _create_summary_dict(self, subject: str, session: str, task: str, run: str):
         self.conf_summary = {
-            'subject': self.inputs.subject,
-            'task': self.inputs.task,
+            'subject': subject,
+            'task': task,
             'mean_fd': self.conf_raw["framewise_displacement"].mean(),
             'max_fd': self.conf_raw["framewise_displacement"].max(),
             'n_conf': len(self.conf_prep.columns),
@@ -193,8 +176,10 @@ class Confounds(SimpleInterface):
             self.conf_summary['n_spikes'] = self.n_spikes 
             self.conf_summary['perc_spikes'] = self.n_spikes / self.n_volumes * 100
 
-        if self.inputs.session:
-            self.conf_summary['session'] = str(self.inputs.session)
+        if session:
+            self.conf_summary['session'] = session
+        if run:
+            self.conf_summary['run'] = run
 
     def _inclusion_check(self):
         '''Decide if subject should be included in connectivity analysis'''
@@ -218,15 +203,19 @@ class Confounds(SimpleInterface):
         self.n_volumes = len(self.conf_raw)
         self.conf_prep = pd.DataFrame()
 
+        # entities
+        entities = parse_file_entities_with_pipelines(self.inputs.conf_raw)
+
         # Create preprocessed confounds step-by-step
         self._filter_motion_parameters()
         self._filter_tissue_signals()
         self._filter_acompcors()
         self._create_spike_regressors()
-        self._create_summary_dict()
+        self._create_summary_dict(
+            subject=entities.get('subject'), task=entities.get('task'),
+            session=entities.get('session'), run=entities.get('run'))
 
         # Store output
-        entities = parse_file_entities_with_pipelines(self.inputs.conf_raw)
         entities['pipeline'] = self.inputs.pipeline['name']
         conf_prep = join(self.inputs.output_dir, build_path(entities, self.conf_prep_pattern, False))
         conf_summary = join(self.inputs.output_dir, build_path(entities, self.conf_summary_pattern, False))
@@ -235,7 +224,6 @@ class Confounds(SimpleInterface):
             json.dump(self.conf_summary, f)
         self._results['conf_prep'] = conf_prep
         self._results['conf_summary'] = conf_summary
-
         return runtime
 
 
@@ -246,15 +234,7 @@ class GroupConfoundsInputSpec(BaseInterfaceInputSpec):
         desc="Confounds summary")
     output_dir = Directory(          # needed to save data in other directory
         mandatory=True,
-        desc="Output path")     # TODO: Implement temp dir
-    task = Str(
-        mandatory=True,
-        desc="Task name")
-    session = Str(
-        mandatory=False,
-        desc="Session name")
-    pipeline_name = Str(mandatory=True,
-                        desc="Pipeline name")
+        desc="Output path")
 
 
 class GroupConfoundsOutputSpec(TraitedSpec):
@@ -266,19 +246,22 @@ class GroupConfoundsOutputSpec(TraitedSpec):
 class GroupConfounds(SimpleInterface):
     input_spec = GroupConfoundsInputSpec
     output_spec = GroupConfoundsOutputSpec
+    file_pattern = "[ses-{session}_]task-{task}_[run-{run}]_pipeline-{pipeline}_groupConfSummary.tsv"
 
     def _run_interface(self, runtime):
         group_conf_summary = pd.DataFrame()
-
+        # noinspection PyUnreachableCode
+        if __debug__:  # sanity check
+            entities = [parse_file_entities_with_pipelines(path) for path in self.inputs.conf_summary_json_files]
+            assert_all_entities_equal(entities, "session", "task", "run", "pipeline")
         for summary_json_file in self.inputs.conf_summary_json_files:
             with open(summary_json_file, 'r') as f:
                 group_conf_summary = group_conf_summary.append(pd.DataFrame(json.load(f), index=[0]))
-        if self.inputs.session:
-            base = f"ses-{self.inputs.session}_task-{self.inputs.task}_pipeline-{self.inputs.pipeline_name}_groupConfSummary.tsv"
-        else:
-            base = f"task-{self.inputs.task}_pipeline-{self.inputs.pipeline_name}_groupConfSummary.tsv"
-        fname = os.path.join(self.inputs.output_dir, base)
-        assert not os.path.exists(fname)
+        entities = parse_file_entities_with_pipelines(self.inputs.conf_summary_json_files[0])
+        file_path = build_path(entities, self.file_pattern)
+        fname = os.path.join(self.inputs.output_dir, file_path)
+        assert not os.path.exists(fname), f"Group confounds file already exists at {fname}"
         group_conf_summary.to_csv(fname, sep='\t', index=False)
+        assert os.path.exists(fname), "File not created"
         self._results['group_conf_summary'] = fname
         return runtime

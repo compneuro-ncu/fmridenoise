@@ -123,6 +123,20 @@ class BidsValidateBasicPropertiesOnCompleteDataTestCase(ut.TestCase):
         else:
             self.assertEqual(0, len(self.bidsValidate._results["fmri_prep"]))
 
+    def test_conf_raw_files(self):
+        filesCount = len(self.subjects) \
+                         * (len(self.sessions) if self.sessions else 1) \
+                         * len(self.tasks) \
+                         * (len(self.runs) if self.runs else 1)
+        self.assertEqual(filesCount, len(self.bidsValidate._results['conf_raw']))
+
+    def test_conf_raw_json(self):
+        filesCount = len(self.subjects) \
+                     * (len(self.sessions) if self.sessions else 1) \
+                     * len(self.tasks) \
+                     * (len(self.runs) if self.runs else 1)
+        self.assertEqual(filesCount, len(self.bidsValidate._results['conf_json']))
+
     def test_test_tr(self):
         for task in self.tasks:
             self.assertEqual(2, self.bidsValidate._results["tr_dict"][task])  # a magical number - 2
@@ -284,7 +298,7 @@ class BidsValidateOnRunsTestCase(BidsValidateBasicPropertiesOnCompleteDataTestCa
     tasks = ['rest']
     sessions = ['LSD', 'PLCB']
     subjects = ['001', '002', '003', '004', '006']
-    runs = ['01', '02', '03']
+    runs = ['1', '2', '3']
     pipelines = noAromaPipelinePaths
     pipelinesDicts = list(map(pipe.load_pipeline_from_json, pipelines))
     bids_dir = dummyRuns
