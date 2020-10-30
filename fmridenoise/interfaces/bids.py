@@ -1,7 +1,7 @@
 # Interface for loading preprocessed fMRI data and confounds table
 from bids import BIDSLayout
 from nipype.interfaces.io import IOBase
-from nipype.utils.filemanip import split_filename, copyfile
+from nipype.utils.filemanip import copyfile
 from nipype.interfaces.base import (BaseInterfaceInputSpec, SimpleInterface,
     traits, TraitedSpec,
     Directory, Str, ImageFile,
@@ -12,8 +12,38 @@ from fmridenoise.pipelines import load_pipeline_from_json, is_IcaAROMA
 import json
 import os
 from itertools import product
-from os.path import join
 import typing as t
+from fmridenoise.utils.entities import build_path, parse_file_entities_with_pipelines
+
+
+def _lists_to_entities(subjects: list, tasks: list, sessions: t.List[str], runs: t.List[str]):
+    """
+    Convert lists of subjects, tasks and sessions into list of dictionaries
+    (entities). It handles empty session list.
+    """
+
+    keys = ['subject', 'task']
+    prod_elements = [subjects, tasks]
+    if sessions:
+        keys.append('session')
+        prod_elements.append(sessions)
+    if runs:
+        keys.append('run')
+        prod_elements.append(runs)
+
+    return [{key: value for key, value in zip(keys, entity)} for entity in product(*prod_elements)]
+
+
+def _fill_empty_lists(layout: BIDSLayout, subjects: list, tasks: list, sessions: list, runs: t.List[str]):
+    """
+    If filters are not provided by the user, load them from layout.
+    """
+
+    subjects = subjects if subjects else layout.get_subjects()
+    tasks = tasks if tasks else layout.get_tasks()
+    sessions = sessions if sessions else layout.get_sessions()
+    runs = runs if runs else layout.get_runs()
+    return subjects, tasks, sessions, runs
 
 
 class MissingFile(IOError):
@@ -29,6 +59,7 @@ class BIDSGrabInputSpec(BaseInterfaceInputSpec):
     subject = Str()
     task = Str()
     session = Str()
+    run = Str()
 
 
 class BIDSGrabOutputSpec(TraitedSpec):
@@ -46,12 +77,10 @@ class BIDSGrab(SimpleInterface):
     output_spec = BIDSGrabOutputSpec
 
     def _run_interface(self, runtime):
-        self._results['fmri_prep'] = self._select_one(self.inputs.fmri_prep_files)
-        if self._results['fmri_prep'] == '':
-            self._results['fmri_prep'] = Undefined
-        self._results['fmri_prep_aroma'] = self._select_one(self.inputs.fmri_prep_aroma_files)
-        if self._results['fmri_prep_aroma'] == '':
-            self._results['fmri_prep_aroma'] = Undefined
+        if self.inputs.fmri_prep_files != Undefined:
+            self._results['fmri_prep'] = self._select_one(self.inputs.fmri_prep_files)
+        if self.inputs.fmri_prep_aroma_files != Undefined:
+            self._results['fmri_prep_aroma'] = self._select_one(self.inputs.fmri_prep_aroma_files)
         self._results['conf_raw'] = self._select_one(self.inputs.conf_raw_files)
         self._results['conf_json'] = self._select_one(self.inputs.conf_json_files)
         return runtime
@@ -65,12 +94,13 @@ class BIDSGrab(SimpleInterface):
            str: resulting file path meeting criteria
         """
         return self.select_one(_list,
-                                self.inputs.subject,
-                                self.inputs.session,
-                                self.inputs.task)
+                               subject=self.inputs.subject,
+                               session=self.inputs.session,
+                               task=self.inputs.task,
+                               run=self.inputs.run)
 
     @staticmethod
-    def select_one(_list: t.List[str], subject: str, session: str, task: str) -> str:
+    def select_one(_list: t.List[str], subject: str, task: str, session: str, run: str) -> str:
         """
         For given list of file paths returns one path for given subject, session and task.
         If no paths meet criteria empty string is returned instead.
@@ -80,20 +110,20 @@ class BIDSGrab(SimpleInterface):
             subject (str): subject identifier without 'sub-'
             session (str): session identifier without 'ses-'
             task (str): task identifier without 'task-'
+            run (str): run identifier without 'run-'
 
         Returns:
            str: resulting file path meeting criteria
         """
+        filters = [lambda x: f"sub-{subject}" in x, lambda x: f"task-{task}" in x]
         if session:
-            query = lambda data_list: list(
-                filter(lambda x: f"sub-{subject}" in x,
-                filter(lambda x: f"ses-{session}" in x,
-                filter(lambda x: f"task-{task}" in x, data_list))))
-        else:
-            query = lambda data_list: list(
-                filter(lambda x: f"sub-{subject}" in x,
-                filter(lambda x: f"task-{task}" in x, data_list)))
-        result = query(_list)
+            filters.append(lambda x: f"ses-{session}" in x)
+        if run:
+            filters.append(lambda x: f"run-{run}" in x)
+        result = _list
+        for fil in filters:
+            result = filter(fil, result)
+        result = list(result)
         if not len(result) <= 1:
             raise ValueError(f"Unambiguous number of querried files, expected 1 or 0 but got {len(result)}")
         return result[0] if len(result) == 1 else ''
@@ -115,6 +145,7 @@ class BIDSValidateInputSpec(BaseInterfaceInputSpec):
     tasks = traits.List(Str, desc='Names of tasks to denoise')
     sessions = traits.List(Str, desc='Labels of sessions to denoise')
     subjects = traits.List(Str, desc='Labels of subjects to denoise')
+    runs = traits.List(str, desc='Labels of runs to denoise')
 
     # Pipelines from user or default
     pipelines = traits.List(
@@ -130,11 +161,10 @@ class BIDSValidateOutputSpec(TraitedSpec):
     fmri_prep_aroma = traits.List(File)
     conf_raw = traits.List(File)
     conf_json = traits.List(File)
-
-    # Goes to BIDSGrab (one-by-one)
     tasks = traits.List(Str)
     sessions = traits.List(Str)
     subjects = traits.List(Str)
+    runs = traits.List(Str)
 
     # Outputs pipelines loaded as dicts
     pipelines = traits.List(Dict)
@@ -217,6 +247,7 @@ class BIDSValidate(SimpleInterface):
             tasks: t.List[str],
             sessions: t.List[str],
             subjects: t.List[str],
+            runs: t.List[str],
             include_aroma: bool,
             include_no_aroma: bool):
         """
@@ -228,43 +259,13 @@ class BIDSValidate(SimpleInterface):
             tasks (List[str]): tasks that are expected to exist
             sessions (List[str]): tasks that are expected to exist
             subjects (List[str]): subjects that are expected to exist
+            runs (List[str]): runs that are expected to exists
             include_aroma (bool): check for aroma files for every task/session/subject configuration
             include_no_aroma (bool): check for no aroma files for every task/session/subject configuration
 
         Returns:
             entity files and tuple with all tasks, subjects, sessions
         """
-
-        def fill_empty_lists(subjects: list, tasks: list, sessions: list):
-            """
-            If filters are not provided by the user, load them from layout.
-            """
-
-            if not subjects:    subjects = layout.get_subjects()
-            if not tasks:       tasks = layout.get_tasks()
-            if not sessions:    sessions = layout.get_sessions()
-
-            return subjects, tasks, sessions
-
-        def lists_to_entities(subjects: list, tasks: list, sessions: list):
-            """
-            Convert lists of subjects, tasks and sessions into list of dictionaries
-            (entities). It handles empty session list.
-            """
-
-            keys = ('subject', 'task', 'session')
-            entities = []
-
-            if not sessions:
-                entities_list = product(subjects, tasks)
-            else:
-                entities_list = product(subjects, tasks, sessions)
-
-            for entity in entities_list:
-                entities.append(
-                    {key: value for key, value in zip(keys, entity)})
-
-            return entities
 
         def get_entity_files(include_no_aroma: bool, include_aroma: bool, entity: dict) -> tuple:
             """
@@ -327,8 +328,8 @@ class BIDSValidate(SimpleInterface):
         else:
             raise_missing = True
 
-        subjects, tasks, sessions = fill_empty_lists(subjects, tasks, sessions)
-        entities = lists_to_entities(subjects, tasks, sessions)
+        subjects, tasks, sessions, runs = _fill_empty_lists(layout, subjects, tasks, sessions, runs)
+        entities = _lists_to_entities(subjects, tasks, sessions, runs)
         entities_files = []
 
         if raise_missing:
@@ -355,7 +356,7 @@ class BIDSValidate(SimpleInterface):
             subjects = [subject for subject in subjects if
                         subject not in subjects_to_exclude]
 
-        return entities_files, (tasks, sessions, subjects)
+        return entities_files, (tasks, sessions, subjects, runs)
 
     def _run_interface(self, runtime):
 
@@ -385,11 +386,12 @@ class BIDSValidate(SimpleInterface):
         include_no_aroma = not all(map(is_IcaAROMA, pipelines_dicts))
 
         # Check missing files and act accordingly
-        entities_files, (tasks, sessions, subjects) = BIDSValidate.validate_files(
+        entities_files, (tasks, sessions, subjects, runs) = BIDSValidate.validate_files(
             layout=layout,
             tasks=self.inputs.tasks,
             sessions=self.inputs.sessions,
             subjects=self.inputs.subjects,
+            runs=self.inputs.runs,
             include_aroma=include_aroma,
             include_no_aroma=include_no_aroma
         )
@@ -449,6 +451,7 @@ class BIDSValidate(SimpleInterface):
         self._results['tasks'] = tasks
         self._results['sessions'] = sessions
         self._results['subjects'] = subjects
+        self._results['runs'] = runs
         self._results['pipelines'] = pipelines_dicts
         self._results['tr_dict'] = tr_dict
 
@@ -456,19 +459,17 @@ class BIDSValidate(SimpleInterface):
 
 
 class BIDSDataSinkInputSpec(BaseInterfaceInputSpec):
-    base_directory = Directory(
-        mandatory=True,
-        desc='Path to BIDS (or derivatives) root directory')
+    base_entities = Dict(
+        key_trait=Str,
+        value_trait=Str,
+        value=dict(),  # default value
+        mandatory=False,
+        desc="Optional base entities that will overwrite values from incoming file"
+    )
     in_file = File(
         exists=True,
         mandatory=True,
         desc="File from tmp to save in BIDS directory")
-    subject = Str(
-        mandatory=False,
-        desc="Subject name")
-    session = Str(
-        mandatory=False,
-        desc="Session name")
 
 
 class BIDSDataSinkOutputSpec(TraitedSpec):
@@ -481,18 +482,17 @@ class BIDSDataSink(IOBase):
     """
     input_spec = BIDSDataSinkInputSpec
     output_spec = BIDSDataSinkOutputSpec
+    output_dir_pattern = "{bids_dir}/derivatives/{derivative}/[ses-{session}/]"
+    output_path_pattern = output_dir_pattern + "[sub-{subject}_][ses-{session}_][task-{task}_][run-{run}_]" \
+                          "[pipeline-{pipeline}_][desc-{desc}_]{suffix}.{extension}"
 
     _always_run = True
 
     def _list_outputs(self):
-        path = join(self.inputs.base_directory, "derivatives", "fmridenoise")
-        if self.inputs.subject:
-            path = join(path, f"sub-{self.inputs.subject}")
-        if self.inputs.session:
-            path = join(path, f"ses-{self.inputs.session}")
-        os.makedirs(path, exist_ok=True)
-        basedir, basename, ext = split_filename(self.inputs.in_file)
-        path = join(path, basename+ext)
+        entities = parse_file_entities_with_pipelines(self.inputs.in_file)
+        entities.update(self.inputs.base_entities)
+        os.makedirs(build_path(entities, self.output_dir_pattern), exist_ok=True)
+        path = build_path(entities, self.output_path_pattern)
         assert not os.path.exists(path), f"File already exists, overwriting protection: {path}"
         copyfile(self.inputs.in_file, path, copy=True)
         return {'out_file': path}

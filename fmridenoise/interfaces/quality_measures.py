@@ -1,18 +1,15 @@
 from nipype.interfaces.base import (
-    BaseInterfaceInputSpec, TraitedSpec, SimpleInterface,
-    File,
-    traits
-)
+    BaseInterfaceInputSpec, TraitedSpec, SimpleInterface, Str, File, traits)
 import typing as t
 import numpy as np
 import pandas as pd
-from nilearn.connectome import sym_matrix_to_vec
+from nilearn.connectome import sym_matrix_to_vec, vec_to_sym_matrix
 from scipy.stats import pearsonr
 from os.path import join
 import warnings
-
-from fmridenoise.utils.entities import build_path
-from fmridenoise.utils.plotting import make_motion_plot, make_kdeplot, make_catplot, make_violinplot
+from fmridenoise.utils.entities import build_path, parse_file_entities_with_pipelines, assert_all_entities_equal
+from fmridenoise.utils.plotting import (make_motion_plot, make_kdeplot,
+                                        make_catplot, make_violinplot, make_corr_matrix_plot)
 from fmridenoise.utils.numeric import array_2d_row_identity
 
 
@@ -31,7 +28,8 @@ class QualityMeasuresInputSpec(BaseInterfaceInputSpec):
 
     output_dir = File(desc='Output path')
 
-    pipeline = traits.Dict(mandatory=True)
+    pipeline = traits.Dict(mandatory=True,
+                           desc="Pipeline")
 
 
 class QualityMeasuresOutputSpec(TraitedSpec):
@@ -68,11 +66,21 @@ class QualityMeasuresOutputSpec(TraitedSpec):
         desc="Motion criterion plot"
     )
 
+    corr_matrix_plot = traits.File(
+        exists=True,
+        desc="Fc-fd correlation matrix (no high motion)"
+    )
+
+    corr_matrix_no_high_motion_plot = traits.File(
+        exists=True,
+        desc="Fc-fd correlation matrix plot (no high motion)"
+    )
+
 
 class QualityMeasures(SimpleInterface):
     input_spec = QualityMeasuresInputSpec
     output_spec = QualityMeasuresOutputSpec
-    motion_plot_pattern = "pipeline-{pipeline}_desc-motionCriterion_plot.svg"
+    plot_pattern = "[ses-{session}_]task-{task}_[run-{run}_]pipeline-{pipeline}_desc-{desc}.svg"
     pval_tresh = 0.05
 
     @staticmethod
@@ -89,7 +97,7 @@ class QualityMeasures(SimpleInterface):
             # Checks if data frame contains proper columns
             # confounds_fields - from confound output definition
         all_possible_fields = {'subject', 'task', 'session', 'mean_fd', 'max_fd', 'n_conf', 'include', 'n_spikes',
-                               'perc_spikes'}
+                               'perc_spikes', 'run'}
         mandatory_fields = {'subject', 'task', 'mean_fd', 'max_fd', 'n_conf', 'include'}
         provided_fields = set(group_conf_summary.columns)
         excess_fields = provided_fields - all_possible_fields
@@ -190,6 +198,7 @@ class QualityMeasures(SimpleInterface):
         summary = {'perc_fc_fd_uncorr': cls._perc_fc_fd_uncorr(fc_fd_pval),
                    'median_pearson_fc_fd': np.median(fc_fd_corr),
                    'distance_dependence': cls._distance_dependence(fc_fd_corr, distance_vec),
+
                    'tdof_loss': group_conf_subsummary['n_conf'].mean(),
                    'n_subjects': len(group_conf_summary),
                    'n_excluded': len(group_conf_summary) - len(group_conf_subsummary),
@@ -226,6 +235,11 @@ class QualityMeasures(SimpleInterface):
                list(excluded_subjects_names)
 
     def _run_interface(self, runtime):
+        # noinspection PyUnreachableCode
+        if __debug__:
+            entities = [parse_file_entities_with_pipelines(self.inputs.group_conf_summary),
+                        parse_file_entities_with_pipelines(self.inputs.group_corr_mat)]
+            assert_all_entities_equal(entities, "session", "run", "task", "pipeline")
         group_conf_summary_df = pd.read_csv(self.inputs.group_conf_summary, sep='\t', header=0)
         group_corr_mat_arr = np.load(self.inputs.group_corr_mat)
         distance_matrix_arr = np.load(self.inputs.distance_matrix)
@@ -238,20 +252,39 @@ class QualityMeasures(SimpleInterface):
         pipeline_name = self.inputs.pipeline['name']
         for summary in summaries:
             summary['pipeline'] = pipeline_name
-        edges_weight = {pipeline_name: edges_weight}
-        edges_weight_clean = {pipeline_name: edges_weight_clean}
-        group_corr_vec = {pipeline_name: group_corr_vec}
-        group_corr_vec_clean = {pipeline_name: group_corr_vec_clean}
-        motion_plot_path = join(self.inputs.output_dir, build_path({'pipeline': pipeline_name},
-                                                                   self.motion_plot_pattern, strict=False))
+        # creating plots
+        base_entities = parse_file_entities_with_pipelines(self.inputs.group_conf_summary)
+        motion_plot_path = join(self.inputs.output_dir, build_path({**base_entities,
+                                                                    'desc': 'motionCriterion_plot'},
+                                                                   self.plot_pattern, strict=False))
         make_motion_plot(group_conf_summary_df, motion_plot_path)
+        corr_matrix_plot = build_path({**base_entities,
+                                       'desc': 'fcFdCorrMatrix_plot'},
+                                      self.plot_pattern, strict=False)
+        corr_matrix_plot = make_corr_matrix_plot(
+            data=vec_to_sym_matrix(group_corr_vec),
+            title=corr_matrix_plot.strip('.svg'),
+            ylabel=base_entities['pipeline'],
+            output_path=join(self.inputs.output_dir, corr_matrix_plot))
+        corr_matrix_plot_no_high_motion = build_path(
+            {**base_entities,
+             'desc': 'fcFdCorrMatrixNoHighMotion_plot'},
+            self.plot_pattern, strict=False)
+        corr_matrix_plot_no_high_motion = make_corr_matrix_plot(
+            data=vec_to_sym_matrix(group_corr_vec_clean),
+            title=corr_matrix_plot_no_high_motion.strip('.svg'),
+            ylabel=base_entities['pipeline'],
+            output_path=join(self.inputs.output_dir, corr_matrix_plot_no_high_motion))
+        # setting output values
         self._results['fc_fd_summary'] = summaries
-        self._results['edges_weight'] = edges_weight
-        self._results['edges_weight_clean'] = edges_weight_clean
-        self._results['fc_fd_corr_values'] = group_corr_vec
-        self._results['fc_fd_corr_values_clean'] = group_corr_vec_clean
+        self._results['edges_weight'] = {pipeline_name: edges_weight}
+        self._results['edges_weight_clean'] = {pipeline_name: edges_weight_clean}
+        self._results['fc_fd_corr_values'] = {pipeline_name: group_corr_vec}
+        self._results['fc_fd_corr_values_clean'] = {pipeline_name: group_corr_vec_clean}
         self._results['exclude_list'] = exclude_list
         self._results['motion_plot'] = motion_plot_path
+        self._results['corr_matrix_plot'] = corr_matrix_plot
+        self._results['corr_matrix_no_high_motion_plot'] = corr_matrix_plot_no_high_motion
         return runtime
 
 
@@ -293,14 +326,12 @@ class PipelinesQualityMeasuresInputSpec(BaseInterfaceInputSpec):
         desc="Mean weights of individual edges for each pipeline (no high motion)"
     )
 
+    task = Str(mandatory=True)
+    session = Str(mandatory=False)
+    run = Str(mandatory=False)
+
     output_dir = File(
         desc="Output path")
-
-    task = traits.Str(
-        desc="Task name")
-
-    session = traits.Str(
-        desc="Session name")
 
 
 class PipelinesQualityMeasuresOutputSpec(TraitedSpec):
@@ -331,6 +362,11 @@ class PipelinesQualityMeasuresOutputSpec(TraitedSpec):
         desc=""
     )
 
+    plot_pipelines_fc_fd_pearson_no_high_motion = File(
+        exist=False,
+        desc=""
+    )
+
     plot_pipelines_fc_fd_uncorr = File(
         exist=False,
         desc=""
@@ -338,6 +374,11 @@ class PipelinesQualityMeasuresOutputSpec(TraitedSpec):
 
     plot_pipelines_distance_dependence = File(
         exist=False,
+        desc=""
+    )
+
+    plot_pipelines_distance_dependence_no_high_motion = File(
+        exists=False,
         desc=""
     )
 
@@ -350,8 +391,8 @@ class PipelinesQualityMeasuresOutputSpec(TraitedSpec):
 class PipelinesQualityMeasures(SimpleInterface):
     input_spec = PipelinesQualityMeasuresInputSpec
     output_spec = PipelinesQualityMeasuresOutputSpec
-    plot_pattern = "[ses-{session}_]task_{task}_desc-{desc}_plot.svg"
-    data_files_pattern = '[ses-{session}_]task-{task}[_desc-{desc}]_{suffix}.{extension}'
+    plot_pattern = "[ses-{session}_]task-{task}_[run-{run}_]desc-{desc}_plot.svg"
+    data_files_pattern = '[ses-{session}_]task-{task}[_run-{run}][_desc-{desc}]_{suffix}.{extension}'
 
     def _get_pipeline_summaries(self) -> pd.DataFrame:
         """
@@ -363,7 +404,7 @@ class PipelinesQualityMeasures(SimpleInterface):
             for all_subjects_or_no in quality_measures:
                 self.pipelines_fc_fd_summary = pd.concat([self.pipelines_fc_fd_summary,
                                                           pd.DataFrame(all_subjects_or_no, index=[0])],
-                                                          axis=0)
+                                                         axis=0)
         return self.pipelines_fc_fd_summary
 
     def _get_pipelines_edges_weight(self) -> t.Tuple[pd.DataFrame, pd.DataFrame]:
@@ -408,47 +449,61 @@ class PipelinesQualityMeasures(SimpleInterface):
         """
         Makes summary figures for all quality measures
         """
-        entities_dict['desc'] = 'pipelinesEdgesDensity'
-        path = join(self.inputs.output_dir, build_path(entities_dict, self.plot_pattern, strict=False))
+        path = join(self.inputs.output_dir, build_path({**entities_dict, 'desc': 'pipelinesEdgesDensity'},
+                                                       self.plot_pattern, strict=False))
         self.plot_pipelines_edges_density = make_kdeplot(data=self.pipelines_edges_weight,
                                                          title="Density of edge weights (all subjects)",
                                                          output_path=path)
-        entities_dict['desc'] = 'pipelinesEdgesDensityNoHighMotion'
-        path = join(self.inputs.output_dir, build_path(entities_dict, self.plot_pattern, strict=False))
+        path = join(self.inputs.output_dir, build_path({**entities_dict, 'desc': 'pipelinesEdgesDensityNoHighMotion'},
+                                                       self.plot_pattern, strict=False))
         self.plot_pipelines_edges_density_clean = make_kdeplot(data=self.pipelines_edges_weight_clean,
                                                                title="Density of edge weights (no high motion)",
                                                                output_path = path)
-        entities_dict['desc'] = 'fcFdPearson'
-        path = join(self.inputs.output_dir, build_path(entities_dict, self.plot_pattern, strict=False))
+        path = join(self.inputs.output_dir, build_path({**entities_dict, 'desc': 'fcFdPearson'},
+                                                       self.plot_pattern, strict=False))
         self.plot_fc_fd_pearson = make_catplot(x="median_pearson_fc_fd",
-                                               data=self.pipelines_fc_fd_summary,
+                                               data=self.pipelines_fc_fd_summary[self.pipelines_fc_fd_summary['all'] == True],
                                                xlabel="Median QC-FC (Pearson's r)",
                                                output_path=path)
-        entities_dict['desc'] = 'percFcFdUncorr'
-        path = join(self.inputs.output_dir, build_path(entities_dict, self.plot_pattern, strict=False))
+        path = join(self.inputs.output_dir, build_path({**entities_dict, 'desc': 'fcFdPearsonNoHighMotion'},
+                                                       self.plot_pattern, strict=False))
+        self.plot_fc_fd_pearson_no_high_motion = make_catplot(
+            x="median_pearson_fc_fd",
+            data=self.pipelines_fc_fd_summary[self.pipelines_fc_fd_summary['all'] == False],
+            xlabel="Median QC-FC (Pearson's r) (no high motion)",
+            output_path=path)
+        path = join(self.inputs.output_dir, build_path({**entities_dict, 'desc': 'percFcFdUncorr'},
+                                                       self.plot_pattern, strict=False))
         self.perc_plot_fc_fd_uncorr = make_catplot(x="perc_fc_fd_uncorr",
                                                    data=self.pipelines_fc_fd_summary,
                                                    xlabel="QC-FC uncorrected (%)",
                                                    output_path = path)
-        entities_dict['desc'] = 'distanceDependence'
-        path = join(self.inputs.output_dir, build_path(entities_dict, self.plot_pattern, strict=False))
+        path = join(self.inputs.output_dir, build_path({**entities_dict, 'desc': 'distanceDependence'},
+                                                       self.plot_pattern, strict=False))
         self.plot_distance_dependence = make_catplot(x="distance_dependence",
-                                                     data=self.pipelines_fc_fd_summary,
+                                                     data=self.pipelines_fc_fd_summary[self.pipelines_fc_fd_summary['all'] == True],
                                                      xlabel="Distance-dependence",
                                                      output_path = path)
-        entities_dict['desc'] = 'tdofLoss'
-        path = join(self.inputs.output_dir, build_path(entities_dict, self.plot_pattern, strict=False))
+        path = join(self.inputs.output_dir, build_path({**entities_dict, 'desc': 'distanceDependenceNoHighMotion'},
+                                                       self.plot_pattern, strict=False))
+        self.plot_distance_dependence_no_high_motion = make_catplot(
+            x="distance_dependence",
+            data=self.pipelines_fc_fd_summary[self.pipelines_fc_fd_summary['all'] == False],
+            xlabel="Distance-dependence (no high motion)",
+            output_path=path)
+        path = join(self.inputs.output_dir, build_path({**entities_dict, 'desc': 'tdofLoss'},
+                                                       self.plot_pattern, strict=False))
         self.plot_tdof_loss = make_catplot(x="tdof_loss",
                                            data=self.pipelines_fc_fd_summary,
                                            xlabel="fDOF-loss",
                                            output_path=path)
-        entities_dict['desc'] = 'violinPlot'
-        path = join(self.inputs.output_dir, build_path(entities_dict, self.plot_pattern, strict=False))
+        path = join(self.inputs.output_dir, build_path({**entities_dict, 'desc': 'violinPlot'},
+                                                       self.plot_pattern, strict=False))
         self.plot_violin_plot = make_violinplot(data=self.pipelines_fc_fd_values,
                                                 xlabel="fc_fd_correlation",
                                                 output_path=path)
-        entities_dict['desc'] = 'violinPlotNoHighMotion'
-        path = join(self.inputs.output_dir, build_path(entities_dict, self.plot_pattern, strict=False))
+        path = join(self.inputs.output_dir, build_path({**entities_dict, 'desc': 'violinPlotNoHighMotion'},
+                                                       self.plot_pattern, strict=False))
         self.plot_violin_plot = make_violinplot(data=self.pipelines_fc_fd_values_clean,
                                                 xlabel="fc_fd_correlation",
                                                 output_path=path)
@@ -458,7 +513,9 @@ class PipelinesQualityMeasures(SimpleInterface):
         pipelines_edges_weight, pipelines_edges_weight_clean = self._get_pipelines_edges_weight()
         self._get_fc_fd_corr_values()
         self.entities_dict = {'task': self.inputs.task}
-        if self.inputs.session != traits.Undefined:
+        if self.inputs.run:
+            self.entities_dict['run'] = self.inputs.run
+        if self.inputs.session:
             self.entities_dict['session'] = self.inputs.session
         figures_entites = self.entities_dict.copy()
 
@@ -485,7 +542,9 @@ class PipelinesQualityMeasures(SimpleInterface):
         self._results['plot_pipelines_edges_density'] = self.plot_pipelines_edges_density
         self._results['plot_pipelines_edges_density_no_high_motion'] = self.plot_pipelines_edges_density_clean
         self._results['plot_pipelines_distance_dependence'] = self.plot_distance_dependence
+        self._results['plot_pipelines_distance_dependence_no_high_motion'] = self.plot_distance_dependence_no_high_motion
         self._results['plot_pipelines_fc_fd_pearson'] = self.plot_fc_fd_pearson
+        self._results['plot_pipelines_fc_fd_pearson_no_high_motion'] = self.plot_fc_fd_pearson_no_high_motion
         self._results['plot_pipelines_fc_fd_uncorr'] = self.perc_plot_fc_fd_uncorr
         self._results['plot_pipelines_tdof_loss'] = self.plot_tdof_loss
 

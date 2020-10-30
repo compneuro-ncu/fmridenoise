@@ -45,6 +45,10 @@ def get_parser() -> argparse.ArgumentParser:
                                          nargs="+",
                                          default=[],
                                          help="List of tasks names, separated with spaces.")
+    quality_measures_parser.add_argument('-r', '--runs',
+                                         nargs='+',
+                                         default=[],
+                                         help="List of runs names, separated with spaces.")
     quality_measures_parser.add_argument("-p", "--pipelines",
                                          nargs='+',
                                          help='Name of pipelines used for denoising, can be both paths to json files '
@@ -151,13 +155,17 @@ def compare(args: argparse.Namespace) -> None:
                                    subject=args.subjects,
                                    session=args.sessions,
                                    task=args.tasks,
+                                   runs=args.runs,
                                    pipelines_paths=pipelines,
                                    high_pass=args.high_pass,
                                    low_pass=args.low_pass)
     # creating graph from workflow
     if args.graph is not None:
         try:  # TODO: Look for pydot/dot and add to requirements
-            workflow.write_graph(args.graph, graph2use='flat')
+            if not os.path.isabs(args.graph):
+                workflow.write_graph(join(os.getcwd(), args.graph), graph2use='flat')
+            else:
+                workflow.write_graph(args.graph, graph2use='flat')
         except OSError as err:
             print('OSError: ' + err.args[0])
             print("         Graph file was not generated.")
