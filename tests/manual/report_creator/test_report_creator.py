@@ -16,9 +16,12 @@ if __name__ == '__main__':
     
     # Setup entities and pipelines
     entity_list = [
-        {'task': 'rest', 'ses': '1'}, 
-        {'task': 'rest', 'ses': '2'}, 
-        {'task': 'tapping', 'ses': '1'},
+        {'task': 'rest', 'session': '1', 'run': '1'},
+        {'task': 'rest', 'session': '2', 'run': '1'},
+        {'task': 'tapping', 'session': '1', 'run': '1'},
+        {'task': 'rest', 'session': '1', 'run': '2'},
+        {'task': 'rest', 'session': '2', 'run': '2'},
+        {'task': 'tapping', 'session': '1', 'run': '2'}
         ]
     pipelines_dict = {
         'Null': 'pipeline-Null',
@@ -42,7 +45,8 @@ if __name__ == '__main__':
     interface = ReportCreator(
         pipelines=pipelines,
         tasks=['rest', 'tapping'],
-        sessions=['ses-1', 'ses-2'],
+        sessions=['1', '2'],
+        runs=['1', '2'],
         output_dir=report_dir, 
         **plots_dict
     )

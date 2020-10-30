@@ -45,6 +45,10 @@ def get_parser() -> argparse.ArgumentParser:
                                          nargs="+",
                                          default=[],
                                          help="List of tasks names, separated with spaces.")
+    quality_measures_parser.add_argument('-r', '--runs',
+                                         nargs='+',
+                                         default=[],
+                                         help="List of runs names, separated with spaces.")
     quality_measures_parser.add_argument("-p", "--pipelines",
                                          nargs='+',
                                          help='Name of pipelines used for denoising, can be both paths to json files '
@@ -151,6 +155,7 @@ def compare(args: argparse.Namespace) -> None:
                                    subject=args.subjects,
                                    session=args.sessions,
                                    task=args.tasks,
+                                   runs=args.runs,
                                    pipelines_paths=pipelines,
                                    high_pass=args.high_pass,
                                    low_pass=args.low_pass)

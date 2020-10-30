@@ -1,18 +1,15 @@
 import os
-import pathlib
-
 import matplotlib.pyplot as plt
 import numpy as np
-
 from fmridenoise.pipelines import load_pipeline_from_json
-from fmridenoise.utils.report_creator import create_report
+from fmridenoise.utils.entities import build_path
+import typing as t
 
 
-def stringify_entity(entity_dict):
-    if 'ses' not in entity_dict:
-        return f'task-{entity_dict["task"]}'
-    else:
-        return f'task-{entity_dict["task"]}_ses-{entity_dict["ses"]}'
+def stringify_entity(entity_dict: t.Dict[str, str]):
+    pattern = "[ses-{session}_]task-{task}_[run-{run}]-[pipeline-{pipeline}]"
+    return build_path(entity_dict, pattern)
+
 
 def create_dummy_plots(entity_list, pipeline_dict, path_out):
     ''' Creates set of dummy plots as if they came from fmridenoise.
@@ -100,6 +97,7 @@ def create_dummy_plots(entity_list, pipeline_dict, path_out):
                 plt.close('all')
 
     return plots_dict
+
 
 def create_report_data(entity_list, pipelines_dict, plots_dict):
     ''' Creates dict representing all data used for creating reports
