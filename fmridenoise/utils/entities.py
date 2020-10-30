@@ -1,56 +1,56 @@
 import typing as t
-from collections import namedtuple
 from bids.layout import parse_file_entities, writing
 from fmridenoise.pipelines import extract_pipeline_from_path
 
 
 def parse_file_entities_with_pipelines(filename, entities=None, config=None,
                                        include_unmatched=False) -> t.Dict[str, str]:
+    """
+    bids.extract_pipelines_from_path extended with ability to
+    """
     et_dict = parse_file_entities(filename, entities, config, include_unmatched)
-    et_dict['pipeline'] = extract_pipeline_from_path(filename)
+    pipeline = extract_pipeline_from_path(filename)
+    if pipeline:
+        et_dict['pipeline'] = pipeline
     return et_dict
 
 
-def entity_tuple_from_dict(entity_dict):
-    EntityTuple = namedtuple('EntityTuple', 'task session')
+def is_entity_subset(entity_superset: t.Dict[str, str], entity_subset: t.Dict[str, str]) -> bool:
+    """
+    Checks if all key values in subset are in superset
+    Args:
+        entity_superset: bigger dict
+        entity_subset: smaller dict
 
-    if 'session' in entity_dict:
-        return EntityTuple(entity_dict['task'], entity_dict['session'])
-    else:
-        return EntityTuple(entity_dict['task'], None)
+    Returns: true if all key-values pairs from entity_subset are in entity_superset
 
-
-def entity_tuple_to_entity_name(entity_tuple):
-    '''Converts into name of task / task+session entity used for the report
-    tab title.'''
-    if entity_tuple.session is None:
-        return f'task-{entity_tuple.task}'
-    else:
-        return f'task-{entity_tuple.task} ses-{entity_tuple.session}'
-
-
-def entity_tuple_to_entity_id(entity_tuple):
-    '''Converts into id of task / task+session entity used for html elements
-    id.'''
-    if entity_tuple.session is None:
-        return f'task-{entity_tuple.task}'
-    else:
-        return f'task-{entity_tuple.task}-ses-{entity_tuple.session}'
-
-
-def entity_match_path(entity_tuple, path):
-    '''
-    Input:
-        entity_tuple (EntityTuple):
-        path (str):
-    Returns:
-        bool
-    '''
-    entity_dict = parse_file_entities_with_pipelines(path)
-    return entity_tuple_from_dict(entity_dict) == entity_tuple
+    """
+    return all(entity_superset.get(entity_key) == entity_value for entity_key, entity_value in entity_subset.items())
 
 
 def build_path(entities, path_patterns, strict=False):
+    """
+    Extension of bids.build_path that throws exception instead of returning None
+    Args:
+        entities:
+        A dictionary mapping entity names to entity values.
+        Entities with ``None`` or empty-string value will be removed.
+        Otherwise, entities will be cast to string values, therefore
+        if any format is expected (e.g., zero-padded integers), the
+        value should be formatted.
+        path_patterns:
+        A dictionary mapping entity names to entity values.
+        Entities with ``None`` or empty-string value will be removed.
+        Otherwise, entities will be cast to string values, therefore
+        if any format is expected (e.g., zero-padded integers), the
+        value should be formatted.
+        strict:
+        If True, all passed entities must be matched inside a
+        pattern in order to be a valid match. If False, extra entities will
+        be ignored so long as all mandatory entities are found.
+
+    Returns: built path
+    """
     path = writing.build_path(entities, path_patterns, strict)
     if path is not None:
         return path
@@ -63,6 +63,6 @@ def assert_all_entities_equal(entities: t.List[t.Dict[str, str]], *entities_name
         return
     for name in entities_names:
         first = entities[0].get(name)
-        if not all(entity.get(name) == first for entity in entities):
+        if any(entity.get(name) != first for entity in entities):
             raise AssertionError(f"Not all entities equal for key: {name}\n"
                                  f"{[entitie.get(name) for entitie in entities]}")

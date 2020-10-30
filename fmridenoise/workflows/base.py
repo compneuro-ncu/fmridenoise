@@ -322,6 +322,7 @@ class WorkflowBuilder:
             ),
             name="RunSelector")
         self.runselector.iterables = ('run', runs)
+        self.report_creator.inputs.runs = runs
         fields = self.last_join.interface._fields
         self.pipeline_quality_measures_join_runs = create_flatten_identity_join_node(
             name="JoinPipelinesQualityMeasuresOverRuns",

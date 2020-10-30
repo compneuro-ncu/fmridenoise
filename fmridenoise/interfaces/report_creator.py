@@ -1,24 +1,20 @@
 import os
-from collections import namedtuple
 from pathlib import Path
 from shutil import copyfile
-
-from fmridenoise.pipelines import load_pipeline_from_json
-from fmridenoise.utils.entities import (entity_match_path,
-                                        entity_tuple_from_dict,
-                                        entity_tuple_to_entity_id,
-                                        entity_tuple_to_entity_name,
-                                        parse_file_entities_with_pipelines)
+from fmridenoise.utils.entities import parse_file_entities, build_path, is_entity_subset
 from fmridenoise.utils.report_creator import create_report
 from nipype.interfaces.base import BaseInterfaceInputSpec, SimpleInterface
 from traits.trait_types import Dict, Directory, File, List, Str
+from frozendict import frozendict
+from itertools import chain
 
 
 class ReportCreatorInputSpec(BaseInterfaceInputSpec):
     pipelines = List(Dict(), mandatory=True)
     tasks = List(Str(), mandatory=True)
-    sessions = List(Str(), mandatory=False)    
     output_dir = Directory(exists=True)
+    sessions = List(Str(), mandatory=False)
+    runs = List(Str(), mandatory=False)
 
     # excluded_subjects = List(Str(), value=()) # TODO: This mayby another input field later. 
     
@@ -75,53 +71,49 @@ class ReportCreator(SimpleInterface):
 
     def _run_interface(self, runtime):
         # Find all distinct entities
-        plots_all_pipelines, plots_pipeline = [], []
+        plots_all_pipelines, plots_pipeline = {}, {}
         for plots_type, plots_list in self.inputs.__dict__.items():
             
             if (plots_type.startswith('plots_all_pipelines') 
                 and isinstance(plots_list, list)):
-                plots_all_pipelines.extend(plots_list)
+                plots_all_pipelines[plots_type] = plots_list
 
             if (plots_type.startswith('plots_pipeline') 
                 and isinstance(plots_list, list)):
-                plots_pipeline.extend(plots_list)
+                plots_pipeline[plots_type] = plots_list
                 
         unique_entities = set(
-            map(entity_tuple_from_dict, 
-                map(parse_file_entities_with_pipelines,
-                    plots_all_pipelines + plots_pipeline)))
+                map(lambda path: frozendict(filter(
+                       lambda pair: pair[0] in ['session', 'task', 'run'],
+                       parse_file_entities(path).items())),
+                    chain(*chain(plots_all_pipelines.values(), plots_pipeline.values()))))
 
         unique_pipelines = set(pipeline['name'] for pipeline in self.inputs.pipelines)
         # Create input for create_report
-        figures_dir = os.path.join(self.inputs.output_dir, 'figures')
-        Path(figures_dir).mkdir(parents=True, exist_ok=True)
+        figures_dir = Path(self.inputs.output_dir).joinpath('figures')
+        figures_dir.mkdir(parents=True, exist_ok=True)
         report_data = []
 
         for entity in unique_entities:
             
             entity_data = {
-                'entity_name': entity_tuple_to_entity_name(entity),
-                'entity_id': entity_tuple_to_entity_id(entity),
+                'entity_name': build_path(entity, "[ses-{session}] task-{task} [run-{run}]"),
+                'entity_id': build_path(entity, "[ses-{session}-]task-{task}[-run-{run}]")
             }
 
             # Manage plots for all_pipelines
-            for plots_type, plots_list in self.inputs.__dict__.items():
-                
-                if (plots_type.startswith('plots_all_pipeline') 
-                    and isinstance(plots_list, list)):
-            
-                    for plot in plots_list:
-                        if entity_match_path(entity, plot):
-                            plot_basename = os.path.basename(plot) 
-                            plot_fullpath = os.path.join('figures', plot_basename) 
-                            copyfile(plot, os.path.join(figures_dir, plot_basename))
-                            entity_data[plots_type] = plot_fullpath 
-                            break
-            
+            for plots_type, plots_list in plots_all_pipelines.items():
+                for plot in plots_list:
+                    if is_entity_subset(parse_file_entities(plot), entity):
+                        plot_basename = os.path.basename(plot)
+                        plot_relative_path = os.path.join('figures', plot_basename)
+                        copyfile(plot, os.path.join(figures_dir, plot_basename))
+                        entity_data[plots_type] = plot_relative_path
+                        break
+
             # Manage plots for single pipeline
             entity_data['pipeline'] = []
             for pipeline in unique_pipelines:
-
                 pipeline_data = {
                     'pipeline_dict': next(pipeline_dict 
                                           for pipeline_dict 
@@ -130,17 +122,13 @@ class ReportCreator(SimpleInterface):
                 }
 
                 # Manage plots for single pipeline
-                for plots_type, plots_list in self.inputs.__dict__.items():
-                
-                    if (plots_type.startswith('plots_pipeline') 
-                        and isinstance(plots_list, list)):
-
-                        for plot in plots_list:
-                            if pipeline in plot and entity_match_path(entity, plot):
-                                plot_basename = os.path.basename(plot) 
-                                plot_fullpath = os.path.join('figures', plot_basename) 
-                                copyfile(plot, os.path.join(figures_dir, plot_basename))
-                                pipeline_data[plots_type] = plot_fullpath 
+                for plots_type, plots_list in plots_pipeline.items():
+                    for plot in plots_list:
+                        if pipeline in plot and is_entity_subset(parse_file_entities(plot), entity):
+                            plot_basename = os.path.basename(plot)
+                            plot_relative_path = os.path.join('figures', plot_basename)
+                            copyfile(plot, os.path.join(figures_dir, plot_basename))
+                            pipeline_data[plots_type] = plot_relative_path
 
                 # append new pipeline data dict
                 entity_data['pipeline'].append(pipeline_data)
@@ -156,4 +144,3 @@ class ReportCreator(SimpleInterface):
             )
 
         return runtime
-

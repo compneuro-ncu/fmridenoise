@@ -116,9 +116,9 @@ class BIDSGrab(SimpleInterface):
            str: resulting file path meeting criteria
         """
         filters = [lambda x: f"sub-{subject}" in x, lambda x: f"task-{task}" in x]
-        if session != Undefined:
+        if session:
             filters.append(lambda x: f"ses-{session}" in x)
-        if run != Undefined:
+        if run:
             filters.append(lambda x: f"run-{run}" in x)
         result = _list
         for fil in filters:

@@ -1,6 +1,7 @@
 import unittest as ut
 import typing as t
 from itertools import product
+from nipype.interfaces.base import Undefined
 from fmridenoise.utils.entities import build_path
 from fmridenoise.interfaces.bids import BIDSGrab
 
@@ -27,6 +28,8 @@ class BidsGrabTestCase(ut.TestCase):
         paths = self.generatePaths(['01', '02'], ['1', '2'], ['rest'], ['test', 'experiment'])
         with self.assertRaises(ValueError):
             BIDSGrab.select_one(paths, subject='01', session='1', task='rest', run=None)
+        with self.assertRaises(ValueError):
+            BIDSGrab.select_one(paths, subject='01', session='1', task='rest', run=Undefined)
 
     def test_select_one_none(self):
         paths = self.generatePaths(['01', '02'], ['1', '2'], ['rest'], ['test', 'experiment'])
