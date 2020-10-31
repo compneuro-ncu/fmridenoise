@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    {# Bootstrap CDN #}
+    <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/5.0.0-alpha1/css/bootstrap.min.css"
+        integrity="sha384-r4NyP46KrjDleawBgD5tp8Y7UzmLA05oM1iAEQ17CSuDqnUK2+k9luXQOfXJCJ4I" crossorigin="anonymous">
+    <script src="https://cdn.jsdelivr.net/npm/popper.js@1.16.0/dist/umd/popper.min.js"
+        integrity="sha384-Q6E9RHvbIyZFJoft+2mJbHaEWldlvI9IOYy5n3zV9zzTtmI3UksdQRVvoxMfooAo"
+        crossorigin="anonymous"></script>
+    <script src="https://stackpath.bootstrapcdn.com/bootstrap/5.0.0-alpha1/js/bootstrap.min.js"
+        integrity="sha384-oesi62hOLfzrys4LxRF63OJCXdXDipiYWBnvTl9Y9/TRlw5xlKIEHpNyvvDShgf/"
+        crossorigin="anonymous"></script>
+    <title>fmridenoise report</title>
+    <style type="text/css">{{ report_style }}</style>
+</head>
+
+<body>
+{# Entity tabs navigation #}
+<ul class="nav nav-tabs container-fluid pt-2 ml-2 bg-white" role="tablist">
+    {% for entity in report_data %}
+        <li class="nav-item" role="presentation">
+        <a class="nav-link" id="{{ entity['entity_id'] }}-tab" data-toggle="tab" href="#{{ entity['entity_id'] }}" role="tab"
+            aria-controls="{{ entity['entity_id'] }}" aria-selected="false">{{ entity['entity_name'] }}</a>
+        </li>
+    {% endfor %}
+</ul>
+{# Entity tabs content #}
+<div class="tab-content">
+    {% for entity in report_data %}
+
+        {# Entity tab  #}
+        <div class="tab-pane" id="{{ entity['entity_id'] }}" role="tabpanel" aria-labelledby="{{ entity['entity_id'] }}-tab">
+            
+            {# Subreport menu #}
+            <div class="navbar navbar-expand-sm navbar-light bg-light container-fluid mb-2">
+                <ul class="navbar-nav">
+                    <li class="nav-item">
+                        <a class="nav-link" href="#{{ entity['entity_id'] }}-summary">Summary</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="#{{ entity['entity_id'] }}-excluded">Excluded subjects</a>
+                    </li>
+                    <li class="nav-item dropdown">
+                        <a class="nav-link dropdown-toggle" href="#" id="navbarDropdownMenuLink" role="button"
+                            data-toggle="dropdown" aria-expanded="false">
+                            Pipelines
+                        </a>
+                        <ul class="dropdown-menu" aria-labelledby="navbarDropdownMenuLink">
+                            {% for pipeline in entity['pipeline'] %}
+                                <li>
+                                    <a class="dropdown-item" 
+                                    href="#{{ entity['entity_id'] }}-pipeline-{{ pipeline['pipeline_dict']['name'] }}">{{ pipeline['pipeline_dict']['name'] }}
+                                    </a>
+                                </li>
+                            {% endfor %}
+                        </ul>
+                    </li>
+                </ul>
+            </div>
+
+            {# Subreport content #}
+            <div class="report-content container-fluid">
+
+                {# Summary section #}
+                <section id="{{ entity['entity_id'] }}-summary">
+
+                    <h3>Summary</h3>
+
+                    {# Edges density plot #}
+                    <div class="mb-4">
+                        <h4>Edge density</h4>
+                        <img class="figure" src="{{ entity['plots_all_pipelines_edges_density'] }}" alt="" srcset="">
+                        <img class="figure" src="{{ entity['plots_all_pipelines_edges_density_no_high_motion'] }}" alt="">
+                    </div>
+
+                    {# FC-DF Pearson plot #}
+                    <div class="mb-4">
+                        <h4>FC-FD Pearson correlation</h4>
+                        <img class="figure" src="{{ entity['plots_all_pipelines_fc_fd_pearson_info'] }}" alt="" srcset="">
+                        <img class="figure" src="{{ entity['plots_all_pipelines_fc_fd_pearson_info_no_high_motion'] }}"
+                            alt="" srcset="">
+                    </div>
+
+                    {# Distance dependence plot #}
+                    <div class="mb-4">
+                        <h4>Distance dependence</h4>
+                        <img class="figure" src="{{ entity['plots_all_pipelines_distance_dependence'] }}" alt="" srcset="">
+                        <img class="figure" src="{{ entity['plots_all_pipelines_distance_dependence_no_high_motion'] }}"
+                            alt="" srcset="">
+                    </div>
+
+                    {# Degrees of freedom plot #}
+                    <div class="mb-4">
+                        <h4>Degress of freedom</h4>
+                        <img class="figure" src="{{ entity['plots_all_pipelines_tdof_loss'] }}" alt="" srcset="">
+                    </div>
+                </section>
+            
+                {# Excluded subjects section #}
+                <section id="{{ entity['entity_id'] }}-excluded">
+                    <h3>Excluded subjects</h3>
+                    <div class="alert alert-warning" role="alert">
+                        Not implemented yet!
+                    </div>
+                </section>
+
+                {% for pipeline in entity['pipeline'] %}
+                    
+                    {# Pipeline section #}
+                    <section id="{{ entity['entity_id'] }}-pipeline-{{ pipeline['pipeline_dict']['name'] }}">
+                        <h3>Pipeline {{ pipeline['pipeline_dict']['name'] }}</h3>
+
+                            {# Pipeline table #}
+                            <h4>Pipeline description</h4>
+                            <p>{{ pipeline['pipeline_dict']['description'] }}</p>
+                            {{ render_pipeline_table(pipeline['pipeline_dict']) }}
+
+                            {# FC-DF Pearson matrix plot #}
+                            <div class="mb-4">
+                                <h4>FC-FD Pearson correlation matrix</h4>
+                                <img class="figure" src="{{ pipeline['plots_pipeline_fc_fd_pearson_matrix'] }}" alt="" srcset="">
+                                <img class="figure" src="{{ pipeline['plots_pipeline_fc_fd_pearson_matrix_no_high_motion'] }}" alt="" srcset="">
+                            </div>
+
+                    </section>           
+
+                {% endfor %}
+            </div>
+        </div>
+    {% endfor %}
+</div>
+
+{{ svg_definitions }}
+</body>
+</html>
