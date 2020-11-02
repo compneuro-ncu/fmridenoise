@@ -11,4 +11,4 @@ pydot>=1.4.1
 pybids>=0.9.1
 psutil>=5.0
 jinja2>=2.10.1
-forzendict>=1.2
+frozendict>=1.2

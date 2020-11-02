@@ -1,6 +1,6 @@
 import setuptools
 import re
-from os.path import join, dirname, relpath
+from os.path import join, dirname
 dir_path = dirname(__file__)
 
 
@@ -28,12 +28,13 @@ def altered_long_description() -> str:
 with open(join(dir_path, "requirements.txt"), 'r') as fh:
     requirements = [line.strip() for line in fh]
 
-setuptools.setup(
+    setuptools.setup(
     name="fmridenoise",
-    version="0.2.0.dev8",
+    version="0.2.0.dev10",
     author="Karolina Finc, Mateusz Chojnowski, Kamil Bonna",
-    author_email="karolinafinc@gmail.com, zygfrydwagner@gmail.com, kongokou@gmail.com",
-    description="fMRIDenoise - automated denoising, denoising strategies comparison, and functional connectivity data quality control.",
+    author_email="karolinafinc@gmail.com, mateus.chojnowski@gmail.com, kongokou@gmail.com",
+    description="fMRIDenoise - automated denoising, denoising strategies comparison, and functional "
+                "connectivity data quality control.",
     long_description=altered_long_description(),
     long_description_content_type="text/markdown",
     url="https://github.com/nbraingroup/fmridenoise",
@@ -42,11 +43,11 @@ setuptools.setup(
         'Environment :: Console',
         'Intended Audience :: Science/Research',
         "Programming Language :: Python :: 3.6",
-        "License :: OSI Approved :: Apache Software License",
     ],
     packages=setuptools.find_packages(exclude=["*.tests", "*.tests.*", "tests.*", "tests", "*tests*",
                                                '*build_tests*']),
     install_requires=requirements,
+    license="License :: OSI Approved :: Apache Software License",
     include_package_data=True,
-    scripts=[join(dir_path, 'fmridenoise', 'scripts','fmridenoise')]
+    scripts=[join(dir_path, 'fmridenoise', 'scripts', 'fmridenoise')]
 )
