@@ -16,12 +16,12 @@ We believe that the tool can make the selection of the denoising strategy more o
 Problem
 =======
 
-![Alt text](docs/fmridenoise_problem.png?raw=true "Title")
+![Problem image](docs/fmridenoise_problem.png?raw=true "fmridenoise problem")
 
 Solution
 ========
 
-![Alt text](docs/fmridenoise_solution.png?raw=true "Title")
+![Solution image](docs/fmridenoise_solution.png?raw=true "fmridenoise solution")
 
 Installation
 ============

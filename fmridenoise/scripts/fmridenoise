@@ -1,2 +1,2 @@
-#!/bin/bash
-python -m fmridenoise $@
+#!/usr/bin/env bash
+python -O -m fmridenoise "$@"
