@@ -47,17 +47,16 @@ class QualityMeasuresAsNodeTestCase(ut.TestCase):
     @classmethod
     def setUpClass(cls) -> None:
         cls.tempdir = tempfile.mkdtemp()
-        group_conf_summary_file = join(cls.tempdir, 'group_conf_summary.tsv')
+        group_conf_summary_file = join(cls.tempdir, 'task-test_pipeline-Null_group_conf_summary.tsv')
         cls.group_conf_summary.to_csv(group_conf_summary_file, sep="\t", index=False)
-        distance_matrix_file = join(cls.tempdir, "distance_matrix.npy")
+        distance_matrix_file = join(cls.tempdir, "task-test_pipeline-Null_distance_matrix.npy")
         np.save(distance_matrix_file, cls.distance_matrix)
-        group_corr_mat_file = join(cls.tempdir, "group_corr_mat.npy")
+        group_corr_mat_file = join(cls.tempdir, "task-test_pipeline-Null_group_corr_mat.npy")
         np.save(group_corr_mat_file, cls.group_corr_mat)
         cls.quality_measures_node = Node(QualityMeasures(), name="QualityMeasures")
         cls.quality_measures_node.inputs.group_conf_summary = group_conf_summary_file
         cls.quality_measures_node.inputs.distance_matrix = distance_matrix_file
         cls.quality_measures_node.inputs.group_corr_mat = group_corr_mat_file
-        cls.quality_measures_node.inputs.task = "test"
         cls.quality_measures_node.inputs.pipeline = cls.pipeline
         cls.quality_measures_node.inputs.output_dir = cls.tempdir
         cls.result = cls.quality_measures_node.run()

@@ -1,7 +1,7 @@
 from os.path import join, exists
 import pandas as pd
 import nibabel as nb
-from traits.trait_base import _Undefined
+from traits.trait_base import Undefined
 from nilearn.image import clean_img
 from nipype.interfaces.base import (
     BaseInterfaceInputSpec, TraitedSpec, SimpleInterface,
@@ -92,12 +92,12 @@ class Denoise(SimpleInterface):
                 preprocessed fmri file (either with or without aroma)
         """
         if not self.inputs.pipeline['aroma']: 
-            if isinstance(self.inputs.fmri_prep, _Undefined):
+            if self.inputs.fmri_prep is Undefined:
                 raise FileNotFoundError('for pipeline using aroma ' + \
                                         'file fmri_prep_aroma is required')
             self._fmri_file = self.inputs.fmri_prep     
         else:
-            if isinstance(self.inputs.fmri_prep_aroma, _Undefined):
+            if self.inputs.fmri_prep_aroma is Undefined:
                 raise FileNotFoundError('for pipeline without aroma ' + \
                                         'file fmri_prep is required')
             self._fmri_file = self.inputs.fmri_prep_aroma
@@ -127,9 +127,9 @@ class Denoise(SimpleInterface):
                 Empty if no temporal filtering is requested.         
         """
         self._filtering_kwargs = dict()
-        if not isinstance(self.inputs.low_pass, _Undefined):
+        if self.inputs.low_pass is not Undefined:
             self._filtering_kwargs.update(low_pass=self.inputs.low_pass)
-        if not isinstance(self.inputs.high_pass, _Undefined):
+        if self.inputs.high_pass is not Undefined:
             self._filtering_kwargs.update(high_pass=self.inputs.high_pass)
         if self._filtering_kwargs:
             self._filtering_kwargs.update(

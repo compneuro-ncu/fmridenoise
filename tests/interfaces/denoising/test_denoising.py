@@ -51,7 +51,6 @@ class TestDenoising(unittest.TestCase):
             fmri_prep=self.fmri_prep,
             conf_prep=self.conf_prep,
             pipeline=self.pipeline,
-            task=self.task,
             output_dir=self.out_dir.name
         )
 
@@ -69,7 +68,6 @@ class TestDenoising(unittest.TestCase):
             fmri_prep_aroma=self.fmri_prep,
             conf_prep=self.conf_prep,
             pipeline=self.pipeline,
-            task=self.task,
             output_dir=self.out_dir.name
         )
 
@@ -86,7 +84,6 @@ class TestDenoising(unittest.TestCase):
         denoise = Denoise(
             conf_prep=self.conf_prep,
             pipeline=self.pipeline,
-            task=self.task,
             output_dir=self.out_dir.name,
         )
         with self.assertRaises(FileNotFoundError):
@@ -100,7 +97,6 @@ class TestDenoising(unittest.TestCase):
             fmri_prep_aroma=self.fmri_prep_aroma,
             conf_prep=self.conf_prep,
             pipeline=self.pipeline,
-            task=self.task,
             output_dir=self.out_dir.name,
         )
         with self.assertRaises(FileNotFoundError):
@@ -114,7 +110,6 @@ class TestDenoising(unittest.TestCase):
             fmri_prep=self.fmri_prep,
             conf_prep=self.conf_prep,
             pipeline=self.pipeline,
-            task=self.task,
             output_dir=self.out_dir.name,
         )
         with self.assertRaises(FileNotFoundError):
@@ -127,7 +122,6 @@ class TestDenoising(unittest.TestCase):
             fmri_prep=self.fmri_prep,
             conf_prep=self.conf_prep,
             pipeline=self.pipeline,
-            task=self.task,
             output_dir=self.out_dir.name,
         )
         denoise._load_confouds()
@@ -142,7 +136,6 @@ class TestDenoising(unittest.TestCase):
             fmri_prep=self.fmri_prep,
             conf_prep=self.conf_prep,
             pipeline=self.pipeline,
-            task=self.task,
             output_dir=self.out_dir.name,
         )
         denoise._load_confouds()
@@ -156,10 +149,9 @@ class TestDenoising(unittest.TestCase):
             fmri_prep=self.fmri_prep,
             conf_prep=self.conf_prep,
             pipeline=self.pipeline,
-            task=self.task,
             output_dir=self.out_dir.name
         )
-        denoise._validate_filtering()
+        denoise._validate_filtering('test')
         self.assertEqual(denoise._filtering_kwargs, dict())
 
     def test_banpass_filtering(self):
@@ -170,15 +162,14 @@ class TestDenoising(unittest.TestCase):
             fmri_prep=self.fmri_prep,
             conf_prep=self.conf_prep,
             pipeline=self.pipeline,
-            task=self.task,
             output_dir=self.out_dir.name,
             tr_dict=self.tr_dict,
             high_pass=1/128,
             low_pass=1/5
         )
-        denoise._validate_filtering()
-        self.assertEqual(denoise._filtering_kwargs, 
-                         {'high_pass': 1/128, 'low_pass': 1/5, 't_r': 2})
+        denoise._validate_filtering('test')
+        self.assertEqual({'high_pass': 1/128, 'low_pass': 1/5, 't_r': 2},
+                         denoise._filtering_kwargs)
 
     def test_missing_tr_dict(self):
         '''Expect an Exception if either high_pass or low_pass is provided, but
@@ -187,7 +178,6 @@ class TestDenoising(unittest.TestCase):
             fmri_prep=self.fmri_prep,
             conf_prep=self.conf_prep,
             pipeline=self.pipeline,
-            task=self.task,
             output_dir=self.out_dir.name,
             high_pass=1/128,
         )
@@ -201,38 +191,13 @@ class TestDenoising(unittest.TestCase):
             fmri_prep=self.fmri_prep,
             conf_prep=self.conf_prep,
             pipeline=self.pipeline,
-            task=self.task,
             output_dir=self.out_dir.name,
             tr_dict=self.tr_dict,
             high_pass=1/128,
             low_pass=1/5
         )
         with self.assertRaises(KeyError):
-            denoise._validate_filtering()
-
-    def test_correct_fmri_denoised_filename(self):
-        '''Check if output filename for fmri_denoised image conforms to 
-        fmridenoise specification'''
-        self.pipeline['name'] = 'testPipeline'
-        denoise = Denoise(
-            fmri_prep=self.fmri_prep,
-            conf_prep=self.conf_prep,
-            pipeline=self.pipeline,
-            task=self.task,
-            output_dir=self.out_dir.name,
-        )
-        denoise._validate_fmri_prep_files()
-        denoise._create_fmri_denoised_filename()
-        expected_name = os.path.join(
-            self.out_dir.name,
-            fmri_prep_filename(self.sub, self.ses, self.task, False).replace(
-                'desc-preproc',
-                f'pipeline-{self.pipeline["name"]}_desc-denoised'
-            )
-        )
-        print(expected_name)
-
-        self.assertEqual(expected_name, denoise._fmri_denoised_fname)
+            denoise._validate_filtering('test')
 
 
 class MinorWorkflowIntegrationTestCase(unittest.TestCase):
@@ -277,7 +242,6 @@ class MinorWorkflowIntegrationTestCase(unittest.TestCase):
         denoise_node = Node(name='InputSource', interface=Denoise())
         denoise_node.inputs.conf_prep = self.conf_prep
         denoise_node.inputs.pipeline = self.pipeline
-        denoise_node.inputs.task = self.task
         denoise_node.inputs.output_dir = self.out_dir.name
         denoise_node.inputs.tr_dict = self.tr_dict
         denoise_node.inputs.fmri_prep_aroma = self.fmri_prep_aroma
@@ -289,6 +253,3 @@ class MinorWorkflowIntegrationTestCase(unittest.TestCase):
         self.fmri_prep_aroma = Undefined
         node = self.build_node()
         node.run()
-
-if __name__ == '__main__':
-    unittest.main()

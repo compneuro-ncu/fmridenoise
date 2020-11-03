@@ -61,9 +61,6 @@ class TestConfoundsStandardCase(unittest.TestCase):
             pipeline=pipeline,
             conf_raw=self.conf_filename_tsv,
             conf_json=self.conf_filename_json,
-            subject=self.sub,
-            task=self.task,
-            session=self.ses,
             output_dir=self.temp_dir.name
         )
         return node
