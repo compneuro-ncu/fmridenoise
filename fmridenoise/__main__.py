@@ -1,11 +1,7 @@
 import argparse
 import logging
 import os
-from os.path import dirname, abspath, join, exists, isfile, abspath
-import sys
-# asure that fmridenoise is in path
-# if dirname(dirname(abspath(__file__))) not in sys.path:
-#         sys.path.append(dirname(dirname(abspath(__file__))))
+from os.path import dirname, join, exists, isfile, abspath
 from nipype import config
 from fmridenoise.workflows.base import init_fmridenoise_wf
 from fmridenoise.utils.profiling import profiler_callback
@@ -191,6 +187,7 @@ def main() -> int:
         compare(args)
     else:
         raise NotImplementedError(f"Not implemented parser with name: {args.which}")
+
 
 if __name__ == "__main__":
     main()
