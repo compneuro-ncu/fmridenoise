@@ -2,6 +2,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 import seaborn as sns
 
+
 def make_motion_plot(group_conf_summary, output_path, mean_fd_th=0.2, max_fd_th=5, perc_spikes_th=20):
     """
     Generates plot presenting number of subjects excluded with high motion
@@ -66,6 +67,13 @@ def make_motion_plot(group_conf_summary, output_path, mean_fd_th=0.2, max_fd_th=
 def make_kdeplot(data, title, output_path):
     """
     Creates and saves kdeplot from dataframes with edges.
+    Args:
+        data: dataframe where columns are pipelines names and rows are floats
+        title: plot title
+        output_path: output path where plot is saved
+
+    Returns:
+        plot path
     """
     sns.set_style("ticks")
     sns.set_palette('colorblind', 8)
@@ -86,6 +94,14 @@ def make_kdeplot(data, title, output_path):
 def make_catplot(x, data, xlabel, output_path):
     """
     Creates and saves catplot from summary dataframes.
+    Args:
+        x: name of column in dataframe with numerical values to plot
+        data: dataframe with data, must contain 'pipelines' column
+        xlabel: plot x-axis label
+        output_path: output path where plot is saved
+
+    Returns:
+        plot path
     """
 
     sns.set_palette('colorblind', 8)
@@ -101,7 +117,7 @@ def make_catplot(x, data, xlabel, output_path):
     return output_path
 
 
-def make_barplot(x, data, xlabel, output_path):
+def make_barplot(x, data, xlabel, output_path):  # TODO: not used anywhere, remove?
     """
     Creates and saves barplot from summary dataframes.
     """
@@ -124,6 +140,13 @@ def make_barplot(x, data, xlabel, output_path):
 def make_violinplot(data, xlabel, output_path):
     """
     Creates and saves violinplot from FC-FD correlation values.
+    Args:
+        data: dataframe where columns are pipelines names and rows are floats
+        xlabel: plot x-axis label
+        output_path: output path where plot is saved
+
+    Returns:
+        plot path
     """
     sns.set_palette('colorblind', 8)
     sns.set_style("ticks")
@@ -140,6 +163,17 @@ def make_violinplot(data, xlabel, output_path):
 
 
 def make_corr_matrix_plot(data: np.ndarray, title: str, ylabel: str, output_path: str) -> str:
+    """
+    Creates correlation matrix plot
+    Args:
+        data: symmetrical N x N matrix
+        title: plot title
+        ylabel: plot y-axis label
+        output_path: output path where plot is saved
+
+    Returns:
+        plot path
+    """
     fig, ax = plt.subplots(figsize=(10, 10))
     ax.imshow(data)
     ax.set_title(title)

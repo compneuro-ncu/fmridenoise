@@ -302,15 +302,15 @@ class PipelinesQualityMeasuresInputSpec(BaseInterfaceInputSpec):
         traits.Dict(
             exists=True,
             desc='Pearson r values for correlation '
-            'between FD and FC calculated for each edge'),
+                 'between FD and FC calculated for each edge'),
         desc="Pearson r values for correlation for each pipeline"
     )
     fc_fd_corr_values_clean = traits.List(
         traits.Dict(
             exists=True,
             desc='Pearson r values for correlation '
-            'between FD and FC calculated for each edge'
-            'after removing subjects with high motion'),
+                 'between FD and FC calculated for each edge'
+                 'after removing subjects with high motion'),
         desc="Pearson r values for correlation for each pipeline (no high motion)"
     )
     edges_weight = traits.List(
@@ -322,7 +322,7 @@ class PipelinesQualityMeasuresInputSpec(BaseInterfaceInputSpec):
 
     edges_weight_clean = traits.List(
         traits.Dict(
-             desc="Mean weights of individual edges (no high motion)"),
+            desc="Mean weights of individual edges (no high motion)"),
         desc="Mean weights of individual edges for each pipeline (no high motion)"
     )
 
@@ -394,56 +394,83 @@ class PipelinesQualityMeasures(SimpleInterface):
     plot_pattern = "[ses-{session}_]task-{task}_[run-{run}_]desc-{desc}_plot.svg"
     data_files_pattern = '[ses-{session}_]task-{task}[_run-{run}][_desc-{desc}]_{suffix}.{extension}'
 
-    def _get_pipeline_summaries(self) -> pd.DataFrame:
+    @staticmethod
+    def pipeline_summaries_to_dataframe(pipelines_fd_fd_summary_raw: t.List[t.List[t.Dict]]) -> pd.DataFrame:
         """
-        Gets and saves table with quality measures for each pipeline
+        Converts standard fc_fd_summary from previous steps of data processing to
+        dataframe
+        Args:
+            pipelines_fd_fd_summary_raw: list of 2 elements list (high motion and no high motion)
+            with dictionaries containing information from quality measures interface output
+            Check tests.manual.plotting_examples for reference data.
+        Returns:
+            dataframe with flatten input data
         """
-        self.pipelines_fc_fd_summary = pd.DataFrame()
+        pipelines_fc_fd_summary = pd.DataFrame()
 
-        for quality_measures in self.inputs.fc_fd_summary:
+        for quality_measures in pipelines_fd_fd_summary_raw:
             for all_subjects_or_no in quality_measures:
-                self.pipelines_fc_fd_summary = pd.concat([self.pipelines_fc_fd_summary,
-                                                          pd.DataFrame(all_subjects_or_no, index=[0])],
-                                                         axis=0)
-        return self.pipelines_fc_fd_summary
+                pipelines_fc_fd_summary = pd.concat([pipelines_fc_fd_summary,
+                                                     pd.DataFrame(all_subjects_or_no, index=[0])],
+                                                    axis=0)
+        return pipelines_fc_fd_summary
 
-    def _get_pipelines_edges_weight(self) -> t.Tuple[pd.DataFrame, pd.DataFrame]:
+    @staticmethod
+    def edges_weight_to_dataframe(
+            edges_weight: t.List[t.Dict[str, np.ndarray]],
+            edges_weight_clean: t.List[t.Dict[str, np.ndarray]]) -> t.Tuple[pd.DataFrame, pd.DataFrame]:
         """
-        Gets and saves tables with mean edges weights for raw and cleaned data
-        """
-        self.pipelines_edges_weight = pd.DataFrame()
-        self.pipelines_edges_weight_clean = pd.DataFrame()
+        Converts input (input spec) edges_weight and edges_weight_clean from previous steps of data processing
+        to dataframe
+        Args:
+            edges_weight: list of dictionaries with pipeline name and array of floats
+            edges_weight_clean: list of dictionaries with pipeline name and array of floats
 
-        for edges, edges_clean in zip(self.inputs.edges_weight, self.inputs.edges_weight_clean):
+        Returns:
+            dataframe with flatten input data
+        """
+        pipelines_edges_weight = pd.DataFrame()
+        pipelines_edges_weight_clean = pd.DataFrame()
+
+        for edges, edges_clean in zip(edges_weight, edges_weight_clean):
             pipeline_name = list(edges.keys())[0]
-            self.pipelines_edges_weight = pd.concat([self.pipelines_edges_weight,
-                                                     pd.DataFrame(edges,
-                                                                  columns=[pipeline_name])],
-                                                    axis=1)
-            self.pipelines_edges_weight_clean = pd.concat([self.pipelines_edges_weight_clean,
-                                                           pd.DataFrame(edges_clean,
-                                                                        columns=[pipeline_name])],
-                                                          axis=1)
-        return self.pipelines_edges_weight, self.pipelines_edges_weight_clean
+            pipelines_edges_weight = pd.concat([pipelines_edges_weight,
+                                                pd.DataFrame(edges,
+                                                             columns=[pipeline_name])],
+                                               axis=1)
+            pipelines_edges_weight_clean = pd.concat([pipelines_edges_weight_clean,
+                                                      pd.DataFrame(edges_clean,
+                                                                   columns=[pipeline_name])],
+                                                     axis=1)
+        return pipelines_edges_weight, pipelines_edges_weight_clean
 
-    def _get_fc_fd_corr_values(self) -> t.Tuple[pd.DataFrame, pd.DataFrame]:
+    @staticmethod
+    def fc_fd_corr_values_to_dataframe(fc_fd_corr_values: t.List[t.Dict[str, np.ndarray]],
+                                       fc_fd_corr_values_clean: t.List[t.Dict[str, np.ndarray]]) -> t.Tuple[pd.DataFrame, pd.DataFrame]:
         """
-        Gets and saves tables with fc-fd correlation values weights for raw and cleaned data
-        """
-        self.pipelines_fc_fd_values = pd.DataFrame()
-        self.pipelines_fc_fd_values_clean = pd.DataFrame()
+        Converts input (input spec) fc_fd_corr_values and fc_fd_corr_values_clean from previous steps of data processing
+        to dataframe
+        Args:
+            fc_fd_corr_values: list of dictionaries with pipeline name and array of floats
+            fc_fd_corr_values_clean: list of dictionaries with pipeline name and array of floats
 
-        for corr, corr_clean in zip(self.inputs.fc_fd_corr_values, self.inputs.fc_fd_corr_values_clean):
+        Returns:
+            dataframe with flatten input data
+        """
+        pipelines_fc_fd_values = pd.DataFrame()
+        pipelines_fc_fd_values_clean = pd.DataFrame()
+
+        for corr, corr_clean in zip(fc_fd_corr_values, fc_fd_corr_values_clean):
             pipeline_name = list(corr.keys())[0]
-            self.pipelines_fc_fd_values = pd.concat([self.pipelines_fc_fd_values,
-                                                     pd.DataFrame(corr,
-                                                                  columns=[pipeline_name])],
-                                                    axis=1)
-            self.pipelines_fc_fd_values_clean = pd.concat([self.pipelines_fc_fd_values_clean,
-                                                           pd.DataFrame(corr_clean,
-                                                                        columns=[pipeline_name])],
-                                                          axis=1)
-        return self.pipelines_fc_fd_values, self.pipelines_fc_fd_values_clean
+            pipelines_fc_fd_values = pd.concat([pipelines_fc_fd_values,
+                                                pd.DataFrame(corr,
+                                                             columns=[pipeline_name])],
+                                               axis=1)
+            pipelines_fc_fd_values_clean = pd.concat([pipelines_fc_fd_values_clean,
+                                                      pd.DataFrame(corr_clean,
+                                                                   columns=[pipeline_name])],
+                                                     axis=1)
+        return pipelines_fc_fd_values, pipelines_fc_fd_values_clean
 
     def _make_summary_figures(self, entities_dict: dict) -> None:
         """
@@ -458,11 +485,12 @@ class PipelinesQualityMeasures(SimpleInterface):
                                                        self.plot_pattern, strict=False))
         self.plot_pipelines_edges_density_clean = make_kdeplot(data=self.pipelines_edges_weight_clean,
                                                                title="Density of edge weights (no high motion)",
-                                                               output_path = path)
+                                                               output_path=path)
         path = join(self.inputs.output_dir, build_path({**entities_dict, 'desc': 'fcFdPearson'},
                                                        self.plot_pattern, strict=False))
         self.plot_fc_fd_pearson = make_catplot(x="median_pearson_fc_fd",
-                                               data=self.pipelines_fc_fd_summary[self.pipelines_fc_fd_summary['all'] == True],
+                                               data=self.pipelines_fc_fd_summary[
+                                                   self.pipelines_fc_fd_summary['all'] == True],
                                                xlabel="Median QC-FC (Pearson's r)",
                                                output_path=path)
         path = join(self.inputs.output_dir, build_path({**entities_dict, 'desc': 'fcFdPearsonNoHighMotion'},
@@ -477,13 +505,14 @@ class PipelinesQualityMeasures(SimpleInterface):
         self.perc_plot_fc_fd_uncorr = make_catplot(x="perc_fc_fd_uncorr",
                                                    data=self.pipelines_fc_fd_summary,
                                                    xlabel="QC-FC uncorrected (%)",
-                                                   output_path = path)
+                                                   output_path=path)
         path = join(self.inputs.output_dir, build_path({**entities_dict, 'desc': 'distanceDependence'},
                                                        self.plot_pattern, strict=False))
         self.plot_distance_dependence = make_catplot(x="distance_dependence",
-                                                     data=self.pipelines_fc_fd_summary[self.pipelines_fc_fd_summary['all'] == True],
+                                                     data=self.pipelines_fc_fd_summary[
+                                                         self.pipelines_fc_fd_summary['all'] == True],
                                                      xlabel="Distance-dependence",
-                                                     output_path = path)
+                                                     output_path=path)
         path = join(self.inputs.output_dir, build_path({**entities_dict, 'desc': 'distanceDependenceNoHighMotion'},
                                                        self.plot_pattern, strict=False))
         self.plot_distance_dependence_no_high_motion = make_catplot(
@@ -509,9 +538,11 @@ class PipelinesQualityMeasures(SimpleInterface):
                                                 output_path=path)
 
     def _run_interface(self, runtime):
-        summary = self._get_pipeline_summaries()
-        pipelines_edges_weight, pipelines_edges_weight_clean = self._get_pipelines_edges_weight()
-        self._get_fc_fd_corr_values()
+        summary = self.pipeline_summaries_to_dataframe(self.inputs.fc_fd_summary)
+        pipelines_edges_weight, pipelines_edges_weight_clean = self.edges_weight_to_dataframe(
+            self.inputs.edges_weight, self.inputs.edges_weight_clean)
+        self.pipelines_fc_fd_values, self.pipelines_fc_fd_values_clean = self.fc_fd_corr_values_to_dataframe(
+            self.inputs.fc_fd_corr_values, self.inputs.fc_fd_corr_values_clean)
         self.entities_dict = {'task': self.inputs.task}
         if self.inputs.run:
             self.entities_dict['run'] = self.inputs.run
@@ -542,7 +573,8 @@ class PipelinesQualityMeasures(SimpleInterface):
         self._results['plot_pipelines_edges_density'] = self.plot_pipelines_edges_density
         self._results['plot_pipelines_edges_density_no_high_motion'] = self.plot_pipelines_edges_density_clean
         self._results['plot_pipelines_distance_dependence'] = self.plot_distance_dependence
-        self._results['plot_pipelines_distance_dependence_no_high_motion'] = self.plot_distance_dependence_no_high_motion
+        self._results[
+            'plot_pipelines_distance_dependence_no_high_motion'] = self.plot_distance_dependence_no_high_motion
         self._results['plot_pipelines_fc_fd_pearson'] = self.plot_fc_fd_pearson
         self._results['plot_pipelines_fc_fd_pearson_no_high_motion'] = self.plot_fc_fd_pearson_no_high_motion
         self._results['plot_pipelines_fc_fd_uncorr'] = self.perc_plot_fc_fd_uncorr
