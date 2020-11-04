@@ -10,7 +10,7 @@ from nilearn.connectome import ConnectivityMeasure
 from fmridenoise.parcellation import get_parcellation_file_path
 from fmridenoise.pipelines import extract_pipeline_from_path
 from fmridenoise.utils.entities import build_path, parse_file_entities_with_pipelines, assert_all_entities_equal
-from fmridenoise.utils.quality_measures import create_carpetplot
+from fmridenoise.utils.plotting import make_carpetplot
 from nilearn.plotting import plot_matrix
 from os.path import join, exists
 
@@ -62,7 +62,7 @@ class Connectivity(SimpleInterface):
         carpet_plot_file = join(self.inputs.output_dir, build_path(entities, self.carpet_plot_pattern, False))
         matrix_plot_file = join(self.inputs.output_dir, build_path(entities, self.matrix_plot_pattern, False))
 
-        create_carpetplot(time_series, carpet_plot_file)
+        make_carpetplot(time_series, carpet_plot_file)
         mplot = plot_matrix(corr_mat,  vmin=-1, vmax=1)
         mplot.figure.savefig(matrix_plot_file)
 

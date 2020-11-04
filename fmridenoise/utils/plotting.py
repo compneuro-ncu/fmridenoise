@@ -1,7 +1,6 @@
-import numpy as np
 import matplotlib.pyplot as plt
+import numpy as np
 import seaborn as sns
-
 
 def make_motion_plot(group_conf_summary, output_path, mean_fd_th=0.2, max_fd_th=5, perc_spikes_th=20):
     """
@@ -149,3 +148,35 @@ def make_corr_matrix_plot(data: np.ndarray, title: str, ylabel: str, output_path
     fig.savefig(output_path)
     plt.close('all')
     return output_path
+
+
+def make_carpetplot(time_series: np.ndarray, out_fname: str,
+                      dpi=300, figsize=(8, 3), format='png'):
+    """Generates and saves carpet plot for rois timecourses.
+
+    Args:
+        time_series: Timecourse array of size N_timepoints x N_rois. Output of
+            fit_transform() NiftiLabelsMasker method.
+        out_fname: Carpetplot output filename.
+        dpi (:obj:`int`, optional): Dots per inch (default 300).
+        figsize (:obj:`tuple`, optional): Size of the figure in inches
+            (default (3,8))
+        format (:obj:`str`, optional): Image format. Available options include
+            'png', 'pdf', 'ps', 'eps' and 'svg'.
+    """
+    if not isinstance(time_series, np.ndarray):
+        raise TypeError('time series should be np.ndarray')
+
+    fig = plt.figure(figsize=figsize, dpi=dpi)
+    ax = fig.add_subplot(111)
+
+    ax.imshow(time_series.T, cmap='gray')
+    ax.set_xlabel('volume')
+    ax.set_ylabel('roi')
+    ax.set_yticks([])
+
+    try:
+        fig.savefig(out_fname, format=format,
+                    transparent=True, bbox_inches='tight')
+    except FileNotFoundError:
+        print(f'{out_fname} directory not found')
