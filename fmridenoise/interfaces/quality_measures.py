@@ -4,7 +4,7 @@ import typing as t
 import numpy as np
 import pandas as pd
 from nilearn.connectome import sym_matrix_to_vec, vec_to_sym_matrix
-from scipy.stats import pearsonr
+from scipy.stats import pearsonr, spearmanr
 from os.path import join
 import warnings
 from fmridenoise.utils.entities import build_path, parse_file_entities_with_pipelines, assert_all_entities_equal
@@ -141,7 +141,7 @@ class QualityMeasures(SimpleInterface):
         """
         Calculates percent of significant FC-FD correlations (uncorrected).
         """
-        return pearsonr(fc_fd_corr, distance_vector)[0]
+        return spearmanr(a=fc_fd_corr, b=distance_vector)[0]
 
     @staticmethod
     def calculate_fc_fd_correlations(group_conf_summary: pd.DataFrame,
@@ -196,7 +196,7 @@ class QualityMeasures(SimpleInterface):
 
         fc_fd_corr, fc_fd_pval = cls.calculate_fc_fd_correlations(group_conf_subsummary, group_corr_subvec)
         summary = {'perc_fc_fd_uncorr': cls._perc_fc_fd_uncorr(fc_fd_pval),
-                   'median_pearson_fc_fd': np.median(fc_fd_corr),
+                   'median_pearson_fc_fd': np.median(np.abs(fc_fd_corr)),
                    'distance_dependence': cls._distance_dependence(fc_fd_corr, distance_vec),
 
                    'tdof_loss': group_conf_subsummary['n_conf'].mean(),

@@ -208,7 +208,7 @@ def main() -> int:
         return 1
     if args.which == 'compare':
         compare(args)
-    if args.which == 'dummy':
+    elif args.which == 'dummy':
         dummy(args)
     else:
         raise NotImplementedError(f"Not implemented parser with name: {args.which}")
