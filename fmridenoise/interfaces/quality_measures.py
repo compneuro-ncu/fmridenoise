@@ -445,8 +445,9 @@ class PipelinesQualityMeasures(SimpleInterface):
         return pipelines_edges_weight, pipelines_edges_weight_clean
 
     @staticmethod
-    def fc_fd_corr_values_to_dataframe(fc_fd_corr_values: t.List[t.Dict[str, np.ndarray]],
-                                       fc_fd_corr_values_clean: t.List[t.Dict[str, np.ndarray]]) -> t.Tuple[pd.DataFrame, pd.DataFrame]:
+    def fc_fd_corr_values_to_dataframe(
+            fc_fd_corr_values: t.List[t.Dict[str, np.ndarray]],
+            fc_fd_corr_values_clean: t.List[t.Dict[str, np.ndarray]]) -> t.Tuple[pd.DataFrame, pd.DataFrame]:
         """
         Converts input (input spec) fc_fd_corr_values and fc_fd_corr_values_clean from previous steps of data processing
         to dataframe
@@ -538,8 +539,8 @@ class PipelinesQualityMeasures(SimpleInterface):
                                                 output_path=path)
 
     def _run_interface(self, runtime):
-        summary = self.pipeline_summaries_to_dataframe(self.inputs.fc_fd_summary)
-        pipelines_edges_weight, pipelines_edges_weight_clean = self.edges_weight_to_dataframe(
+        self.pipelines_fc_fd_summary = self.pipeline_summaries_to_dataframe(self.inputs.fc_fd_summary)
+        self.pipelines_edges_weight, self.pipelines_edges_weight_clean = self.edges_weight_to_dataframe(
             self.inputs.edges_weight, self.inputs.edges_weight_clean)
         self.pipelines_fc_fd_values, self.pipelines_fc_fd_values_clean = self.fc_fd_corr_values_to_dataframe(
             self.inputs.fc_fd_corr_values, self.inputs.fc_fd_corr_values_clean)
@@ -555,17 +556,17 @@ class PipelinesQualityMeasures(SimpleInterface):
         self.entities_dict['extension'] = '.tsv'
         pipelines_fc_fd_summary_file = join(self.inputs.output_dir,
                                             build_path(self.entities_dict, self.data_files_pattern, strict=False))
-        summary.to_csv(pipelines_fc_fd_summary_file, sep='\t', index=False)
+        self.pipelines_fc_fd_summary.to_csv(pipelines_fc_fd_summary_file, sep='\t', index=False)
         self.entities_dict['suffix'] = 'pipelinesEdgesWeight'
         self.entities_dict['extension'] = 'tsv'
         pipelines_edges_weigh_file = join(self.inputs.output_dir,
                                           build_path(self.entities_dict, self.data_files_pattern, strict=False))
-        pipelines_edges_weight.to_csv(pipelines_edges_weigh_file, sep='\t', index=False)
+        self.pipelines_edges_weight.to_csv(pipelines_edges_weigh_file, sep='\t', index=False)
         self.entities_dict['suffix'] = 'pipelinesEdgesWeightClean'
         self.entities_dict['extension'] = 'tsv'
         pipelines_edges_weight_clean_file = join(self.inputs.output_dir,
                                                  build_path(self.entities_dict, self.data_files_pattern, strict=False))
-        pipelines_edges_weight_clean.to_csv(pipelines_edges_weight_clean_file, sep='\t', index=False)
+        self.pipelines_edges_weight_clean.to_csv(pipelines_edges_weight_clean_file, sep='\t', index=False)
 
         self._results['pipelines_fc_fd_summary'] = pipelines_fc_fd_summary_file
         self._results['pipelines_edges_weight'] = pipelines_edges_weigh_file

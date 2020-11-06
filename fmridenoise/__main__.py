@@ -3,6 +3,8 @@ import logging
 import os
 from os.path import dirname, join, exists, isfile, abspath
 from nipype import config
+
+from fmridenoise.utils.utils import copy_as_dummy_dataset
 from fmridenoise.workflows.base import init_fmridenoise_wf
 from fmridenoise.utils.profiling import profiler_callback
 from fmridenoise.utils.json_validator import is_valid
@@ -23,6 +25,7 @@ def get_parser() -> argparse.ArgumentParser:
 
     parser = argparse.ArgumentParser(prog='fmridenoise')
     subparsers = parser.add_subparsers(help='commands')
+    # quality measures parser
     quality_measures_parser = subparsers.add_parser(name='compare',
                                                     help='compare image files denoising using selected strategies' \
                                                          ' (pipelines) and denoising quality comparision')
@@ -81,6 +84,20 @@ def get_parser() -> argparse.ArgumentParser:
                                          help="Perform everything except actually running workflow",
                                          action="store_true",
                                          default=False)
+    # tools parser
+    dummy_dataset_parser = subparsers.add_parser(name='dummy',
+                                                 help='creates dummy copy of existing dataset. Dummy dataset '
+                                                      'mimics folders and files structure of origin dataset'
+                                                      'but only selected files are copied. Debugging tool.')
+    dummy_dataset_parser.set_defaults(which='dummy')
+    dummy_dataset_parser.add_argument("bids_dir",
+                                      help="Data source bids directory.")
+    dummy_dataset_parser.add_argument("output_directory",
+                                      help="Directory in which dummy_complete dataset will be saved")
+    dummy_dataset_parser.add_argument("-c", "--copy",
+                                      nargs="+",
+                                      default=['.json'],
+                                      help="Extensions of files that should be copied instead of creating dummy_complete")
     return parser
 
 
@@ -177,6 +194,12 @@ def compare(args: argparse.Namespace) -> None:
     return 0
 
 
+def dummy(args):
+    copy_as_dummy_dataset(source_bids_dir=args.bids_dir,
+                          new_path=args.output_directory,
+                          ext_to_copy=args.copy)
+
+
 def main() -> int:
     parser = get_parser()
     args = parser.parse_args()
@@ -185,6 +208,8 @@ def main() -> int:
         return 1
     if args.which == 'compare':
         compare(args)
+    if args.which == 'dummy':
+        dummy(args)
     else:
         raise NotImplementedError(f"Not implemented parser with name: {args.which}")
 

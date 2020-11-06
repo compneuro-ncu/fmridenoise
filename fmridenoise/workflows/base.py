@@ -103,14 +103,10 @@ class WorkflowBuilder:
         # 6) --- Group confounds
 
         # Inputs: conf_summary, pipeline_name
-        # FIXME BEGIN
-        # This is part of temporary solution.
-        # Group nodes write to bids dir insted of tmp and let files be grabbed by datasink
-        os.makedirs(os.path.join(bids_dir, 'derivatives', 'fmridenoise'), exist_ok=True)
-        # FIXME END
+
         self.group_conf_summary = JoinNode(
             GroupConfounds(
-                output_dir=os.path.join(bids_dir, 'derivatives', 'fmridenoise'),
+                output_dir=temps.mkdtemp('group_conf_summary'),
             ),
             joinfield=["conf_summary_json_files"],
             joinsource=self.subjectselector,
@@ -124,7 +120,7 @@ class WorkflowBuilder:
 
         self.group_connectivity = JoinNode(
             GroupConnectivity(
-                output_dir=os.path.join(bids_dir, 'derivatives', 'fmridenoise'),
+                output_dir=temps.mkdtemp('group_connectivity'),
             ),
             joinfield=["corr_mat"],
             joinsource=self.subjectselector,
@@ -138,7 +134,7 @@ class WorkflowBuilder:
 
         self.quality_measures = Node(
             QualityMeasures(
-                output_dir=os.path.join(bids_dir, 'derivatives', 'fmridenoise'),
+                output_dir=temps.mkdtemp('quality_measures'),
                 distance_matrix=get_distance_matrix_file_path()
             ),
             name="QualityMeasures")
@@ -161,7 +157,7 @@ class WorkflowBuilder:
         )
         self.pipelines_quality_measures = JoinNode(
             PipelinesQualityMeasures(
-                output_dir=os.path.join(bids_dir, 'derivatives', 'fmridenoise'),
+                output_dir=temps.mkdtemp('pipelines_quality_measures'),
                 # TODO: Replace with datasinks for needed output
             ),
             joinsource=self.pipelineselector,
@@ -199,21 +195,49 @@ class WorkflowBuilder:
         self.report_creator.inputs.tasks = tasks
         # 12) --- Save derivatives
         base_entities = {'bids_dir': bids_dir, 'derivative': 'fmridenoise'}
-        self.ds_confounds = Node(BIDSDataSink(),
+        self.ds_confounds = Node(BIDSDataSink(base_entities=base_entities),
                                  name="ds_confounds")
-        self.ds_confounds.inputs.base_entities = base_entities
-        self.ds_denoise = Node(BIDSDataSink(),
+        self.ds_denoise = Node(BIDSDataSink(base_entities=base_entities),
                                name="ds_denoise")
-        self.ds_denoise.inputs.base_entities = base_entities
-        self.ds_connectivity_corr_mat = Node(BIDSDataSink(),
+        self.ds_connectivity_corr_mat = Node(BIDSDataSink(base_entities=base_entities),
                                              name="ds_connectivity")
-        self.ds_connectivity_corr_mat.inputs.base_entities = base_entities
-        self.ds_connectivity_carpet_plot = Node(BIDSDataSink(),
+        self.ds_connectivity_carpet_plot = Node(BIDSDataSink(base_entities=base_entities),
                                                 name="ds_carpet_plot")
-        self.ds_connectivity_carpet_plot.inputs.base_entities = base_entities
-        self.ds_connectivity_matrix_plot = Node(BIDSDataSink(),
+        self.ds_connectivity_matrix_plot = Node(BIDSDataSink(base_entities=base_entities),
                                                 name="ds_matrix_plot")
-        self.ds_connectivity_matrix_plot.inputs.base_entities = base_entities
+        self.ds_group_conf_summary = Node(BIDSDataSink(base_entities=base_entities),
+                                          name="ds_group_conf_summary")
+        self.ds_group_connectivity = Node(BIDSDataSink(base_entities=base_entities),
+                                          name="ds_group_connectivity")
+        self.ds_qm_motion_plot = Node(BIDSDataSink(base_entities=base_entities),
+                                      name="ds_quality_measures_motion_plot")
+        self.ds_qm_corr_matrix_plot_no_high = Node(BIDSDataSink(base_entities=base_entities),
+                                                   name="ds_quality_measures_corr_matrix_plot_no_high")
+        self.ds_qm_corr_matrix_plot = Node(BIDSDataSink(base_entities=base_entities),
+                                           name="ds_quality_measures_corr_matrix_plot")
+        self.ds_pqm_fc_fd_summary = Node(BIDSDataSink(base_entities=base_entities),
+                                         name="ds_pipeline_qm_fc_fd_summery")
+        self.ds_pqm_edges_weight = Node(BIDSDataSink(base_entities=base_entities),
+                                        name='ds_pipeline_qm_edges_weight')
+        self.ds_pqm_edges_weight_clean = Node(BIDSDataSink(base_entities=base_entities),
+                                              name='ds_pipeline_qm_edges_weight_clean')
+        self.ds_pqm_plot_edges_density = Node(BIDSDataSink(base_entities=base_entities),
+                                              name='ds_pipeline_qm_plot_edges_density')
+        self.ds_pqm_plot_edges_density_no_high = Node(BIDSDataSink(base_entities=base_entities),
+                                                      name='ds_pipeline_qm_plot_edges_density_no_high')
+        self.ds_pqm_plot_fc_fd = Node(BIDSDataSink(base_entities=base_entities),
+                                      name='ds_pipeline_qm_plot_fc_fd')
+        self.ds_pqm_plot_fc_fd_no_high = Node(BIDSDataSink(base_entities=base_entities),
+                                              name='ds_pipeline_qm_plot_fc_fd_no_high')
+        self.ds_pqm_plot_fc_fd_uncorr = Node(BIDSDataSink(base_entities=base_entities),
+                                             name='ds_pipeline_qm_plot_fc_fd_uncorr')
+        self.ds_pqm_plot_distance_dependence = Node(BIDSDataSink(base_entities=base_entities),
+                                                    name='ds_pipeline_qm_plot_distance_dependence')
+        self.ds_pqm_plot_distance_dependence_no_high = Node(BIDSDataSink(base_entities=base_entities),
+                                                            name='ds_pipeline_qm_plot_distance_dependence_no_high')
+        self.ds_pqm_plot_tdof_loss = Node(BIDSDataSink(base_entities=base_entities),
+                                          name='ds_pipeline_qm_plot_tdof_loss')
+
         self.connections = [
             # bidsgrabber
             (self.subjectselector, self.bidsgrabber, [('subject', 'subject')]),
@@ -221,7 +245,7 @@ class WorkflowBuilder:
             # prep_conf
             (self.pipelineselector, self.prep_conf, [('pipeline', 'pipeline')]),
             (self.bidsgrabber, self.prep_conf, [('conf_raw', 'conf_raw'),
-                                      ('conf_json', 'conf_json')]),
+                                                ('conf_json', 'conf_json')]),
             # denoise
             (self.prep_conf, self.denoise, [('conf_prep', 'conf_prep')]),
             (self.pipelineselector, self.denoise, [('pipeline', 'pipeline')]),
@@ -258,23 +282,52 @@ class WorkflowBuilder:
                 ('plot_pipelines_fc_fd_pearson_no_high_motion', 'plot_pipelines_fc_fd_pearson_no_high_motion'),
                 ('plot_pipelines_fc_fd_uncorr', 'plot_pipelines_fc_fd_uncorr'),
                 ('plot_pipelines_distance_dependence', 'plot_pipelines_distance_dependence'),
-                ('plot_pipelines_distance_dependence_no_high_motion', 'plot_pipelines_distance_dependence_no_high_motion'),
+                ('plot_pipelines_distance_dependence_no_high_motion',
+                 'plot_pipelines_distance_dependence_no_high_motion'),
                 ('plot_pipelines_tdof_loss', 'plot_pipelines_tdof_loss')
-               ]),
+            ]),
             (self.quality_measures_join, self.pipeline_quality_measures_join_tasks,
              [('corr_matrix_plot', 'corr_matrix_plot'),
               ('corr_matrix_no_high_motion_plot', 'corr_matrix_no_high_motion_plot')]),
             # report creator
             (self.pipelines_join, self.report_creator, [('pipelines', 'pipelines')]),
             # all datasinks
-            ## ds_denoise
+            # # ds_denoise
             (self.denoise, self.ds_denoise, [("fmri_denoised", "in_file")]),
-            ## ds_connectivity
+            # # ds_connectivity
             (self.connectivity, self.ds_connectivity_corr_mat, [("corr_mat", "in_file")]),
             (self.connectivity, self.ds_connectivity_matrix_plot, [("matrix_plot", "in_file")]),
             (self.connectivity, self.ds_connectivity_carpet_plot, [("carpet_plot", "in_file")]),
-            ## ds_confounds
+            # # ds_confounds
             (self.prep_conf, self.ds_confounds, [("conf_prep", "in_file")]),
+            # # ds_group_conf
+            (self.group_conf_summary, self.ds_group_conf_summary, [('group_conf_summary', 'in_file')]),
+            # # ds_group_connectivity
+            (self.group_connectivity, self.ds_group_connectivity, [('group_corr_mat', 'in_file')]),
+            # # ds_quality_measures
+            (self.quality_measures, self.ds_qm_motion_plot, [('motion_plot', 'in_file')]),
+            (self.quality_measures, self.ds_qm_corr_matrix_plot, [('corr_matrix_plot', 'in_file')]),
+            (self.quality_measures, self.ds_qm_corr_matrix_plot_no_high,
+             [('corr_matrix_no_high_motion_plot', 'in_file')]),
+            # # ds_pipelines_quality_measures
+            (self.pipelines_quality_measures, self.ds_pqm_fc_fd_summary, [('pipelines_fc_fd_summary', 'in_file')]),
+            (self.pipelines_quality_measures, self.ds_pqm_edges_weight, [('pipelines_edges_weight', 'in_file')]),
+            (self.pipelines_quality_measures, self.ds_pqm_edges_weight_clean,
+             [('pipelines_edges_weight_clean', 'in_file')]),
+            (self.pipelines_quality_measures, self.ds_pqm_plot_edges_density,
+             [('plot_pipelines_edges_density', 'in_file')]),
+            (self.pipelines_quality_measures, self.ds_pqm_plot_edges_density_no_high,
+             [('plot_pipelines_edges_density_no_high_motion', 'in_file')]),
+            (self.pipelines_quality_measures, self.ds_pqm_plot_fc_fd, [('plot_pipelines_fc_fd_pearson', 'in_file')]),
+            (self.pipelines_quality_measures, self.ds_pqm_plot_fc_fd_no_high,
+             [('plot_pipelines_fc_fd_pearson_no_high_motion', 'in_file')]),
+            (self.pipelines_quality_measures, self.ds_pqm_plot_fc_fd_uncorr,
+             [('plot_pipelines_fc_fd_uncorr', 'in_file')]),
+            (self.pipelines_quality_measures, self.ds_pqm_plot_distance_dependence,
+             [('plot_pipelines_distance_dependence', 'in_file')]),
+            (self.pipelines_quality_measures, self.ds_pqm_plot_distance_dependence_no_high,
+             [('plot_pipelines_distance_dependence_no_high_motion', 'in_file')]),
+            (self.pipelines_quality_measures, self.ds_pqm_plot_tdof_loss, [('plot_pipelines_tdof_loss', 'in_file')])
         ]
         self.last_join = self.pipeline_quality_measures_join_tasks
 
@@ -347,7 +400,7 @@ class WorkflowBuilder:
               ('plot_pipelines_fc_fd_pearson_no_high_motion', 'plots_all_pipelines_fc_fd_pearson_info_no_high_motion'),
               ('plot_pipelines_distance_dependence', 'plots_all_pipelines_distance_dependence'),
               ('plot_pipelines_distance_dependence_no_high_motion',
-              'plots_all_pipelines_distance_dependence_no_high_motion'),
+               'plots_all_pipelines_distance_dependence_no_high_motion'),
               ('plot_pipelines_tdof_loss', 'plots_all_pipelines_tdof_loss'),
               ('corr_matrix_plot', 'plots_pipeline_fc_fd_pearson_matrix'),
               ('corr_matrix_no_high_motion_plot', 'plots_pipeline_fc_fd_pearson_matrix_no_high_motion')]))
@@ -364,7 +417,7 @@ def init_fmridenoise_wf(bids_dir,
                         pipelines_paths=get_pipelines_paths(),
                         high_pass=0.008,
                         low_pass=0.08,
-                        base_dir='/tmp/fmridenoise', 
+                        base_dir='/tmp/fmridenoise',
                         name='fmridenoise_wf'):
     pipelines_paths = list(pipelines_paths)
     bids_validate = Node(BIDSValidate(bids_dir=bids_dir,

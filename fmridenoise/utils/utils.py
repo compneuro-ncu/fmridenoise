@@ -1,7 +1,8 @@
 import copy
 from nipype import Node, JoinNode, IdentityInterface
 import typing as t
-
+import os
+import shutil
 from fmridenoise.interfaces.utility import FlattenIdentityInterface
 
 
@@ -66,3 +67,41 @@ def create_flatten_identity_join_node(name: str, fields: t.List[str],
                                       joinsource: t.Union[Node, str], flatten_fields: t.List[str]) -> JoinNode:
     return JoinNode(FlattenIdentityInterface(fields=fields, flatten_fields=flatten_fields),
                     name=name, joinsource=joinsource, joinfield=fields)
+
+
+def copy_as_dummy_dataset(source_bids_dir: str, new_path: str, ext_to_copy=tuple()) -> None:
+    """
+    Walks trough BIDS dataset and recreates it's structure but with
+    empty files.
+
+    Arguments:
+        source_bids_dir {str} -- source of BIDS dataset
+        new_path {str} -- destination of new dummy_complete dataset
+
+    Keyword Arguments:
+        ext_to_copy {tuple or str} -- files with given extensions
+        will be copied instead of empty (default: {tuple()})
+
+    Returns:
+        None
+    """
+
+    if type(ext_to_copy) is str:
+        ext_to_copy = (ext_to_copy,)
+    source_bids_dir = os.path.abspath(source_bids_dir)
+    if not os.path.isdir(new_path):
+        os.makedirs(new_path)
+    for root, dirs, files in os.walk(source_bids_dir, topdown=True):
+        rel_root = os.path.relpath(root, source_bids_dir)
+        rel_root = rel_root.strip(".")
+        rel_root = rel_root.strip("/")
+        new_root = os.path.join(new_path, rel_root)
+        for name in dirs:
+            os.makedirs(os.path.join(new_root, name))
+        for name in files:
+            for ext in ext_to_copy:
+                if str(name).endswith(ext):
+                    shutil.copy2(os.path.join(root, name), os.path.join(new_root, name))
+                    break
+            else:
+                open(os.path.join(new_root, name), 'w').close()

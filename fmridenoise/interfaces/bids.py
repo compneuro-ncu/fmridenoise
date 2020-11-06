@@ -482,7 +482,7 @@ class BIDSDataSink(IOBase):
     """
     input_spec = BIDSDataSinkInputSpec
     output_spec = BIDSDataSinkOutputSpec
-    output_dir_pattern = "{bids_dir}/derivatives/{derivative}/[ses-{session}/]"
+    output_dir_pattern = "{bids_dir}/derivatives/{derivative}/[ses-{session}/][sub-{subject}/]"
     output_path_pattern = output_dir_pattern + "[sub-{subject}_][ses-{session}_][task-{task}_][run-{run}_]" \
                           "[pipeline-{pipeline}_][desc-{desc}_]{suffix}.{extension}"
 
