@@ -1,12 +1,24 @@
 import matplotlib.pyplot as plt
 import numpy as np
 import seaborn as sns
+import pandas as pd
+from matplotlib.pyplot import Figure
 
 
-def make_motion_plot(group_conf_summary, output_path, mean_fd_th=0.2, max_fd_th=5, perc_spikes_th=20):
+def make_motion_plot(group_conf_summary: pd.DataFrame, output_path: str, mean_fd_th: float = 0.2, max_fd_th: float = 5,
+                     perc_spikes_th: float = 20) -> Figure:
     """
     Generates plot presenting number of subjects excluded with high motion
     according specified thresholds.
+    Args:
+        group_conf_summary (DataFrame): dataframe, output from GroupConfounds
+        output_path (str): output path where plot is saved
+        mean_fd_th (float): mean frame displacement threshold
+        max_fd_th (float): max frame displacement threshold
+        perc_spikes_th (float): maximum percentage of unusually high frame displacement threshold
+
+    Returns:
+        created figure, ready to save
     """
 
     sns.set_style("ticks")
@@ -91,14 +103,14 @@ def make_kdeplot(data, title, output_path):
     return output_path
 
 
-def make_catplot(x, data, xlabel, output_path):
+def make_catplot(x: str, data: pd.DataFrame, xlabel: str, output_path: str) -> str:
     """
-    Creates and saves catplot from summary dataframes.
+    Creates and saves catplot from dataframe.
     Args:
-        x: name of column in dataframe with numerical values to plot
-        data: dataframe with data, must contain 'pipelines' column
-        xlabel: plot x-axis label
-        output_path: output path where plot is saved
+        x (str): name of column in dataframe with numerical values to plot
+        data (DataFrame): dataframe with data, must contain 'pipelines' column
+        xlabel (str): plot x-axis label
+        output_path (str): output path where plot is saved
 
     Returns:
         plot path
@@ -137,13 +149,13 @@ def make_barplot(x, data, xlabel, output_path):  # TODO: not used anywhere, remo
     return output_path
 
 
-def make_violinplot(data, xlabel, output_path):
+def make_violinplot(data: pd.DataFrame, xlabel: str, output_path: str) -> str:
     """
-    Creates and saves violinplot from FC-FD correlation values.
+    Creates and saves violin plot from FC-FD correlation values.
     Args:
-        data: dataframe where columns are pipelines names and rows are floats
-        xlabel: plot x-axis label
-        output_path: output path where plot is saved
+        data (DataFrame): dataframe where columns are pipelines names and rows are floats (fc-fd correlation values)
+        xlabel (str): plot x-axis label
+        output_path (str): output path where plot is saved
 
     Returns:
         plot path
@@ -166,10 +178,10 @@ def make_corr_matrix_plot(data: np.ndarray, title: str, ylabel: str, output_path
     """
     Creates correlation matrix plot
     Args:
-        data: symmetrical N x N matrix
-        title: plot title
-        ylabel: plot y-axis label
-        output_path: output path where plot is saved
+        data (array): symmetrical N x N matrix
+        title (str): plot title
+        ylabel (str): plot y-axis label
+        output_path (str): output path where plot is saved
 
     Returns:
         plot path
@@ -185,7 +197,7 @@ def make_corr_matrix_plot(data: np.ndarray, title: str, ylabel: str, output_path
 
 
 def make_carpetplot(time_series: np.ndarray, out_fname: str,
-                      dpi=300, figsize=(8, 3), format='png'):
+                    dpi=300, figsize=(8, 3), format='png'):
     """Generates and saves carpet plot for rois timecourses.
 
     Args:

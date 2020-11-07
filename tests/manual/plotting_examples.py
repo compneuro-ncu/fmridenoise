@@ -1,8 +1,11 @@
 import pathlib
 from fmridenoise.interfaces.quality_measures import PipelinesQualityMeasures
-from fmridenoise.utils.plotting import make_kdeplot, make_catplot, make_violinplot, make_corr_matrix_plot
+from fmridenoise.utils.plotting import make_kdeplot, make_catplot, make_violinplot, make_corr_matrix_plot, \
+    make_carpetplot, make_motion_plot
 from numpy import array
 import numpy as np
+from io import StringIO
+import pandas as pd
 
 if __name__ == '__main__':
     PLOTS_PATH = pathlib.Path(__file__).parent.joinpath('plots')
@@ -47,6 +50,17 @@ if __name__ == '__main__':
                           title="Example corr matrix plot",
                           ylabel="Pipeline name",
                           output_path=PLOTS_PATH.joinpath("corr_matrix_plot.svg"))
+
+    group_conf_summary_content = "subject	task	mean_fd	max_fd	n_conf	include	n_spikes	perc_spikes	session	run\n" \
+                                 "001	rest	0.006421440065068056	0.018733832384	32	True	0	0.0	LSD	1\n" \
+                                 "002	rest	0.005465743671052777	0.018818666798000004	32	True	0	0.0	LSD	1\n"
+    gropu_conf_summary = StringIO(initial_value=group_conf_summary_content)
+    group_conf_summary_df = pd.read_csv(gropu_conf_summary, sep='\t')
+    make_motion_plot(group_conf_summary=group_conf_summary_df, output_path=PLOTS_PATH.joinpath('motionplot.svg'))
+    # # plotting functions used in Connectivity
+    time_series = np.random.random((100, 50))
+    make_carpetplot(time_series=time_series, out_fname=PLOTS_PATH.joinpath('carpetplot.png'))
+
 
 
 
