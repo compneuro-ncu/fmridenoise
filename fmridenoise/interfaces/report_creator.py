@@ -16,7 +16,15 @@ class ReportCreatorInputSpec(BaseInterfaceInputSpec):
     sessions = List(Str(), mandatory=False)
     runs = List(Str(), mandatory=False)
 
-    # excluded_subjects = List(Str(), value=()) # TODO: This mayby another input field later. 
+    excluded_subjects = List(Dict(
+        desc="Dictionary with all relevant entities key-value pairs and field 'excluded_subjects'"
+             "with value of list of strings for each excluded subject"
+    ), value=[])
+
+    warnings = List(Dict(
+        desc="Dictionary with all relevant entities key-value pairs and field 'warnings'"
+             "with value of list of strings for each warning message"
+    ), value=[])
     
     # Aggregated over pipelines
     plots_all_pipelines_edges_density = List(File(
