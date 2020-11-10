@@ -1,7 +1,7 @@
 
 
 <!DOCTYPE html>
-<html class="writer-html4" lang="en" >
+<html class="writer-html5" lang="en" >
 <head>
   <meta charset="utf-8">
   
@@ -26,10 +26,10 @@
   
     
       <script type="text/javascript" id="documentation_options" data-url_root="./" src="_static/documentation_options.js"></script>
-        <script type="text/javascript" src="_static/jquery.js"></script>
-        <script type="text/javascript" src="_static/underscore.js"></script>
-        <script type="text/javascript" src="_static/doctools.js"></script>
-        <script type="text/javascript" src="_static/language_data.js"></script>
+        <script src="_static/jquery.js"></script>
+        <script src="_static/underscore.js"></script>
+        <script src="_static/doctools.js"></script>
+        <script src="_static/language_data.js"></script>
     
     <script type="text/javascript" src="_static/js/theme.js"></script>
 
@@ -86,8 +86,17 @@
 <li class="toctree-l1"><a class="reference internal" href="installation.html">Installation</a></li>
 <li class="toctree-l1"><a class="reference internal" href="usage.html">Usage</a></li>
 <li class="toctree-l1 current"><a class="current reference internal" href="#">Pipelines</a><ul>
-<li class="toctree-l2"><a class="reference internal" href="#default-denoising-pipelines">Default denoising pipelines</a></li>
-<li class="toctree-l2"><a class="reference internal" href="#adding-a-custom-denoisings-strategy">Adding a custom denoisings strategy</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#default-denoising-pipelines">Default denoising pipelines</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#hmp8physspikereg">24HMP8PhysSpikeReg</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#hmp8physspikereg4gs">24HMP8PhysSpikeReg4GS</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#hmpacompcorspikereg">24HMPaCompCorSpikeReg</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#hmpacompcorspikereg4gs">24HMPaCompCorSpikeReg4GS</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#icaaroma8phys">ICAAROMA8Phys</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#icaaroma8phys4gs">ICAAROMA8Phys4GS</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#null">Null</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="#adding-a-custom-denoising-strategy">Adding a custom denoising strategy</a></li>
 </ul>
 </li>
 <li class="toctree-l1"><a class="reference internal" href="output.html">Output</a></li>
@@ -161,14 +170,14 @@
 <p>The goal of <em>fMRIDenoise</em> is to perform denoising on fMRI data preprocessed via <a class="reference external" href="https://fmriprep.readthedocs.io">fMRIPrep</a>
 using common denoising strategies. <em>Denoising</em> refers to a procedure of minimizing confounding effects of non-neuronal signals
 (related to head motion, scanner noise, or physiological fluctuations) by regressing them out from the fMRI data.</p>
-<p>The neuroimaging community proposed various strategies for denoising the fMRI data before analysis of <em>functional connectivity</em>.
+<p>The neuroimaging community proposed various strategies for denoising the fMRI data <a class="reference internal" href="#parkes2018" id="id1"><span>[Parkes2018]</span></a>.
 Each strategy offers a different compromise between how much of the non-neuronal fluctuations are effectively removed,
 and how much of neuronal fluctuations are damaged in the process.</p>
-<p>As there is currently no consensus on an optimal denoising strategy in the fMRI community that perform best on a broad range
-of datasets <a class="reference internal" href="#parkes2018" id="id1">[Parkes2018]</a>, <em>fMRIDenoise</em> offers a simple way to denoise your fMRI data based on different strategies,
+<p>As there is currently no consensus in the fMRI community on an optimal denoising strategy that perform best on a broad range
+of datasets, <em>fMRIDenoise</em> offers a simple way to denoise your fMRI data using different denoising strategies,
 inspect quality measures of your denoised data for each strategy, and select the best performing one.</p>
 <p>Confounding variables calculated in <em>fMRIPrep</em> are stored separately for each subject,
-session and run in <code class="docutils literal notranslate"><span class="pre">TSV</span> <span class="pre">(tab-separated</span> <span class="pre">value)</span></code> files - one column for each confound variable (read more about
+session and run in TSV (<em>tab-separated value</em>) files - one column for each confound variable (read more about
 confounds output in <em>fMRIPrep</em> <a class="reference external" href="https://fmriprep.org/en/stable/outputs.html#confounds">documentation</a>).</p>
 <div class="section" id="default-denoising-pipelines">
 <h2>Default denoising pipelines<a class="headerlink" href="#default-denoising-pipelines" title="Permalink to this headline">¶</a></h2>
@@ -176,51 +185,65 @@ confounds output in <em>fMRIPrep</em> <a class="reference external" href="https:
 filtering applied that can be use as a refernce). Earch pipeline is defined as a single <cite>.json</cite> file
 in <a class="reference external" href="https://github.com/compneuro-ncu/fmridenoise/tree/master/fmridenoise/pipelines">pipelines</a> folder.
 All default pipelines are described below.</p>
-<p><strong>24HMP8PhysSpikeReg</strong></p>
+<div class="section" id="hmp8physspikereg">
+<h3>24HMP8PhysSpikeReg<a class="headerlink" href="#hmp8physspikereg" title="Permalink to this headline">¶</a></h3>
 <p>Denoising strategy based on regressing out: 24HMP - 24 head motion parameters including: 3 translations,
-3 rotations, their temporal derivatives, and their quadratic terms <a class="reference internal" href="#satterthwaite2013" id="id3">[Satterthwaite2013]</a>,
+3 rotations, their temporal derivatives, and their quadratic terms <a class="reference internal" href="#satterthwaite2013" id="id3"><span>[Satterthwaite2013]</span></a>,
 8Phys - mean physiological signals from white matter (WM) and cerebrospinal fluid (CSF),
-their temporal derivatives, and quadratic terms <a class="reference internal" href="#satterthwaite2013" id="id4">[Satterthwaite2013]</a>, S
-pikeReg - spike regressors based on FD and DVARS thresholds <a class="reference internal" href="#power2012" id="id5">[Power2012]</a>.</p>
-<p><strong>24HMP8PhysSpikeReg4GS</strong></p>
+their temporal derivatives, and quadratic terms <a class="reference internal" href="#satterthwaite2013" id="id4"><span>[Satterthwaite2013]</span></a>, S
+pikeReg - spike regressors based on FD and DVARS thresholds <a class="reference internal" href="#power2012" id="id5"><span>[Power2012]</span></a>.</p>
+</div>
+<div class="section" id="hmp8physspikereg4gs">
+<h3>24HMP8PhysSpikeReg4GS<a class="headerlink" href="#hmp8physspikereg4gs" title="Permalink to this headline">¶</a></h3>
 <p>Denoising strategy based on regressing out: 24HMP - 24 head motion parameters including: 3 translations,
-3 rotations, their temporal derivatives, and their quadratic terms <a class="reference internal" href="#satterthwaite2013" id="id6">[Satterthwaite2013]</a>,
+3 rotations, their temporal derivatives, and their quadratic terms <a class="reference internal" href="#satterthwaite2013" id="id6"><span>[Satterthwaite2013]</span></a>,
 8Phys - mean physiological signals from white matter (WM) and cerebrospinal fluid (CSF),
-their temporal derivatives, and quadratic terms <a class="reference internal" href="#satterthwaite2013" id="id7">[Satterthwaite2013]</a>,
-SpikeReg - spike regressors based on FD and DVARS thresholds <a class="reference internal" href="#power2012" id="id8">[Power2012]</a>.
+their temporal derivatives, and quadratic terms <a class="reference internal" href="#satterthwaite2013" id="id7"><span>[Satterthwaite2013]</span></a>,
+SpikeReg - spike regressors based on FD and DVARS thresholds <a class="reference internal" href="#power2012" id="id8"><span>[Power2012]</span></a>.
 Pipeline additionally includes global signal regression (GS),
 its temporal derivative, and quadratic terms (4GS).</p>
-<p><strong>24HMPaCompCorSpikeReg</strong></p>
+</div>
+<div class="section" id="hmpacompcorspikereg">
+<h3>24HMPaCompCorSpikeReg<a class="headerlink" href="#hmpacompcorspikereg" title="Permalink to this headline">¶</a></h3>
 <p>Denoising strategy based on regressing out: 24HMP - 24 head motion parameters including:
-3 translations, 3 rotations, their temporal derivatives, and their quadratic terms <a class="reference internal" href="#satterthwaite2013" id="id9">[Satterthwaite2013]</a>,
+3 translations, 3 rotations, their temporal derivatives, and their quadratic terms <a class="reference internal" href="#satterthwaite2013" id="id9"><span>[Satterthwaite2013]</span></a>,
 aCompCor - signals extracted from 10 orthogonal principal components (PCs) obtained separately from the eroded white matter (WM; 5 PCs)
-and cerebrospinal fluid (CSF; 5 PCs) masks <a class="reference internal" href="#muschelli2014" id="id10">[Muschelli2014]</a>, SpikeReg - spike regressors based on FD and DVARS
-thresholds <a class="reference internal" href="#power2012" id="id11">[Power2012]</a>. This denoising pipeline is complementary to the pipeline used
-in Functional Connectivity Toolbox (<a class="reference external" href="https://web.conn-toolbox.org/">CONN</a>, <a class="reference internal" href="#whitfieldgabrieli2012" id="id12">[WhitfieldGabrieli2012]</a>).</p>
-<p><strong>24HMPaCompCorSpikeReg4GSR</strong></p>
+and cerebrospinal fluid (CSF; 5 PCs) masks <a class="reference internal" href="#muschelli2014" id="id10"><span>[Muschelli2014]</span></a>, SpikeReg - spike regressors based on FD and DVARS
+thresholds <a class="reference internal" href="#power2012" id="id11"><span>[Power2012]</span></a>. This denoising pipeline is complementary to the pipeline used
+in Functional Connectivity Toolbox (<a class="reference external" href="https://web.conn-toolbox.org/">CONN</a>, <a class="reference internal" href="#whitfieldgabrieli2012" id="id12"><span>[WhitfieldGabrieli2012]</span></a>).</p>
+</div>
+<div class="section" id="hmpacompcorspikereg4gs">
+<h3>24HMPaCompCorSpikeReg4GS<a class="headerlink" href="#hmpacompcorspikereg4gs" title="Permalink to this headline">¶</a></h3>
 <p>Denoising strategy based on regressing out: 24HMP - 24 head motion parameters including: 3 translations,
-3 rotations, their temporal derivatives, and their quadratic terms <a class="reference internal" href="#satterthwaite2013" id="id13">[Satterthwaite2013]</a>,
+3 rotations, their temporal derivatives, and their quadratic terms <a class="reference internal" href="#satterthwaite2013" id="id13"><span>[Satterthwaite2013]</span></a>,
 aCompCor - signals extracted from 10 orthogonal principal components (PCs) obtained separately
-from the eroded white matter (WM; 5 PCs) and cerebrospinal fluid (CSF; 5 PCs) masks <a class="reference internal" href="#muschelli2014" id="id14">[Muschelli2014]</a>,
-SpikeReg - spike regressors based on FD and DVARS thresholds <a class="reference internal" href="#power2012" id="id15">[Power2012]</a>. T
+from the eroded white matter (WM; 5 PCs) and cerebrospinal fluid (CSF; 5 PCs) masks <a class="reference internal" href="#muschelli2014" id="id14"><span>[Muschelli2014]</span></a>,
+SpikeReg - spike regressors based on FD and DVARS thresholds <a class="reference internal" href="#power2012" id="id15"><span>[Power2012]</span></a>. T
 his denoising pipeline is complementary to the pipeline
-used in Functional Connectivity Toolbox (CONN, <a class="reference internal" href="#whitfieldgabrieli2012" id="id16">[WhitfieldGabrieli2012]</a>).
+used in Functional Connectivity Toolbox (CONN, <a class="reference internal" href="#whitfieldgabrieli2012" id="id16"><span>[WhitfieldGabrieli2012]</span></a>).
 Pipeline additionally includes global signal regression (GS),
 its temporal derivative, and quadratic terms (4GS).</p>
-<p><strong>ICAAROMA8Phys</strong></p>
-<p>Denoising strategy based on ICA-AROMA - method that automatically identifies and removes motion artifacts from fMRI data <a class="reference internal" href="#prium2015" id="id17">[Prium2015]</a>.
+</div>
+<div class="section" id="icaaroma8phys">
+<h3>ICAAROMA8Phys<a class="headerlink" href="#icaaroma8phys" title="Permalink to this headline">¶</a></h3>
+<p>Denoising strategy based on ICA-AROMA - method that automatically identifies and removes motion artifacts from fMRI data <a class="reference internal" href="#prium2015" id="id17"><span>[Prium2015]</span></a>.
 Pipeline additionally regress out 8Phys - mean physiological signals from white matter (WM) and cerebrospinal fluid (CSF),
-their quadratic terms <a class="reference internal" href="#satterthwaite2013" id="id18">[Satterthwaite2013]</a>.</p>
-<p><strong>ICAAROMA8Phys4GS</strong></p>
-<p>Denoising strategy based on ICA-AROMA - method that automatically identifies and removes motion artifacts from fMRI data <a class="reference internal" href="#prium2015" id="id19">[Prium2015]</a>.
+their quadratic terms <a class="reference internal" href="#satterthwaite2013" id="id18"><span>[Satterthwaite2013]</span></a>.</p>
+</div>
+<div class="section" id="icaaroma8phys4gs">
+<h3>ICAAROMA8Phys4GS<a class="headerlink" href="#icaaroma8phys4gs" title="Permalink to this headline">¶</a></h3>
+<p>Denoising strategy based on ICA-AROMA - method that automatically identifies and removes motion artifacts from fMRI data <a class="reference internal" href="#prium2015" id="id19"><span>[Prium2015]</span></a>.
 Pipeline additionally regress out 8Phys - mean physiological signals from white matter (WM) and cerebrospinal fluid (CSF),
-their quadratic terms <a class="reference internal" href="#satterthwaite2013" id="id20">[Satterthwaite2013]</a>.
+their quadratic terms <a class="reference internal" href="#satterthwaite2013" id="id20"><span>[Satterthwaite2013]</span></a>.
 Pipeline additionally includes global signal regression (GS), its temporal derivative, and quadratic terms (4GS).</p>
-<p><strong>Null</strong></p>
+</div>
+<div class="section" id="null">
+<h3>Null<a class="headerlink" href="#null" title="Permalink to this headline">¶</a></h3>
 <p>Reference pipeline with no denoising strategy applied.</p>
 </div>
-<div class="section" id="adding-a-custom-denoisings-strategy">
-<h2>Adding a custom denoisings strategy<a class="headerlink" href="#adding-a-custom-denoisings-strategy" title="Permalink to this headline">¶</a></h2>
+</div>
+<div class="section" id="adding-a-custom-denoising-strategy">
+<h2>Adding a custom denoising strategy<a class="headerlink" href="#adding-a-custom-denoising-strategy" title="Permalink to this headline">¶</a></h2>
 <p>You can easily add a custom pipeline by adding a <code class="docutils literal notranslate"><span class="pre">.json</span></code> file to the <a class="reference external" href="https://github.com/compneuro-ncu/fmridenoise/tree/master/fmridenoise/pipelines">pipelines</a>
 folder of <em>fMRIDenoise</em>. A file should follow the structure below.</p>
 <p>Template:</p>
@@ -260,57 +283,41 @@ folder of <em>fMRIDenoise</em>. A file should follow the structure below.</p>
 </pre></div>
 </div>
 <div class="topic">
-<p class="topic-title first">References</p>
-<table class="docutils citation" frame="void" id="muschelli2014" rules="none">
-<colgroup><col class="label" /><col /></colgroup>
-<tbody valign="top">
-<tr><td class="label">[Muschelli2014]</td><td><em>(<a class="fn-backref" href="#id10">1</a>, <a class="fn-backref" href="#id14">2</a>)</em> Muschelli J, Nebel MB, Caffo BS, Barber AD, Pekar JJ, Mostofsky SH,
+<p class="topic-title">References</p>
+<dl class="citation">
+<dt class="label" id="muschelli2014"><span class="brackets">Muschelli2014</span><span class="fn-backref">(<a href="#id10">1</a>,<a href="#id14">2</a>)</span></dt>
+<dd><p>Muschelli J, Nebel MB, Caffo BS, Barber AD, Pekar JJ, Mostofsky SH,
 Reduction of motion-related artifacts in resting state fMRI using aCompCor. NeuroImage. 2014.
-doi:<a class="reference external" href="http://doi.org/10.1016/j.neuroimage.2014.03.028">10.1016/j.neuroimage.2014.03.028</a></td></tr>
-</tbody>
-</table>
-<table class="docutils citation" frame="void" id="prium2015" rules="none">
-<colgroup><col class="label" /><col /></colgroup>
-<tbody valign="top">
-<tr><td class="label">[Prium2015]</td><td><em>(<a class="fn-backref" href="#id17">1</a>, <a class="fn-backref" href="#id19">2</a>)</em> Pruim RHR, Mennes M, van Rooij D, Llera A, Buitelaar JK, Beckmann CF.
+doi:<a class="reference external" href="http://doi.org/10.1016/j.neuroimage.2014.03.028">10.1016/j.neuroimage.2014.03.028</a></p>
+</dd>
+<dt class="label" id="prium2015"><span class="brackets">Prium2015</span><span class="fn-backref">(<a href="#id17">1</a>,<a href="#id19">2</a>)</span></dt>
+<dd><p>Pruim RHR, Mennes M, van Rooij D, Llera A, Buitelaar JK, Beckmann CF.
 ICA-AROMA: A robust ICA-based strategy for removing motion artifacts from fMRI data.
 Neuroimage. 2015 May 15;112:267–77.
-doi:<a class="reference external" href="https://doi.org/10.1016/j.neuroimage.2015.02.064">10.1016/j.neuroimage.2015.02.064</a>.</td></tr>
-</tbody>
-</table>
-<table class="docutils citation" frame="void" id="parkes2018" rules="none">
-<colgroup><col class="label" /><col /></colgroup>
-<tbody valign="top">
-<tr><td class="label"><a class="fn-backref" href="#id1">[Parkes2018]</a></td><td>Parkes L, Fulcher B, Yücel M, Fornito A, An evaluation of the efficacy, reliability,
+doi:<a class="reference external" href="https://doi.org/10.1016/j.neuroimage.2015.02.064">10.1016/j.neuroimage.2015.02.064</a>.</p>
+</dd>
+<dt class="label" id="parkes2018"><span class="brackets"><a class="fn-backref" href="#id1">Parkes2018</a></span></dt>
+<dd><p>Parkes L, Fulcher B, Yücel M, Fornito A, An evaluation of the efficacy, reliability,
 and sensitivity of motion correction strategies for resting-state functional MRI. NeuroImage. 2018.
-doi:<a class="reference external" href="https://doi.org/10.1016/j.neuroimage.2017.12.073">10.1016/j.neuroimage.2017.12.073</a></td></tr>
-</tbody>
-</table>
-<table class="docutils citation" frame="void" id="power2012" rules="none">
-<colgroup><col class="label" /><col /></colgroup>
-<tbody valign="top">
-<tr><td class="label">[Power2012]</td><td><em>(<a class="fn-backref" href="#id5">1</a>, <a class="fn-backref" href="#id8">2</a>, <a class="fn-backref" href="#id11">3</a>, <a class="fn-backref" href="#id15">4</a>)</em> Power JD, Barnes KA, Snyder AZ, Schlaggar BL, Petersen, SA, Spurious but systematic
+doi:<a class="reference external" href="https://doi.org/10.1016/j.neuroimage.2017.12.073">10.1016/j.neuroimage.2017.12.073</a></p>
+</dd>
+<dt class="label" id="power2012"><span class="brackets">Power2012</span><span class="fn-backref">(<a href="#id5">1</a>,<a href="#id8">2</a>,<a href="#id11">3</a>,<a href="#id15">4</a>)</span></dt>
+<dd><p>Power JD, Barnes KA, Snyder AZ, Schlaggar BL, Petersen, SA, Spurious but systematic
 correlations in functional connectivity MRI networks arise from subject motion. NeuroImage. 2012.
-doi:<a class="reference external" href="https://doi.org/10.1016/j.neuroimage.2011.10.018">10.1016/j.neuroimage.2011.10.018</a></td></tr>
-</tbody>
-</table>
-<table class="docutils citation" frame="void" id="satterthwaite2013" rules="none">
-<colgroup><col class="label" /><col /></colgroup>
-<tbody valign="top">
-<tr><td class="label">[Satterthwaite2013]</td><td><em>(<a class="fn-backref" href="#id3">1</a>, <a class="fn-backref" href="#id4">2</a>, <a class="fn-backref" href="#id6">3</a>, <a class="fn-backref" href="#id7">4</a>, <a class="fn-backref" href="#id9">5</a>, <a class="fn-backref" href="#id13">6</a>, <a class="fn-backref" href="#id18">7</a>, <a class="fn-backref" href="#id20">8</a>)</em> Satterthwaite TD, Elliott MA, Gerraty RT, Ruparel K, Loughead J, Calkins ME,
+doi:<a class="reference external" href="https://doi.org/10.1016/j.neuroimage.2011.10.018">10.1016/j.neuroimage.2011.10.018</a></p>
+</dd>
+<dt class="label" id="satterthwaite2013"><span class="brackets">Satterthwaite2013</span><span class="fn-backref">(<a href="#id3">1</a>,<a href="#id4">2</a>,<a href="#id6">3</a>,<a href="#id7">4</a>,<a href="#id9">5</a>,<a href="#id13">6</a>,<a href="#id18">7</a>,<a href="#id20">8</a>)</span></dt>
+<dd><p>Satterthwaite TD, Elliott MA, Gerraty RT, Ruparel K, Loughead J, Calkins ME,
 Eickhoff SB, Hakonarson H, Gur RC, Gur RE, Wolf DH,
 An improved framework for confound regression and filtering for control of motion artifact
 in the preprocessing of resting-state functional connectivity data. NeuroImage. 2013.
-doi:<a class="reference external" href="https://doi.org/10.1016/j.neuroimage.2012.08.052">10.1016/j.neuroimage.2012.08.052</a></td></tr>
-</tbody>
-</table>
-<table class="docutils citation" frame="void" id="whitfieldgabrieli2012" rules="none">
-<colgroup><col class="label" /><col /></colgroup>
-<tbody valign="top">
-<tr><td class="label">[WhitfieldGabrieli2012]</td><td><em>(<a class="fn-backref" href="#id12">1</a>, <a class="fn-backref" href="#id16">2</a>)</em> Conn: a functional connectivity toolbox for correlated and anticorrelated brain networks.
-Brain connectivity. 2012. doi: <a class="reference external" href="https://doi.org/10.1089/brain.2012.0073">10.1089/brain.2012.0073</a></td></tr>
-</tbody>
-</table>
+doi:<a class="reference external" href="https://doi.org/10.1016/j.neuroimage.2012.08.052">10.1016/j.neuroimage.2012.08.052</a></p>
+</dd>
+<dt class="label" id="whitfieldgabrieli2012"><span class="brackets">WhitfieldGabrieli2012</span><span class="fn-backref">(<a href="#id12">1</a>,<a href="#id16">2</a>)</span></dt>
+<dd><p>Conn: a functional connectivity toolbox for correlated and anticorrelated brain networks.
+Brain connectivity. 2012. doi: <a class="reference external" href="https://doi.org/10.1089/brain.2012.0073">10.1089/brain.2012.0073</a></p>
+</dd>
+</dl>
 </div>
 </div>
 </div>

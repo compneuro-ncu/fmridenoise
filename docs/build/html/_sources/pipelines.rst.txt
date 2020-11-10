@@ -6,16 +6,16 @@ The goal of *fMRIDenoise* is to perform denoising on fMRI data preprocessed via 
 using common denoising strategies. *Denoising* refers to a procedure of minimizing confounding effects of non-neuronal signals
 (related to head motion, scanner noise, or physiological fluctuations) by regressing them out from the fMRI data.
 
-The neuroimaging community proposed various strategies for denoising the fMRI data before analysis of *functional connectivity*.
+The neuroimaging community proposed various strategies for denoising the fMRI data [Parkes2018]_.
 Each strategy offers a different compromise between how much of the non-neuronal fluctuations are effectively removed,
 and how much of neuronal fluctuations are damaged in the process.
 
-As there is currently no consensus on an optimal denoising strategy in the fMRI community that perform best on a broad range
-of datasets [Parkes2018]_, *fMRIDenoise* offers a simple way to denoise your fMRI data based on different strategies,
+As there is currently no consensus in the fMRI community on an optimal denoising strategy that perform best on a broad range
+of datasets, *fMRIDenoise* offers a simple way to denoise your fMRI data using different denoising strategies,
 inspect quality measures of your denoised data for each strategy, and select the best performing one.
 
 Confounding variables calculated in *fMRIPrep* are stored separately for each subject,
-session and run in ``TSV (tab-separated value)`` files - one column for each confound variable (read more about
+session and run in TSV (*tab-separated value*) files - one column for each confound variable (read more about
 confounds output in *fMRIPrep* `documentation <https://fmriprep.org/en/stable/outputs.html#confounds>`_).
 
 
@@ -27,8 +27,8 @@ filtering applied that can be use as a refernce). Earch pipeline is defined as a
 in `pipelines <https://github.com/compneuro-ncu/fmridenoise/tree/master/fmridenoise/pipelines>`_ folder.
 All default pipelines are described below.
 
-**24HMP8PhysSpikeReg**
-
+24HMP8PhysSpikeReg
+~~~~~~~~~~~~~~~~~~~~~~~~~~~
 Denoising strategy based on regressing out: 24HMP - 24 head motion parameters including: 3 translations,
 3 rotations, their temporal derivatives, and their quadratic terms [Satterthwaite2013]_,
 8Phys - mean physiological signals from white matter (WM) and cerebrospinal fluid (CSF),
@@ -36,8 +36,8 @@ their temporal derivatives, and quadratic terms [Satterthwaite2013]_, S
 pikeReg - spike regressors based on FD and DVARS thresholds [Power2012]_.
 
 
-**24HMP8PhysSpikeReg4GS**
-
+24HMP8PhysSpikeReg4GS
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 Denoising strategy based on regressing out: 24HMP - 24 head motion parameters including: 3 translations,
 3 rotations, their temporal derivatives, and their quadratic terms [Satterthwaite2013]_,
 8Phys - mean physiological signals from white matter (WM) and cerebrospinal fluid (CSF),
@@ -47,8 +47,8 @@ Pipeline additionally includes global signal regression (GS),
 its temporal derivative, and quadratic terms (4GS).
 
 
-**24HMPaCompCorSpikeReg**
-
+24HMPaCompCorSpikeReg
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 Denoising strategy based on regressing out: 24HMP - 24 head motion parameters including:
 3 translations, 3 rotations, their temporal derivatives, and their quadratic terms [Satterthwaite2013]_,
 aCompCor - signals extracted from 10 orthogonal principal components (PCs) obtained separately from the eroded white matter (WM; 5 PCs)
@@ -57,8 +57,8 @@ thresholds [Power2012]_. This denoising pipeline is complementary to the pipelin
 in Functional Connectivity Toolbox (`CONN <https://web.conn-toolbox.org/>`_, [WhitfieldGabrieli2012]_).
 
 
-**24HMPaCompCorSpikeReg4GSR**
-
+24HMPaCompCorSpikeReg4GS
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 Denoising strategy based on regressing out: 24HMP - 24 head motion parameters including: 3 translations,
 3 rotations, their temporal derivatives, and their quadratic terms [Satterthwaite2013]_,
 aCompCor - signals extracted from 10 orthogonal principal components (PCs) obtained separately
@@ -69,25 +69,25 @@ used in Functional Connectivity Toolbox (CONN, [WhitfieldGabrieli2012]_).
 Pipeline additionally includes global signal regression (GS),
 its temporal derivative, and quadratic terms (4GS).
 
-**ICAAROMA8Phys**
-
+ICAAROMA8Phys
+~~~~~~~~~~~~~~~~~~~~
 Denoising strategy based on ICA-AROMA - method that automatically identifies and removes motion artifacts from fMRI data [Prium2015]_.
 Pipeline additionally regress out 8Phys - mean physiological signals from white matter (WM) and cerebrospinal fluid (CSF),
 their quadratic terms [Satterthwaite2013]_.
 
-**ICAAROMA8Phys4GS**
-
+ICAAROMA8Phys4GS
+~~~~~~~~~~~~~~~~~~~~~~
 Denoising strategy based on ICA-AROMA - method that automatically identifies and removes motion artifacts from fMRI data [Prium2015]_.
 Pipeline additionally regress out 8Phys - mean physiological signals from white matter (WM) and cerebrospinal fluid (CSF),
 their quadratic terms [Satterthwaite2013]_.
 Pipeline additionally includes global signal regression (GS), its temporal derivative, and quadratic terms (4GS).
 
-
-**Null**
+Null
+~~~~~~~~~~
 
 Reference pipeline with no denoising strategy applied.
 
-Adding a custom denoisings strategy
+Adding a custom denoising strategy
 =========================================
 
 You can easily add a custom pipeline by adding a ``.json`` file to the `pipelines <https://github.com/compneuro-ncu/fmridenoise/tree/master/fmridenoise/pipelines>`_

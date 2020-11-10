@@ -1,7 +1,7 @@
 
 
 <!DOCTYPE html>
-<html class="writer-html4" lang="en" >
+<html class="writer-html5" lang="en" >
 <head>
   <meta charset="utf-8">
   
@@ -26,10 +26,10 @@
   
     
       <script type="text/javascript" id="documentation_options" data-url_root="./" src="_static/documentation_options.js"></script>
-        <script type="text/javascript" src="_static/jquery.js"></script>
-        <script type="text/javascript" src="_static/underscore.js"></script>
-        <script type="text/javascript" src="_static/doctools.js"></script>
-        <script type="text/javascript" src="_static/language_data.js"></script>
+        <script src="_static/jquery.js"></script>
+        <script src="_static/underscore.js"></script>
+        <script src="_static/doctools.js"></script>
+        <script src="_static/language_data.js"></script>
     
     <script type="text/javascript" src="_static/js/theme.js"></script>
 
@@ -85,7 +85,18 @@
 <li class="toctree-l1"><a class="reference internal" href="installation.html">Installation</a></li>
 <li class="toctree-l1"><a class="reference internal" href="usage.html">Usage</a></li>
 <li class="toctree-l1"><a class="reference internal" href="pipelines.html">Pipelines</a></li>
-<li class="toctree-l1 current"><a class="current reference internal" href="#">Output</a></li>
+<li class="toctree-l1 current"><a class="current reference internal" href="#">Output</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="#quality-measures-report">Quality measures report</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#fc-fd-pearson-correlation">FC-FD Pearson correlation</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#fc-fd-distance-dependence">FC-FD distance-dependence</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#tdof-loss">tDOF-loss</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#edge-density">Edge density</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#excluded-subjects">Excluded subjects</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="#denoised-fmri-data">Denoised fMRI data</a></li>
+</ul>
+</li>
 </ul>
 
             
@@ -153,6 +164,110 @@
             
   <div class="section" id="output">
 <h1>Output<a class="headerlink" href="#output" title="Permalink to this headline">¶</a></h1>
+<p>There are two classes of outputs returned by <em>fMRIDenoise</em>:</p>
+<p>1. <strong>Quality measures report</strong>: <em>fMRIDenoise</em> returns a group-level <code class="docutils literal notranslate"><span class="pre">.html</span></code> report,
+where you can find details about the performance of each denoising strategy.</p>
+<p>2. <strong>Denoised fMRI data</strong>: <em>fMRIDenoise</em> denoises your preprocessed fMRI data with selected
+denoising strategies and stores individually denoised data within
+<code class="docutils literal notranslate"><span class="pre">&lt;output</span> <span class="pre">dir&gt;/derivatives/fmridenoise/sub-&lt;label&gt;</span></code> folders.
+You can use this data for your further analysis.</p>
+<div class="section" id="quality-measures-report">
+<h2>Quality measures report<a class="headerlink" href="#quality-measures-report" title="Permalink to this headline">¶</a></h2>
+<p><em>fMRIDenoise</em> returns a summary report, written to <code class="docutils literal notranslate"><span class="pre">&lt;output</span> <span class="pre">dir&gt;/fmridenoise/fmridenoise_report.html</span></code>
+(see an example <em>fMRIDenoise</em> <a class="reference external" href="path">report</a>).
+The report contains various quality measures that might help to decide which denoising strategy
+perform best on the particular data.
+Here we list all quality measures that are calculated when running the pipeline.
+The raw quality measures calculated for each strategy are also stored in <code class="docutils literal notranslate"><span class="pre">.tsv</span></code>
+tables in the main <code class="docutils literal notranslate"><span class="pre">&lt;output</span> <span class="pre">dir&gt;/derivatives/fmridenoise</span></code> folder.</p>
+<div class="section" id="fc-fd-pearson-correlation">
+<h3>FC-FD Pearson correlation<a class="headerlink" href="#fc-fd-pearson-correlation" title="Permalink to this headline">¶</a></h3>
+<p>Effective denoising of fMRI signals should result in minimization of a statistical relationship between
+head motion and functional connectivity estimates <a class="reference internal" href="#parkes2018" id="id1"><span>[Parkes2018]</span></a>.
+<em>FC-FD Pearson correlation</em> metric represents the relationship between individual head motion
+and functional connectivity, calculated as the Pearson correlation between subject-specific
+<em>framewise displacement</em> (FD) <a class="reference internal" href="#power2012" id="id2"><span>[Power2012]</span></a> and functional connectivity calculated for each edge.
+<em>fMRIDenoise</em> reports both median absolute FC-FD
+Pearson correlation as well as the proportion of edges for which this correlation was statistically
+significant (<em>p</em> &lt; 0.05, uncorrected) <a class="reference internal" href="#parkes2018" id="id3"><span>[Parkes2018]</span></a>.
+FC-FD Pearson correlation metrics are reported both for all subjects
+and for the subgroup of subjects with a low head motion.</p>
+</div>
+<div class="section" id="fc-fd-distance-dependence">
+<h3>FC-FD distance-dependence<a class="headerlink" href="#fc-fd-distance-dependence" title="Permalink to this headline">¶</a></h3>
+<p>Head motion in the scanner might inflate the strength of short-distance connections
+when compared to medium- and long-distance connections <a class="reference internal" href="#power2012" id="id4"><span>[Power2012]</span></a>.
+Effective denoising of fMRI signals should result in no distance-dependence of FC-FD Pearson
+correlations. <em>FC-FD Distance dependence</em> metric represents the Spearman correlation between FC-FD correlations
+and the euclidean distance calculated between brain regions <a class="reference internal" href="#parkes2018" id="id5"><span>[Parkes2018]</span></a>.
+Distance dependence is reported both for all subjects
+and for the subsample of subjects with low head motion.</p>
+</div>
+<div class="section" id="tdof-loss">
+<h3>tDOF-loss<a class="headerlink" href="#tdof-loss" title="Permalink to this headline">¶</a></h3>
+<p>Denoising pipelines may vary in the number of regressors used to model the noise in fMRI timeseries.
+Including more nuisance regressors in the denoising procedure
+could result in improving the modeling a non-neuronal signal noise,
+but also and in a loss of temporal degrees of freedom (tDOF-loss) <a class="reference internal" href="#parkes2018" id="id6"><span>[Parkes2018]</span></a>.
+Reduced degrees of freedom could result in spuriously increased connectivity estimates.
+Additionally, applying volume censoring and ICA-AROMA could drive artificial variance
+in functional connectivity estimates <a class="reference internal" href="#prium2015" id="id7"><span>[Prium2015]</span></a>.
+<em>Loss of temporal degrees of freedom</em> (tDOF-loss) metrics represents the number
+of regressors included in the denoising procedure.</p>
+</div>
+<div class="section" id="edge-density">
+<h3>Edge density<a class="headerlink" href="#edge-density" title="Permalink to this headline">¶</a></h3>
+<p>Connectivity matrices calculated based on noisy signals characterize in highly positively-skew
+distribution of edges’ weights. Report includes the edges weight distributions for networks obtained for
+each denosing strategy.</p>
+</div>
+<div class="section" id="excluded-subjects">
+<h3>Excluded subjects<a class="headerlink" href="#excluded-subjects" title="Permalink to this headline">¶</a></h3>
+<p>The list of subject that should be excluded from further data analysis due to high motion
+(mean FD &gt; 0.2 or max FD &gt; 5 or more than 10% od outlier data points).</p>
+</div>
+</div>
+<div class="section" id="denoised-fmri-data">
+<h2>Denoised fMRI data<a class="headerlink" href="#denoised-fmri-data" title="Permalink to this headline">¶</a></h2>
+<p>Denoised data are written to <code class="docutils literal notranslate"><span class="pre">&lt;output</span> <span class="pre">dir&gt;/fmridenoise/sub-&lt;subject_label&gt;/</span></code>,
+following BIDS naming convention:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span>sub-&lt;subject_label&gt;/
+       ├── sub-&lt;subject_label&gt;_task-&lt;task_label&gt;_pipeline-24HMP8PhysSpikeReg_carpetPlot.png
+       ├── sub-&lt;subject_label&gt;_task-&lt;task_label&gt;__pipeline-24HMP8PhysSpikeReg_connMat.npy
+       ├── sub-&lt;subject_label&gt;_task-&lt;task_label&gt;_pipeline-24HMP8PhysSpikeReg_desc-confounds.tsv
+       ├── sub-&lt;subject_label&gt;_task-&lt;task_label&gt;_space-MNI2009cAsym_pipeline-24HMP8PhysSpikeReg_desc-denoised_bold.nii.gz
+</pre></div>
+</div>
+<p>Content:</p>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">carpetPlot.png</span></code> - carpet plot representing timeseries before and after denoising</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">connMat.npy</span></code> - correlation matrix calculated based on denoised data</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">confounds.tsv</span></code> - filtered confounds table used for selected denoising pipeline</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">denoised_bold.nii.gz</span></code> - denoised fMRI data</p></li>
+</ul>
+<p>The same files structure is generated for each denoising pipeline.</p>
+<div class="topic">
+<p class="topic-title">References</p>
+<dl class="citation">
+<dt class="label" id="parkes2018"><span class="brackets">Parkes2018</span><span class="fn-backref">(<a href="#id1">1</a>,<a href="#id3">2</a>,<a href="#id5">3</a>,<a href="#id6">4</a>)</span></dt>
+<dd><p>Parkes L, Fulcher B, Yücel M, Fornito A, An evaluation of the efficacy, reliability,
+and sensitivity of motion correction strategies for resting-state functional MRI. NeuroImage. 2018.
+doi:<a class="reference external" href="https://doi.org/10.1016/j.neuroimage.2017.12.073">10.1016/j.neuroimage.2017.12.073</a></p>
+</dd>
+<dt class="label" id="power2012"><span class="brackets">Power2012</span><span class="fn-backref">(<a href="#id2">1</a>,<a href="#id4">2</a>)</span></dt>
+<dd><p>Power JD, Barnes KA, Snyder AZ, Schlaggar BL, Petersen, SA, Spurious but systematic
+correlations in functional connectivity MRI networks arise from subject motion. NeuroImage. 2012.
+doi:<a class="reference external" href="https://doi.org/10.1016/j.neuroimage.2011.10.018">10.1016/j.neuroimage.2011.10.018</a></p>
+</dd>
+<dt class="label" id="prium2015"><span class="brackets"><a class="fn-backref" href="#id7">Prium2015</a></span></dt>
+<dd><p>Pruim RHR, Mennes M, van Rooij D, Llera A, Buitelaar JK, Beckmann CF.
+ICA-AROMA: A robust ICA-based strategy for removing motion artifacts from fMRI data.
+Neuroimage. 2015 May 15;112:267–77.
+doi:<a class="reference external" href="https://doi.org/10.1016/j.neuroimage.2015.02.064">10.1016/j.neuroimage.2015.02.064</a>.</p>
+</dd>
+</dl>
+</div>
+</div>
 </div>
 
 
