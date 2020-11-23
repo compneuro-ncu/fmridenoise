@@ -176,8 +176,8 @@ def make_catplot(x, y, data, output_path, xlabel=None, ylabel=None):
 
     sns.despine(top=False, right=False)
     fig.ax.axvline(x=0, color='k')
-    if any([len(label.get_text()) > 10 for label in fig.ax.get_yticklabels()]):
-        fig.ax.set_yticklabels(fig.ax.get_yticklabels(), fontSize=9)
+    # if any([len(label.get_text()) > 10 for label in fig.ax.get_yticklabels()]):
+    #     fig.ax.set_yticklabels(fig.ax.get_yticklabels(), fontSize=9)
 
     fig.savefig(output_path, dpi=300, bbox_inches='tight')
     plt.close()
