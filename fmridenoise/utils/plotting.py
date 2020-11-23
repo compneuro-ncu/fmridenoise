@@ -1,12 +1,37 @@
+import matplotlib as mpl
 import matplotlib.pyplot as plt
 import numpy as np
-import seaborn as sns
 import pandas as pd
+import seaborn as sns
 from matplotlib.pyplot import Figure
+from mpl_toolkits.axes_grid1 import make_axes_locatable
+
+rcDict = {
+    'axes.linewidth': 1.3,
+    'lines.linewidth': 1.3,
+    'xtick.major.width': 1.3,
+    'ytick.major.width': 1.3,
+    'xtick.major.size': 3,
+    'ytick.major.size': 3,
+    'axes.spines.top': True,
+    'font.size': 11.5,
+    'figure.titlesize': 11.5,
+    'axes.titlesize': 11.5,
+    'legend.fancybox': True,
+    'legend.edgecolor': 'k',
+    'legend.fontsize': 11.5,
+    'legend.framealpha': 0.25,
+    'patch.linewidth': 1.3,
+}
 
 
-def make_motion_plot(group_conf_summary: pd.DataFrame, output_path: str, mean_fd_th: float = 0.2, max_fd_th: float = 5,
-                     perc_spikes_th: float = 20) -> Figure:
+def make_motion_plot(
+    group_conf_summary: pd.DataFrame,
+    output_path: str,
+    mean_fd_th: float = 0.2,
+    max_fd_th: float = 5,
+    perc_spikes_th: float = 20,
+) -> Figure:
     """
     Generates plot presenting number of subjects excluded with high motion
     according specified thresholds.
@@ -47,21 +72,26 @@ def make_motion_plot(group_conf_summary: pd.DataFrame, output_path: str, mean_fd
         value = group_conf_summary[column] > threshold
         group_conf_summary['excluded'] = np.where(value == True, 1, 0)
 
-        p = sns.swarmplot(y=column,
-                          x="task",
-                          data=group_conf_summary,
-                          alpha=0.8,
-                          s=10,
-                          hue='excluded',
-                          palette=palette,
-                          ax=axes[i])
+        p = sns.swarmplot(
+            y=column,
+            x="task",
+            data=group_conf_summary,
+            alpha=0.8,
+            s=10,
+            hue='excluded',
+            palette=palette,
+            ax=axes[i],
+        )
 
-        p = sns.boxplot(y=column,
-                        x="task",
-                        data=group_conf_summary,
-                        showcaps=False,
-                        boxprops={'facecolor': 'None'},
-                        showfliers=False, ax=axes[i])
+        p = sns.boxplot(
+            y=column,
+            x="task",
+            data=group_conf_summary,
+            showcaps=False,
+            boxprops={'facecolor': 'None'},
+            showfliers=False,
+            ax=axes[i],
+        )
 
         p.title.set_text(f'Threshold = {threshold}')
         p.axhline(threshold, ls='--', color="#fe6863")
@@ -76,128 +106,181 @@ def make_motion_plot(group_conf_summary: pd.DataFrame, output_path: str, mean_fd
     return fig
 
 
-def make_kdeplot(data, title, output_path):
+def make_kdeplot(data, output_path, title=None):
     """
-    Creates and saves kdeplot from dataframes with edges.
+    Plot representing edge strenght distribution.
+
     Args:
-        data: dataframe where columns are pipelines names and rows are floats
-        title: plot title
-        output_path: output path where plot is saved
+        data (pd.DataFrame):
+            Each column corresponds to single denoising strategy, each row
+            correspond to connection strength. Column names will be used to
+            create legend. DataFrame shape is n_edges x n_pipelines.
+        output_path (str):
+            Output path where plot is saved.
+        title (str, optional):
+            Plot title.
 
     Returns:
-        plot path
+        Path for generated plot.
     """
-    sns.set_style("ticks")
-    sns.set_palette('colorblind', 8)
-
+    mpl.rcParams.update(
+        rcDict
+    )  # TODO: move outside after refactoring make_motion_plot
     fig, ax = plt.subplots(1, 1)
+
     for col in data:
-        sns.kdeplot(data[col], shade=True)
+        sns.kdeplot(data[col], shade=True, ax=ax)
 
-    plt.axvline(0, 0, 2, color='gray', linestyle='dashed', linewidth=1.5)
-    plt.title(title)
-    plt.legend(bbox_to_anchor=(1.05, 1), loc=2, borderaxespad=0.)
-
-    fig.savefig(output_path, dpi=300, bbox_inches='tight')
-    plt.clf()
-    return output_path
-
-
-def make_catplot(x: str, data: pd.DataFrame, xlabel: str, output_path: str) -> str:
-    """
-    Creates and saves catplot from dataframe.
-    Args:
-        x (str): name of column in dataframe with numerical values to plot
-        data (DataFrame): dataframe with data, must contain 'pipelines' column
-        xlabel (str): plot x-axis label
-        output_path (str): output path where plot is saved
-
-    Returns:
-        plot path
-    """
-
-    sns.set_palette('colorblind', 8)
-    fig = sns.catplot(x=x,
-                      y='pipeline',
-                      kind='bar',
-                      data=data,
-                      orient="h").set(xlabel=xlabel,
-                                      ylabel='Pipeline')
+    ax.axvline(x=0, linestyle='dashed', color='k')
+    ax.set_title(title)
+    ax.set_xlim([-1, 1])
+    ax.set_ylabel("Probability density")
+    ax.set_xlabel("Connection strength")
+    ax.legend(bbox_to_anchor=(1.025, 1), borderaxespad=0)
 
     fig.savefig(output_path, dpi=300, bbox_inches='tight')
-    plt.clf()
+    plt.close(fig)
+
     return output_path
 
 
-def make_barplot(x, data, xlabel, output_path):  # TODO: not used anywhere, remove?
+def make_catplot(x, y, data, output_path, xlabel=None, ylabel=None):
     """
-    Creates and saves barplot from summary dataframes.
-    """
-    sns.set_palette('colorblind', 8)
-    sns.set_style("ticks")
+    Plot representing quality measure value for each pipeline.
 
-    fig = sns.barplot(x=x,
-                      y='pipeline',
-                      data=data,
-                      edgecolor=".2",
-                      linewidth=1,
-                      orient="h").set(xlabel=xlabel,
-                                      ylabel='Pipeline')
+    Args:
+        x (str):
+            Column name of data corresponding to quality measure.
+        y (str):
+            Column name of data used to group values.
+        data (pd.DataFrame):
+            Table of quality measures. It should contain at least one one column
+            representing quality measure and one column for grouping variable.
+            Usually each row corresponds to one pipeline.
+        output_path (str):
+            Output path where plot is saved.
+        xlabel (str, optional):
+            Custom x-axis label.
+        ylabel (str, optional):
+            Custom y-axis label.
+
+    Returns:
+        Path for generated plot.
+    """
+    mpl.rcParams.update(rcDict)
+    fig = sns.catplot(x=x, y=y, kind='bar', data=data)
+    if xlabel:
+        fig.ax.set_xlabel(xlabel)
+    if ylabel:
+        fig.ax.set_ylabel(ylabel)
+
+    sns.despine(top=False, right=False)
+    fig.ax.axvline(x=0, color='k')
+    if any([len(label.get_text()) > 10 for label in fig.ax.get_yticklabels()]):
+        fig.ax.set_yticklabels(fig.ax.get_yticklabels(), fontSize=9)
 
     fig.savefig(output_path, dpi=300, bbox_inches='tight')
-    plt.clf()
+    plt.close()
+
     return output_path
 
 
-def make_violinplot(data: pd.DataFrame, xlabel: str, output_path: str) -> str:
-    """
-    Creates and saves violin plot from FC-FD correlation values.
+def make_violinplot(data, output_path, xlabel=None):
+    """Plot representing quality measure distribution for each pipeline.
+
     Args:
-        data (DataFrame): dataframe where columns are pipelines names and rows are floats (fc-fd correlation values)
-        xlabel (str): plot x-axis label
-        output_path (str): output path where plot is saved
+        data (pd.DataFrame):
+            Table of quality measures. Each column represents single pipeline.
+            Column names will be used as pipeline names. Values in each row
+            correspond to quality measure used, usually there is one row for
+            each network edge.
+        output_path (str):
+            Output path where plot is saved.
+        xlabel (str, optional):
+            Custom x-axis label.
 
     Returns:
-        plot path
+        Path for generated plot.
     """
-    sns.set_palette('colorblind', 8)
-    sns.set_style("ticks")
+    mpl.rcParams.update(rcDict)
+    fig, ax = plt.subplots(1, 1)
 
-    sns.violinplot(data=data,
-                   edgecolor=".2",
-                   linewidth=1,
-                   orient="h").set(xlabel=xlabel,
-                                   ylabel='Pipeline')
+    edgewidth = 2.6  # Controls width of "violins"
+    sns.violinplot(
+        data=data,
+        orient="h",
+        inner="quartile",
+        linewidth=edgewidth,
+    )
 
-    plt.savefig(output_path, dpi=300, bbox_inches='tight')
-    plt.clf()
+    for poly in ax.collections:
+        facecolor = poly.get_facecolor()[0]
+        poly.set_edgecolor(facecolor)
+        facecolor[-1] = 0.25
+        poly.set_facecolor(facecolor)
+
+    for l in ax.lines:
+        l.set_linewidth(0)
+    for idx, l in enumerate(ax.lines[1::3]):
+        l.set_linestyle('-')
+        l.set_linewidth(edgewidth)
+        l.set_color(ax.collections[idx].get_edgecolor()[0])
+
+    ax.axvline(x=0, color="k", linestyle=":", zorder=0)
+    ax.set_ylabel("Pipeline")
+    ax.set_xlabel(xlabel)
+
+    fig.savefig(output_path, dpi=300, bbox_inches='tight')
+    plt.close(fig)
+
     return output_path
 
 
-def make_corr_matrix_plot(data: np.ndarray, title: str, ylabel: str, output_path: str) -> str:
+def make_corr_matrix_plot(
+    data, output_path, title=None, ylabel=None, correlation=True
+):
     """
-    Creates correlation matrix plot
+    Plot representing correlation matrix.
+
     Args:
-        data (array): symmetrical N x N matrix
-        title (str): plot title
-        ylabel (str): plot y-axis label
-        output_path (str): output path where plot is saved
+        data (numpy.ndarray):
+            N x N correlation matrix.
+        output_path (str):
+            Output path where plot is saved.
+        title (str, optional):
+            Plot title.
+        ylabel (str, optional):
+            Custom y-axis label.
+        correlation (bool, default True):
+            If this flag is true, values are treated as correlations ranging
+            from -1 to 1 automatically rescaling colorbar to that range.
 
     Returns:
-        plot path
+        Path for generated plot.
     """
-    fig, ax = plt.subplots(figsize=(10, 10))
-    ax.imshow(data)
+    mpl.rcParams.update(rcDict)
+    fig, ax = plt.subplots(1, 1)
+
+    im = ax.imshow(data, cmap='bwr', **{'clim': [-1, 1]} if correlation else {})
     ax.set_title(title)
     ax.set_ylabel(ylabel)
+    divider = make_axes_locatable(ax)
+    cax = divider.append_axes("right", size="5%", pad=0.05)
+    plt.colorbar(im, cax=cax)
 
-    fig.savefig(output_path)
-    plt.close('all')
+    fig.savefig(output_path, dpi=300, bbox_inches='tight')
+    plt.close(fig)
+
     return output_path
 
 
-def make_carpetplot(time_series: np.ndarray, out_fname: str,
-                    dpi=300, figsize=(8, 3), format='png'):
+def make_carpetplot(
+    time_series: np.ndarray,
+    out_fname: str,
+    dpi=300,
+    figsize=(8, 3),
+    format='png',
+):
     """Generates and saves carpet plot for rois timecourses.
 
     Args:
@@ -222,7 +305,8 @@ def make_carpetplot(time_series: np.ndarray, out_fname: str,
     ax.set_yticks([])
 
     try:
-        fig.savefig(out_fname, format=format,
-                    transparent=True, bbox_inches='tight')
+        fig.savefig(
+            out_fname, format=format, transparent=True, bbox_inches='tight'
+        )
     except FileNotFoundError:
         print(f'{out_fname} directory not found')
