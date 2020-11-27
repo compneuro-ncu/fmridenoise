@@ -1,8 +1,11 @@
-FROM continuumio/miniconda3
-RUN apt-get update
-RUN apt-get install gcc -y
-RUN pip install fmridenoise
-ADD . /fmridenoise
-WORKDIR /fmridenoise
-ENTRYPOINT /bin/sh
-
+# --system configuration--
+FROM ubuntu:focal
+RUN apt update
+RUN apt upgrade
+RUN apt install -y python3 python3-pip
+# --fmridenoise installation
+ADD . /fmridenoise-src
+WORKDIR /fmridenoise-src
+RUN python3 setup.py install
+# --fmridenoise run
+ENTRYPOINT ["fmridenoise"]

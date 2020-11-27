@@ -36,7 +36,7 @@ Installation
 
 Execution
 =========
-
+## Console
 **fmridenoise or python -m fmridenoise**
 
     usage: fmridenoise [-h] [-sub SUBJECTS [SUBJECTS ...]]
@@ -78,3 +78,19 @@ Execution
     --graph GRAPH           Create workflow graph at GRAPH path
     --dry                   Perform everything except actually running workflow
                                     
+## Docker **WIP**
+
+1. Creating image (later will be updated to dockerhub)
+
+    ```
+    (in fmridenoise directory)
+    docker build -t fmridenoise .
+    ```
+2. Running docker image
+
+    ```
+    (anywhere in system)
+     docker run --rm -it -v /path_to_bids_directory/:/data fmridenoise compare /data {rest of arguments}
+    ```
+
+
