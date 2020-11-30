@@ -1,0 +1,11 @@
+{
+  "Name": "fMRIDenoise",
+  "BIDSVersion": "1.4.1",
+  "GeneratedBy": [
+    {
+      "Name": "fMRIDenoise",
+      "Version": "{fmridenoise_version}",
+      "CodeURL": "{fmridenoise_codeurl}"
+    }
+  ]
+}

@@ -1,9 +1,24 @@
 import copy
+from os.path import join
+
 from nipype import Node, JoinNode, IdentityInterface
 import typing as t
 import os
 import shutil
 from fmridenoise.interfaces.utility import FlattenIdentityInterface
+from fmridenoise._version import get_versions
+
+
+def create_dataset_description_json_content() -> str:
+    directory_name = os.path.dirname(__file__)
+    with open(join(directory_name, "dataset_description_template.json"), "r") as template_f:
+        template = str(template_f.read())
+    get_versions_result = get_versions()
+    version = get_versions_result['version']
+    main_url_template = "https://github.com/compneuro-ncu/fmridenoise/releases/tag/{ver}"
+    code_url = "NO URL, DEVELOPMENT BUILD" if any(
+        map(version.__contains__, ["+", "dirty"])) else main_url_template.format(ver=version)
+    return template.replace("{fmridenoise_version}", version).replace("{fmridenoise_codeurl}", code_url)
 
 
 def is_booleanlike(value) -> bool:
@@ -42,7 +57,7 @@ def cast_bool(value) -> bool:
                         .format(type(value), value))
 
 
-def swap_booleans(dictionary: dict, inplace: bool=True) -> dict:  # TODO: Extend functionality to lists too
+def swap_booleans(dictionary: dict, inplace: bool = True) -> dict:  # TODO: Extend functionality to lists too
     """
     Recursively iterates on dictionary and swaps booleanlike values with proper booleans.
     :param dictionary: input dictionary
