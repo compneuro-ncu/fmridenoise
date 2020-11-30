@@ -409,12 +409,12 @@ class WorkflowBuilder:
 
 
 def init_fmridenoise_wf(bids_dir,
-                        derivatives='fmriprep',
-                        task=tuple(),
-                        session=tuple(),
-                        subject=tuple(),
-                        runs=tuple(),
-                        pipelines_paths=get_pipelines_paths(),
+                        derivatives: t.List[str],
+                        task: t.List[str],
+                        session: t.List[str],
+                        subject: t.List[str],
+                        runs: t.List[str],
+                        pipelines_paths: t.Set[str],
                         high_pass=0.008,
                         low_pass=0.08,
                         base_dir='/tmp/fmridenoise',

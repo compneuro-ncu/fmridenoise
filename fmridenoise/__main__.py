@@ -165,10 +165,10 @@ def compare(args: argparse.Namespace) -> None:
     # creating workflow
     workflow = init_fmridenoise_wf(input_dir,
                                    derivatives=derivatives,
-                                   subject=args.subjects,
-                                   session=args.sessions,
-                                   task=args.tasks,
-                                   runs=args.runs,
+                                   subject=list(map(str, args.subjects)),
+                                   session=list(map(str, args.sessions)),
+                                   task=list(map(str, args.tasks)),
+                                   runs=list(map(str, args.runs)),
                                    pipelines_paths=pipelines,
                                    high_pass=args.high_pass,
                                    low_pass=args.low_pass)
