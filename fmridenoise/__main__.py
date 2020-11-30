@@ -4,7 +4,7 @@ import os
 from os.path import dirname, join, exists, isfile, abspath
 from nipype import config
 
-from fmridenoise.utils.utils import copy_as_dummy_dataset
+from fmridenoise.utils.utils import copy_as_dummy_dataset, create_dataset_description_json_content
 from fmridenoise.workflows.base import init_fmridenoise_wf
 from fmridenoise.utils.profiling import profiler_callback
 from fmridenoise.utils.json_validator import is_valid
@@ -191,6 +191,9 @@ def compare(args: argparse.Namespace) -> None:
             workflow.run(plugin="MultiProc", plugin_args=workflow_args)
         else:
             workflow.run()
+        # write dataset_description.json after successful workflow execution
+        with open(join(input_dir, "derivatives", "fmridenoise", "dataset_description.json"), 'w') as f:
+            f.write(create_dataset_description_json_content())
     return 0
 
 
