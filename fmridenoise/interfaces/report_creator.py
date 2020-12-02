@@ -21,10 +21,10 @@ class ReportCreatorInputSpec(BaseInterfaceInputSpec):
              "with value of list of strings for each excluded subject"
     ), value=[])
 
-    warnings = List(Dict(
-        desc="Dictionary with all relevant entities key-value pairs and field 'warnings'"
-             "with value of list of strings for each warning message"
-    ), value=[])
+    warnings = List(
+        desc="ErrorData objects with all relevant entities error source and error message",
+        value=[]
+    )
     
     # Aggregated over pipelines
     plots_all_pipelines_edges_density = List(File(

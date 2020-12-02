@@ -1,4 +1,7 @@
 import unittest as ut
+
+from traits.trait_base import Undefined
+
 from fmridenoise.interfaces.quality_measures import QualityMeasures
 import pandas as pd
 import numpy as np
@@ -10,34 +13,10 @@ from numpy.testing import assert_array_equal, assert_array_almost_equal
 from fmridenoise.pipelines import load_pipeline_from_json, get_pipeline_path
 
 
-class QualityMeasuresAsNodeTestCase(ut.TestCase):
-    group_conf_summary = pd.DataFrame(np.array([['m03', 'task', 0.1034750870617284, 1.1646298000000002, 50,
-                                                      True, 18, 2.4657534246575343],
-                                                     ['m04', 'task', 0.09806451376598077, 0.794708, 33, False, 1,
-                                                      0.136986301369863],
-                                                     ['m05', 'task', 0.06123372759303155, 0.14662384, 32, True, 0,
-                                                      0.0]], dtype=object),
-                                      columns=['subject', 'task', 'mean_fd', 'max_fd', 'n_conf', 'include',
-                                               'n_spikes', 'perc_spikes'])
-    distance_matrix = np.array([[0, 1, 2, 3],
-                                [1, 0, 4, 5],
-                                [2, 4, 0, 6],
-                                [3, 5, 6, 0]])
-    group_corr_mat = np.array([
-        distance_matrix,  # one input is distance matrix
-        [  # trivial input
-            [0, 1, 1, 1],
-            [1, 0, 1, 1],
-            [1, 1, 0, 1],
-            [1, 1, 1, 0]
-        ],
-        [  # >normal< input
-            [0, 5, 8, 1],
-            [5, 0, 7, 9],
-            [8, 7, 0, 3],
-            [1, 9, 3, 0]
-        ],
-    ])
+class QualityMeasuresAsNodeTestBase:
+    group_conf_summary: pd.DataFrame = ...
+    distance_matrix: np.ndarray = ...
+    group_corr_mat: np.ndarray = ...
     pipeline = load_pipeline_from_json(get_pipeline_path('pipeline-Null'))
 
     @classmethod
@@ -60,6 +39,36 @@ class QualityMeasuresAsNodeTestCase(ut.TestCase):
         cls.quality_measures_node.inputs.pipeline = cls.pipeline
         cls.quality_measures_node.inputs.output_dir = cls.tempdir
         cls.result = cls.quality_measures_node.run()
+
+
+class QualityMeasuresAsNodeTestCase(QualityMeasuresAsNodeTestBase, ut.TestCase):
+    group_conf_summary = pd.DataFrame(np.array([['m03', 'task', 0.1034750870617284, 1.1646298000000002, 50,
+                                                 True, 18, 2.4657534246575343],
+                                                ['m04', 'task', 0.09806451376598077, 0.794708, 33, False, 1,
+                                                 0.136986301369863],
+                                                ['m05', 'task', 0.06123372759303155, 0.14662384, 32, True, 0,
+                                                 0.0]], dtype=object),
+                                      columns=['subject', 'task', 'mean_fd', 'max_fd', 'n_conf', 'include',
+                                               'n_spikes', 'perc_spikes'])
+    distance_matrix = np.array([[0, 1, 2, 3],
+                                [1, 0, 4, 5],
+                                [2, 4, 0, 6],
+                                [3, 5, 6, 0]])
+    group_corr_mat = np.array([
+        distance_matrix,  # one input is distance matrix
+        [  # trivial input
+            [0, 1, 1, 1],
+            [1, 0, 1, 1],
+            [1, 1, 0, 1],
+            [1, 1, 1, 0]
+        ],
+        [  # >normal< input
+            [0, 5, 8, 1],
+            [5, 0, 7, 9],
+            [8, 7, 0, 3],
+            [1, 9, 3, 0]
+        ],
+    ])
 
     def test_summary_output(self) -> None:
         tested = self.result.outputs.fc_fd_summary
@@ -137,75 +146,81 @@ class QualityMeasuresAsNodeTestCase(ut.TestCase):
             self.group_conf_summary[self.group_conf_summary['include'] == True], vec)
         assert_array_almost_equal(corr_vec[self.pipeline['name']], corr)
 
+    def test_no_critical_warnings(self):
+        self.assertEqual(0, len(list(filter(lambda warning: warning.critical == True, self.result.outputs.warnings))))
 
 
-@ut.skip
-class QualityMeasuresEdgeCases(ut.TestCase):
-    
-    def test_only_high_motion(self):  # TODO: Handle the case
-        group_conf_summary = pd.DataFrame(np.array([['m03', 'task', 0.1034750870617284, 1.1646298000000002, 50,
-                                                     False, 18, 2.4657534246575343],
-                                                    ['m04', 'task', 0.09806451376598077, 0.794708, 33, False, 1,
-                                                     0.136986301369863],
-                                                    ['m05', 'task', 0.06123372759303155, 0.14662384, 32, False, 0,
-                                                     0.0]], dtype=object),
-                                          columns=['subject', 'task', 'mean_fd', 'max_fd', 'n_conf', 'include',
-                                                   'n_spikes', 'perc_spikes'])
-        distance_matrix = np.array([[0, 1, 2, 3],
-                                    [1, 0, 4, 5],
-                                    [2, 4, 0, 6],
-                                    [3, 5, 6, 0]])
-        group_corr_mat = np.array([
-            distance_matrix,  # one input is distance matrix
-            [  # trivial input
-                [0, 1, 1, 1],
-                [1, 0, 1, 1],
-                [1, 1, 0, 1],
-                [1, 1, 1, 0]
-            ],
-            [  # >normal< input
-                [0, 5, 8, 1],
-                [5, 0, 7, 9],
-                [8, 7, 0, 3],
-                [1, 9, 3, 0]
-            ],
-        ])
-        # TODO: What is supposed to be there?
-        QualityMeasures.validate_group_conf_summary(group_conf_summary)
-        QualityMeasures.validate_fc_matrices(group_corr_mat, group_conf_summary)
-        QualityMeasures.calculate_quality_measures(group_conf_summary, group_corr_mat, distance_matrix)
-        # TODO: Further tests after resolving initial exception hell
+class QualityMeasuresOnlyHighMotionTestCase(QualityMeasuresAsNodeTestBase, ut.TestCase):
+    group_conf_summary = pd.DataFrame(np.array([['m03', 'task', 0.1034750870617284, 1.1646298000000002, 50,
+                                                 False, 18, 2.4657534246575343],
+                                                ['m04', 'task', 0.09806451376598077, 0.794708, 33, False, 1,
+                                                 0.136986301369863],
+                                                ['m05', 'task', 0.06123372759303155, 0.14662384, 32, False, 0,
+                                                 0.0]], dtype=object),
+                                      columns=['subject', 'task', 'mean_fd', 'max_fd', 'n_conf', 'include',
+                                               'n_spikes', 'perc_spikes'])
+    distance_matrix = np.array([[0, 1, 2, 3],
+                                [1, 0, 4, 5],
+                                [2, 4, 0, 6],
+                                [3, 5, 6, 0]])
+    group_corr_mat = np.array([
+        distance_matrix,  # one input is distance matrix
+        [  # trivial input
+            [0, 1, 1, 1],
+            [1, 0, 1, 1],
+            [1, 1, 0, 1],
+            [1, 1, 1, 0]
+        ],
+        [  # >normal< input
+            [0, 5, 8, 1],
+            [5, 0, 7, 9],
+            [8, 7, 0, 3],
+            [1, 9, 3, 0]
+        ],
+    ])
 
-    def test_single_no_high_motion(self):
-        group_conf_summary = pd.DataFrame(np.array([['m03', 'task', 0.1034750870617284, 1.1646298000000002, 50,
-                                                     True, 18, 2.4657534246575343],
-                                                    ['m04', 'task', 0.09806451376598077, 0.794708, 33, False, 1,
-                                                     0.136986301369863],
-                                                    ['m05', 'task', 0.06123372759303155, 0.14662384, 32, False, 0,
-                                                     0.0]], dtype=object),
-                                          columns=['subject', 'task', 'mean_fd', 'max_fd', 'n_conf', 'include',
-                                                   'n_spikes', 'perc_spikes'])
-        distance_matrix = np.array([[0, 1, 2, 3],
-                                    [1, 0, 4, 5],
-                                    [2, 4, 0, 6],
-                                    [3, 5, 6, 0]])
-        group_corr_mat = np.array([
-            distance_matrix,  # one input is distance matrix
-            [  # trivial input
-                [0, 1, 1, 1],
-                [1, 0, 1, 1],
-                [1, 1, 0, 1],
-                [1, 1, 1, 0]
-            ],
-            [  # >normal< input
-                [0, 5, 8, 1],
-                [5, 0, 7, 9],
-                [8, 7, 0, 3],
-                [1, 9, 3, 0]
-            ],
-        ])
-        # TODO: What is supposed to be there?
-        QualityMeasures.validate_group_conf_summary(group_conf_summary)
-        QualityMeasures.validate_fc_matrices(group_corr_mat, group_conf_summary)
-        QualityMeasures.calculate_quality_measures(group_conf_summary, group_corr_mat, distance_matrix)
-        # TODO: Further tests after resolving initial exception hell
+    def test_critical_warning(self):
+        self.assertEqual(1, len(list(filter(lambda warning: warning.critical == True, self.result.outputs.warnings))))
+
+    def test_empty_clean_files(self):
+        self.assertEqual(Undefined, self.result.outputs.corr_matrix_no_high_motion_plot)
+        self.assertEqual(Undefined, self.result.outputs.edges_weight_clean)
+        self.assertEqual(Undefined, self.result.outputs.fc_fd_corr_values_clean)
+
+
+class QualityMeasuresSingleLowMotionTestCase(QualityMeasuresAsNodeTestBase, ut.TestCase):
+    group_conf_summary = pd.DataFrame(np.array([['m03', 'task', 0.1034750870617284, 1.1646298000000002, 50,
+                                                 False, 18, 2.4657534246575343],
+                                                ['m04', 'task', 0.09806451376598077, 0.794708, 33, True, 1,
+                                                 0.136986301369863],
+                                                ['m05', 'task', 0.06123372759303155, 0.14662384, 32, False, 0,
+                                                 0.0]], dtype=object),
+                                      columns=['subject', 'task', 'mean_fd', 'max_fd', 'n_conf', 'include',
+                                               'n_spikes', 'perc_spikes'])
+    distance_matrix = np.array([[0, 1, 2, 3],
+                                [1, 0, 4, 5],
+                                [2, 4, 0, 6],
+                                [3, 5, 6, 0]])
+    group_corr_mat = np.array([
+        distance_matrix,  # one input is distance matrix
+        [  # trivial input
+            [0, 1, 1, 1],
+            [1, 0, 1, 1],
+            [1, 1, 0, 1],
+            [1, 1, 1, 0]
+        ],
+        [  # >normal< input
+            [0, 5, 8, 1],
+            [5, 0, 7, 9],
+            [8, 7, 0, 3],
+            [1, 9, 3, 0]
+        ],
+    ])
+
+    def test_critical_warning(self):
+        self.assertEqual(1, len(list(filter(lambda warning: warning.critical == True, self.result.outputs.warnings))))
+
+    def test_empty_clean_files(self):
+        self.assertEqual(Undefined, self.result.outputs.corr_matrix_no_high_motion_plot)
+        self.assertEqual(Undefined, self.result.outputs.edges_weight_clean)
+        self.assertEqual(Undefined, self.result.outputs.fc_fd_corr_values_clean)

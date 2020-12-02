@@ -467,8 +467,6 @@ class BIDSDataSinkInputSpec(BaseInterfaceInputSpec):
         desc="Optional base entities that will overwrite values from incoming file"
     )
     in_file = File(
-        exists=True,
-        mandatory=True,
         desc="File from tmp to save in BIDS directory")
 
 
@@ -489,6 +487,8 @@ class BIDSDataSink(IOBase):
     _always_run = True
 
     def _list_outputs(self):
+        if self.inputs.in_file == Undefined:
+            return {'out_file': Undefined}
         entities = parse_file_entities_with_pipelines(self.inputs.in_file)
         entities.update(self.inputs.base_entities)
         os.makedirs(build_path(entities, self.output_dir_pattern), exist_ok=True)
