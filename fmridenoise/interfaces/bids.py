@@ -7,7 +7,7 @@ from nipype.interfaces.base import (BaseInterfaceInputSpec, SimpleInterface,
     Directory, Str, ImageFile,
     OutputMultiPath)
 from traits.trait_base import Undefined
-from traits.trait_types import Dict, List, Either, File
+from traits.trait_types import Dict, List, Either, File, Int
 from fmridenoise.pipelines import load_pipeline_from_json, is_IcaAROMA
 import json
 import os
@@ -59,7 +59,7 @@ class BIDSGrabInputSpec(BaseInterfaceInputSpec):
     subject = Str()
     task = Str()
     session = Str()
-    run = Str()
+    run = Int()
 
 
 class BIDSGrabOutputSpec(TraitedSpec):
@@ -142,14 +142,14 @@ class BIDSValidateInputSpec(BaseInterfaceInputSpec):
     derivatives = traits.List(desc='Specifies name of derivatives directory')
 
     # Separate queries from user
-    tasks = traits.List(Str, desc='Names of tasks to denoise')
-    sessions = traits.List(Str, desc='Labels of sessions to denoise')
-    subjects = traits.List(Str, desc='Labels of subjects to denoise')
-    runs = traits.List(str, desc='Labels of runs to denoise')
+    tasks = traits.List(Str(), desc='Names of tasks to denoise')
+    sessions = traits.List(Str(), desc='Labels of sessions to denoise')
+    subjects = traits.List(Str(), desc='Labels of subjects to denoise')
+    runs = traits.List(Int(), desc='Labels of runs to denoise')
 
     # Pipelines from user or default
     pipelines = traits.List(
-        File,
+        File(),
         desc='List of paths to selected pipelines'
     )
 
@@ -164,7 +164,7 @@ class BIDSValidateOutputSpec(TraitedSpec):
     tasks = traits.List(Str)
     sessions = traits.List(Str)
     subjects = traits.List(Str)
-    runs = traits.List(Str)
+    runs = traits.List(trait=Int())
 
     # Outputs pipelines loaded as dicts
     pipelines = traits.List(Dict)

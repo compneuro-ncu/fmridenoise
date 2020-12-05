@@ -92,8 +92,8 @@ class QualityMeasuresAsNodeTestCase(QualityMeasuresAsNodeTestBase, ut.TestCase):
         self.assertFalse(second['all'])
 
     def test_excluded_output(self) -> None:
-        self.assertEqual(1, len(self.result.outputs.exclude_list))
-        self.assertEqual(['m04'], self.result.outputs.exclude_list)
+        self.assertEqual(1, len(self.result.outputs.exclude_list['excluded']))
+        self.assertEqual(['m04'], self.result.outputs.exclude_list['excluded'])
 
     def test_edges_weight(self):
         edges_weight: dict = self.result.outputs.edges_weight

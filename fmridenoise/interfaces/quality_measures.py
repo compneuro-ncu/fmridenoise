@@ -9,7 +9,7 @@ from os.path import join
 import warnings
 
 from traits.trait_base import Undefined, _Undefined
-from traits.trait_types import List
+from traits.trait_types import List, Int, Instance
 
 from fmridenoise.utils.entities import build_path, parse_file_entities_with_pipelines, assert_all_entities_equal
 from fmridenoise.utils.plotting import (make_motion_plot, make_kdeplot,
@@ -81,6 +81,7 @@ class QualityMeasuresOutputSpec(TraitedSpec):
     )
 
     warnings = List(
+        trait=Instance(ErrorData),
         value=[],
         desc="List with errors.")
 
@@ -365,7 +366,7 @@ class PipelinesQualityMeasuresInputSpec(BaseInterfaceInputSpec):
 
     task = Str(mandatory=True)
     session = Str(mandatory=False)
-    run = Str(mandatory=False)
+    run = Int(mandatory=False)
 
     output_dir = File(
         desc="Output path")

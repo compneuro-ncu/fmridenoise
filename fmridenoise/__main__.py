@@ -168,7 +168,7 @@ def compare(args: argparse.Namespace) -> None:
                                    subject=list(map(str, args.subjects)),
                                    session=list(map(str, args.sessions)),
                                    task=list(map(str, args.tasks)),
-                                   runs=list(map(str, args.runs)),
+                                   runs=list(map(int, args.runs)),
                                    pipelines_paths=pipelines,
                                    high_pass=args.high_pass,
                                    low_pass=args.low_pass)

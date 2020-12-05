@@ -139,13 +139,14 @@ class WorkflowBuilder:
             ),
             name="QualityMeasures")
         # Outputs: fc_fd_summary, edges_weight, edges_weight_clean
-        self.quality_measures_join = create_identity_join_node(
+        self.quality_measures_join = create_flatten_identity_join_node(
             name='JoinQualityMeasuresOverPipeline',
             joinsource=self.pipelineselector,
             fields=[
                 'warnings',
                 'corr_matrix_plot',
-                'corr_matrix_no_high_motion_plot']
+                'corr_matrix_no_high_motion_plot'],
+            flatten_fields=['warnings']
         )
         # 10) --- Quality measures across pipelines
 
@@ -420,7 +421,7 @@ def init_fmridenoise_wf(bids_dir,
                         task: t.List[str],
                         session: t.List[str],
                         subject: t.List[str],
-                        runs: t.List[str],
+                        runs: t.List[int],
                         pipelines_paths: t.Set[str],
                         high_pass=0.008,
                         low_pass=0.08,
