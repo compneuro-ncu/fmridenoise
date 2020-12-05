@@ -298,7 +298,7 @@ class BidsValidateOnRunsTestCase(BidsValidateBasicPropertiesOnCompleteDataTestCa
     tasks = ['rest']
     sessions = ['LSD', 'PLCB']
     subjects = ['001', '002', '003', '004', '006']
-    runs = ['1', '2', '3']
+    runs = [1, 2, 3]
     pipelines = noAromaPipelinePaths
     pipelinesDicts = list(map(pipe.load_pipeline_from_json, pipelines))
     bids_dir = dummyRuns

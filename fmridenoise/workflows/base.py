@@ -87,7 +87,7 @@ class WorkflowBuilder:
                 tr_dict=tr_dic,
                 output_dir=temps.mkdtemp('denoise')),
             name="Denoiser",
-            mem_gb=8)
+            mem_gb=12)
         # Outputs: fmri_denoised
 
         # 5) --- Connectivity estimation
@@ -139,12 +139,14 @@ class WorkflowBuilder:
             ),
             name="QualityMeasures")
         # Outputs: fc_fd_summary, edges_weight, edges_weight_clean
-        self.quality_measures_join = create_identity_join_node(
+        self.quality_measures_join = create_flatten_identity_join_node(
             name='JoinQualityMeasuresOverPipeline',
             joinsource=self.pipelineselector,
             fields=[
+                'warnings',
                 'corr_matrix_plot',
-                'corr_matrix_no_high_motion_plot']
+                'corr_matrix_no_high_motion_plot'],
+            flatten_fields=['warnings']
         )
         # 10) --- Quality measures across pipelines
 
@@ -168,6 +170,7 @@ class WorkflowBuilder:
             name="JoinPipelinesQualityMeasuresOverTasks",
             joinsource=self.taskselector,
             fields=[
+                'warnings',
                 'plot_pipelines_edges_density',
                 'plot_pipelines_edges_density_no_high_motion',
                 'plot_pipelines_fc_fd_pearson',
@@ -179,6 +182,7 @@ class WorkflowBuilder:
                 'corr_matrix_plot',
                 'corr_matrix_no_high_motion_plot'],
             flatten_fields=[
+                'warnings',
                 'corr_matrix_plot',
                 'corr_matrix_no_high_motion_plot'
             ]
@@ -260,9 +264,10 @@ class WorkflowBuilder:
             (self.group_connectivity, self.quality_measures, [('group_corr_mat', 'group_corr_mat')]),
             (self.group_conf_summary, self.quality_measures, [('group_conf_summary', 'group_conf_summary')]),
             # quality measure join over pipelines
-            (self.quality_measures, self.quality_measures_join,
-             [('corr_matrix_plot', 'corr_matrix_plot'),
-              ('corr_matrix_no_high_motion_plot', 'corr_matrix_no_high_motion_plot')]),
+            (self.quality_measures, self.quality_measures_join, [
+                ('warnings', 'warnings'),
+                ('corr_matrix_plot', 'corr_matrix_plot'),
+                ('corr_matrix_no_high_motion_plot', 'corr_matrix_no_high_motion_plot')]),
             # pipeline quality measures
             (self.quality_measures, self.pipelines_quality_measures, [
                 ('fc_fd_summary', 'fc_fd_summary'),
@@ -284,11 +289,12 @@ class WorkflowBuilder:
                 ('plot_pipelines_distance_dependence', 'plot_pipelines_distance_dependence'),
                 ('plot_pipelines_distance_dependence_no_high_motion',
                  'plot_pipelines_distance_dependence_no_high_motion'),
-                ('plot_pipelines_tdof_loss', 'plot_pipelines_tdof_loss')
+                ('plot_pipelines_tdof_loss', 'plot_pipelines_tdof_loss'),
             ]),
-            (self.quality_measures_join, self.pipeline_quality_measures_join_tasks,
-             [('corr_matrix_plot', 'corr_matrix_plot'),
-              ('corr_matrix_no_high_motion_plot', 'corr_matrix_no_high_motion_plot')]),
+            (self.quality_measures_join, self.pipeline_quality_measures_join_tasks, [
+                ('warnings', 'warnings'),
+                ('corr_matrix_plot', 'corr_matrix_plot'),
+                ('corr_matrix_no_high_motion_plot', 'corr_matrix_no_high_motion_plot')]),
             # report creator
             (self.pipelines_join, self.report_creator, [('pipelines', 'pipelines')]),
             # all datasinks
@@ -341,7 +347,8 @@ class WorkflowBuilder:
             Smooth(
                 output_directory=temps.mkdtemp('smoothing'),
                 is_file_mandatory=False),
-            name="Smoother")
+            name="Smoother",
+            mem_gb=12)
         self.connections += [
             (self.bidsgrabber, self.smooth_signal, [('fmri_prep', 'fmri_prep')]),
             (self.smooth_signal, self.denoise, [('fmri_smoothed', 'fmri_prep')])]
@@ -403,7 +410,8 @@ class WorkflowBuilder:
                'plots_all_pipelines_distance_dependence_no_high_motion'),
               ('plot_pipelines_tdof_loss', 'plots_all_pipelines_tdof_loss'),
               ('corr_matrix_plot', 'plots_pipeline_fc_fd_pearson_matrix'),
-              ('corr_matrix_no_high_motion_plot', 'plots_pipeline_fc_fd_pearson_matrix_no_high_motion')]))
+              ('corr_matrix_no_high_motion_plot', 'plots_pipeline_fc_fd_pearson_matrix_no_high_motion'),
+              ('warnings', 'warnings')]))
         wf.connect(self.connections)
         return wf
 
@@ -413,7 +421,7 @@ def init_fmridenoise_wf(bids_dir,
                         task: t.List[str],
                         session: t.List[str],
                         subject: t.List[str],
-                        runs: t.List[str],
+                        runs: t.List[int],
                         pipelines_paths: t.Set[str],
                         high_pass=0.008,
                         low_pass=0.08,
