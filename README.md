@@ -1,7 +1,7 @@
 # fMRIDenoise - automated denoising, denoising strategies comparison, and functional connectivity data quality control.
 
 [<img src="https://zenodo.org/badge/181017876.svg">](https://zenodo.org/record/3243178)
-[<img src="https://travis-ci.org/nbraingroup/fmridenoise.svg?branch=master">](https://travis-ci.org/nbraingroup/fmridenoise)
+[<img src="https://travis-ci.org/compneuro-ncu/fmridenoise.svg?branch=master">](https://travis-ci.org/github/compneuro-ncu/fmridenoise)
    
 Tool for automatic denoising, denoising strategies comparisons,
 and functional connectivity data quality control.
