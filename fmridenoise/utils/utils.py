@@ -1,7 +1,5 @@
 import copy
 from os.path import join
-
-
 from nipype import Node, JoinNode, IdentityInterface
 import typing as t
 import os
