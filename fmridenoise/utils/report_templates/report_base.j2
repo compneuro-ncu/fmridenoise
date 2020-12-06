@@ -117,7 +117,7 @@
             
                 {# Excluded subjects section #}
                 <section id="{{ entity['entity_id'] }}-excluded">
-                    <h3>Excluded subjects</h3>
+                    <h4>Excluded subjects</h4>
                     {% if entity['excluded_subjects']|length > 0 %}
                         <div class="alert alert-warning" role="alert">
                             {{ entity['excluded_subjects'] }}
@@ -131,7 +131,7 @@
                 {# Warnings #}
                 {% if entity['warnings']|length > 0 %}
                 <section id="{{ entity['entity_id'] }}-warnings">
-                    <h3>Warnings</h3>
+                    <h4>Warnings</h4>
                     <div class="alert alert-warning" role="alert">
                         {% for warning in entity['warnings'] %}
                             {{ warning }}<br>
@@ -142,7 +142,7 @@
                 {# Errors #}
                 {% if entity['errors']|length > 0 %}
                 <section id="{{ entity['entity_id'] }}-errors">
-                    <h3>Errors</h3>
+                    <h4>Errors</h4>
                     <div class="alert alert-danger" role="alert">
                          {% for error in entity['errors'] %}
                             {{ error }}<br>
