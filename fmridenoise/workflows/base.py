@@ -1,3 +1,9 @@
+import sys
+import logging
+import os
+import typing as t
+from functools import reduce
+
 from nipype import Node, IdentityInterface, Workflow, JoinNode
 from fmridenoise.interfaces.smoothing import Smooth
 from fmridenoise.interfaces.bids import BIDSGrab, BIDSDataSink, BIDSValidate
@@ -8,12 +14,12 @@ from fmridenoise.interfaces.pipeline_selector import PipelineSelector
 from fmridenoise.interfaces.quality_measures import QualityMeasures, PipelinesQualityMeasures
 from fmridenoise.interfaces.report_creator import ReportCreator
 import fmridenoise.utils.temps as temps
-from fmridenoise.utils.utils import create_identity_join_node, create_flatten_identity_join_node
+from fmridenoise.utils.runtime_info import RuntimeInfo
+from fmridenoise.utils.utils import create_flatten_identity_join_node
 from fmridenoise.parcellation import get_distance_matrix_file_path
-from fmridenoise.pipelines import get_pipelines_paths
-import logging
-import os
-import typing as t
+
+
+from fmridenoise._version import get_versions
 
 logger = logging.getLogger("runtime")
 handler = logging.FileHandler("./runtime.log")
@@ -193,6 +199,10 @@ class WorkflowBuilder:
         os.makedirs(report_dir, exist_ok=True)
         self.report_creator = Node(
             ReportCreator(
+                runtime_info=RuntimeInfo(
+                    input_args=str(reduce(lambda x,y: f"{x} {y}", sys.argv)),
+                    version=get_versions().get('version')
+                ),
                 output_dir=report_dir
             ),
             name='ReportCreator')

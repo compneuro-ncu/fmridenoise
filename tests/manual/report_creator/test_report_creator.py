@@ -1,9 +1,13 @@
 import os
 import pathlib
+import sys
+from functools import reduce
 
+from fmridenoise._version import get_versions
 from fmridenoise.interfaces.report_creator import ReportCreator
 from fmridenoise.pipelines import load_pipeline_from_json, get_pipeline_path
 from fmridenoise.utils.error_data import ErrorData
+from fmridenoise.utils.runtime_info import RuntimeInfo
 
 from .utils import create_dummy_plots
 
@@ -63,6 +67,10 @@ if __name__ == '__main__':
     )
     # Create & run interface
     interface = ReportCreator(
+        runtime_info=RuntimeInfo(
+            input_args=str(reduce(lambda x, y: f"{x} {y}", sys.argv)),
+            version=get_versions().get('version')
+        ),
         pipelines=pipelines,
         tasks=['rest', 'tapping'],
         sessions=['1', '2'],

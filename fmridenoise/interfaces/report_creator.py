@@ -1,13 +1,14 @@
 import os
 from pathlib import Path
 from shutil import copyfile
+from frozendict import frozendict
+from itertools import chain
+from traits.trait_types import Dict, Directory, File, List, Str, Int, Instance
 from fmridenoise.utils.entities import parse_file_entities_with_pipelines, build_path, is_entity_subset
 from fmridenoise.utils.error_data import ErrorData
 from fmridenoise.utils.report_creator import create_report
 from nipype.interfaces.base import BaseInterfaceInputSpec, SimpleInterface
-from traits.trait_types import Dict, Directory, File, List, Str, Int, Instance
-from frozendict import frozendict
-from itertools import chain
+from fmridenoise.utils.runtime_info import RuntimeInfo
 
 
 class ReportCreatorInputSpec(BaseInterfaceInputSpec):
@@ -19,7 +20,7 @@ class ReportCreatorInputSpec(BaseInterfaceInputSpec):
     output_dir = Directory(exists=True)
     sessions = List(Str(), mandatory=False)
     runs = List(Int(), mandatory=False)
-
+    runtime_info = Instance(RuntimeInfo, mandatory=True)
     excluded_subjects = List(
         trait=Dict(
             desc="Dictionary with all relevant entities key-value pairs and field 'excluded'"
@@ -168,7 +169,8 @@ class ReportCreator(SimpleInterface):
 
         # Create report
         create_report(
-            report_data,
+            runtime_info=self.inputs.runtime_info,
+            report_data=report_data,
             output_dir=self.inputs.output_dir,
             report_name='fMRIdenoise_report.html'
         )

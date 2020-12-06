@@ -18,17 +18,33 @@
 </head>
 
 <body>
-{# Entity tabs navigation #}
+{# Navigation #}
 <ul class="nav nav-tabs container-fluid pt-2 ml-2 bg-white" role="tablist">
+    {# Runtime info #}
+    <li class="nav-item" role="presentation">
+    <a class="nav-link active" id="fmridenoise-tab" data-toggle="tab" href="#fmridenoise" role="tab"
+            aria-controls="fmridenoise" aria-selected="true">Runtime information</a>
+    </li>
+    {# Entity tabs navigation #}
     {% for entity in report_data %}
         <li class="nav-item" role="presentation">
         <a class="nav-link" id="{{ entity['entity_id'] }}-tab" data-toggle="tab" href="#{{ entity['entity_id'] }}" role="tab"
             aria-controls="{{ entity['entity_id'] }}" aria-selected="false">{{ entity['entity_name'] }}</a>
         </li>
     {% endfor %}
-</ul>
-{# Entity tabs content #}
+</ul>   
+{# Tabs content#}
 <div class="tab-content">
+    <div class="tab-pane active" id="fmridenoise" role="tabpanel" aria-labelledby="fmridenoise-tab">
+        <div class="report-content container-fluid">
+            <h3>Runtime information</h3>
+            <h4>Input args</h4>
+            <kbd>{{ runtime_info.input_args }}</kbd>
+            <h4>Fmridenoise version</h4>
+            <p>{{ runtime_info.version }}</p>
+        </div>
+    </div>
+    {# Entity tabs content #}
     {% for entity in report_data %}
 
         {# Entity tab  #}
