@@ -532,6 +532,7 @@ class PipelinesQualityMeasures(SimpleInterface):
         path = join(self.inputs.output_dir, build_path({**entities_dict, 'desc': 'fcFdPearson'},
                                                        self.plot_pattern, strict=False))
         self.plot_fc_fd_pearson = make_catplot(x="median_pearson_fc_fd",
+                                               y='pipeline',
                                                data=self.pipelines_fc_fd_summary[
                                                    self.pipelines_fc_fd_summary['all'] == True],
                                                xlabel="Median QC-FC (Pearson's r)",
@@ -540,18 +541,21 @@ class PipelinesQualityMeasures(SimpleInterface):
                                                        self.plot_pattern, strict=False))
         self.plot_fc_fd_pearson_no_high_motion = make_catplot(
             x="median_pearson_fc_fd",
+            y='pipeline',
             data=self.pipelines_fc_fd_summary[self.pipelines_fc_fd_summary['all'] == False],
             xlabel="Median QC-FC (Pearson's r) (no high motion)",
             output_path=path)
         path = join(self.inputs.output_dir, build_path({**entities_dict, 'desc': 'percFcFdUncorr'},
                                                        self.plot_pattern, strict=False))
         self.perc_plot_fc_fd_uncorr = make_catplot(x="perc_fc_fd_uncorr",
+                                                   y='pipeline',
                                                    data=self.pipelines_fc_fd_summary,
                                                    xlabel="QC-FC uncorrected (%)",
                                                    output_path=path)
         path = join(self.inputs.output_dir, build_path({**entities_dict, 'desc': 'distanceDependence'},
                                                        self.plot_pattern, strict=False))
         self.plot_distance_dependence = make_catplot(x="distance_dependence",
+                                                     y='pipeline',
                                                      data=self.pipelines_fc_fd_summary[
                                                          self.pipelines_fc_fd_summary['all'] == True],
                                                      xlabel="Distance-dependence",
@@ -560,12 +564,14 @@ class PipelinesQualityMeasures(SimpleInterface):
                                                        self.plot_pattern, strict=False))
         self.plot_distance_dependence_no_high_motion = make_catplot(
             x="distance_dependence",
+            y='pipeline',
             data=self.pipelines_fc_fd_summary[self.pipelines_fc_fd_summary['all'] == False],
             xlabel="Distance-dependence (no high motion)",
             output_path=path)
         path = join(self.inputs.output_dir, build_path({**entities_dict, 'desc': 'tdofLoss'},
                                                        self.plot_pattern, strict=False))
         self.plot_tdof_loss = make_catplot(x="tdof_loss",
+                                           y='pipeline',
                                            data=self.pipelines_fc_fd_summary,
                                            xlabel="fDOF-loss",
                                            output_path=path)

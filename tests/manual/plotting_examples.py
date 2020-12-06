@@ -143,6 +143,7 @@ if __name__ == '__main__':
     )
     make_catplot(
         x="perc_fc_fd_uncorr",
+        y='pipeline',
         data=fc_fd_summary,
         xlabel="x data",
         output_path=PLOTS_PATH.joinpath("catplot.png"),
