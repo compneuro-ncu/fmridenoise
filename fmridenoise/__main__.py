@@ -12,7 +12,7 @@ from fmridenoise.pipelines import (get_pipelines_paths,
                                    get_pipelines_names,
                                    get_pipeline_path,
                                    load_pipeline_from_json)
-
+from fmridenoise._version import get_versions
 HIGH_PASS_DEFAULT = 0.008
 LOW_PASS_DEFAULT = 0.08
 
@@ -24,6 +24,8 @@ def get_parser() -> argparse.ArgumentParser:
     """
 
     parser = argparse.ArgumentParser(prog='fmridenoise')
+    # basic commands
+    parser.add_argument('--version', action="store_true")
     subparsers = parser.add_subparsers(help='commands')
     # quality measures parser
     quality_measures_parser = subparsers.add_parser(name='compare',
@@ -206,6 +208,9 @@ def dummy(args):
 def main() -> int:
     parser = get_parser()
     args = parser.parse_args()
+    if args.version:
+        print(get_versions().get('version'))
+        return 0
     if not hasattr(args, 'which'):
         parser.print_help()
         return 1
