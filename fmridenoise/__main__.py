@@ -1,6 +1,7 @@
 import argparse
 import logging
 import os
+import bids
 from os.path import dirname, join, exists, isfile, abspath
 from nipype import config
 
@@ -15,6 +16,8 @@ from fmridenoise.pipelines import (get_pipelines_paths,
 from fmridenoise._version import get_versions
 HIGH_PASS_DEFAULT = 0.008
 LOW_PASS_DEFAULT = 0.08
+
+bids.config.set_option('extension_initial_dot', True)
 
 
 def get_parser() -> argparse.ArgumentParser:

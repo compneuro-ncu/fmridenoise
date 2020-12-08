@@ -276,7 +276,7 @@ class BIDSValidate(SimpleInterface):
             Args:
 
             Returns:
-                (missing: bool, dict)
+                (missing: Union[bool, dict], Union[None, dict])
 
             """
             filter_fmri = {
@@ -316,7 +316,7 @@ class BIDSValidate(SimpleInterface):
             for filter, filter_name in zip(filters, filters_names):
                 files = layout.get(**entity, **filter)
                 if len(files) != 1:
-                    return True, None
+                    return filter, None
                 entity_files[filter_name] = files[0]
 
             return False, entity_files
@@ -340,8 +340,9 @@ class BIDSValidate(SimpleInterface):
                 entities_files.append(entity_files)
 
                 if missing:
+                    miss = {**entity, **missing}
                     raise MissingFile(
-                        f'missing file(s) for {entity} (check if you are using AROMA pipelines)')
+                        f'missing file(s) for {miss} (check if you are using AROMA pipelines)')
         else:
             # Log missing files and exclude subjects for missing files
             for entity in entities:

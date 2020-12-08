@@ -9,12 +9,13 @@ from os.path import join
 import warnings
 
 from traits.trait_base import Undefined, _Undefined
-from traits.trait_types import List, Int, Instance
+from traits.trait_types import List, Int, Instance, Dict, Union
 
 from fmridenoise.utils.entities import build_path, parse_file_entities_with_pipelines, assert_all_entities_equal
 from fmridenoise.utils.plotting import (make_motion_plot, make_kdeplot,
                                         make_catplot, make_violinplot, make_corr_matrix_plot)
 from fmridenoise.utils.error_data import ErrorData
+from fmridenoise.utils.traits import Optional
 
 
 class QualityMeasuresInputSpec(BaseInterfaceInputSpec):
@@ -344,23 +345,26 @@ class PipelinesQualityMeasuresInputSpec(BaseInterfaceInputSpec):
         desc="Pearson r values for correlation for each pipeline"
     )
     fc_fd_corr_values_clean = traits.List(
-        traits.Dict(
-            exists=True,
-            desc='Pearson r values for correlation '
-                 'between FD and FC calculated for each edge'
-                 'after removing subjects with high motion'),
+        Optional(
+            Dict(
+                exists=True,
+                desc='Pearson r values for correlation '
+                     'between FD and FC calculated for each edge'
+                     'after removing subjects with high motion')),
         desc="Pearson r values for correlation for each pipeline (no high motion)"
     )
     edges_weight = traits.List(
-        traits.Dict(
+        Dict(
             mandatory=True,
             desc="Weights of individual edges"),
         desc="Mean weights of individual edges for each pipeline"
     )
 
     edges_weight_clean = traits.List(
-        traits.Dict(
-            desc="Mean weights of individual edges (no high motion)"),
+        Optional(
+            Dict(
+                desc="Mean weights of individual edges (no high motion)"),
+        ),
         desc="Mean weights of individual edges for each pipeline (no high motion)"
     )
 
@@ -477,7 +481,7 @@ class PipelinesQualityMeasures(SimpleInterface):
                                                 pd.DataFrame(edges,
                                                              columns=[pipeline_name])],
                                                axis=1)
-            if edges_clean != Undefined:
+            if edges_clean is not Undefined:
                 pipelines_edges_weight_clean = pd.concat([pipelines_edges_weight_clean,
                                                           pd.DataFrame(edges_clean,
                                                                        columns=[pipeline_name])],

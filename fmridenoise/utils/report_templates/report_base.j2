@@ -34,12 +34,15 @@
     {% endfor %}
 </ul>   
 {# Tabs content#}
+{# Runtime info tab content#}
 <div class="tab-content">
     <div class="tab-pane active" id="fmridenoise" role="tabpanel" aria-labelledby="fmridenoise-tab">
         <div class="report-content container-fluid">
             <h3>Runtime information</h3>
             <h4>Input args</h4>
-            <kbd>{{ runtime_info.input_args }}</kbd>
+            <div class="bg-light p-3">
+                <code>{{ runtime_info.input_args }}</code>
+            </div>
             <h4>Fmridenoise version</h4>
             <p>{{ runtime_info.version }}</p>
         </div>
