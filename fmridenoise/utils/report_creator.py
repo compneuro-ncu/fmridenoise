@@ -2,7 +2,7 @@ import jinja2
 import os
 
 
-def create_report(report_data, output_dir, report_name='report.html'):
+def create_report(runtime_info, report_data, output_dir, report_name='report.html'):
 
     env = jinja2.Environment(
         loader=jinja2.FileSystemLoader(
@@ -18,6 +18,7 @@ def create_report(report_data, output_dir, report_name='report.html'):
         return pipeline_table.render(pipeline=pipeline)
 
     report_html = report_base.render(
+        runtime_info=runtime_info,
         report_style=report_style.render(),
         svg_definitions=svg_definitions.render(),
         report_data=report_data,

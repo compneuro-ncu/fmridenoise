@@ -1,3 +1,9 @@
+import sys
+import logging
+import os
+import typing as t
+from functools import reduce
+
 from nipype import Node, IdentityInterface, Workflow, JoinNode
 from fmridenoise.interfaces.smoothing import Smooth
 from fmridenoise.interfaces.bids import BIDSGrab, BIDSDataSink, BIDSValidate
@@ -8,12 +14,12 @@ from fmridenoise.interfaces.pipeline_selector import PipelineSelector
 from fmridenoise.interfaces.quality_measures import QualityMeasures, PipelinesQualityMeasures
 from fmridenoise.interfaces.report_creator import ReportCreator
 import fmridenoise.utils.temps as temps
-from fmridenoise.utils.utils import create_identity_join_node, create_flatten_identity_join_node
+from fmridenoise.utils.dataclasses.runtime_info import RuntimeInfo
+from fmridenoise.utils.utils import create_flatten_identity_join_node
 from fmridenoise.parcellation import get_distance_matrix_file_path
-from fmridenoise.pipelines import get_pipelines_paths
-import logging
-import os
-import typing as t
+
+
+from fmridenoise._version import get_versions
 
 logger = logging.getLogger("runtime")
 handler = logging.FileHandler("./runtime.log")
@@ -143,6 +149,7 @@ class WorkflowBuilder:
             name='JoinQualityMeasuresOverPipeline',
             joinsource=self.pipelineselector,
             fields=[
+                'excluded_subjects',
                 'warnings',
                 'corr_matrix_plot',
                 'corr_matrix_no_high_motion_plot'],
@@ -171,6 +178,7 @@ class WorkflowBuilder:
             joinsource=self.taskselector,
             fields=[
                 'warnings',
+                'excluded_subjects',
                 'plot_pipelines_edges_density',
                 'plot_pipelines_edges_density_no_high_motion',
                 'plot_pipelines_fc_fd_pearson',
@@ -183,6 +191,7 @@ class WorkflowBuilder:
                 'corr_matrix_no_high_motion_plot'],
             flatten_fields=[
                 'warnings',
+                'excluded_subjects',
                 'corr_matrix_plot',
                 'corr_matrix_no_high_motion_plot'
             ]
@@ -193,6 +202,10 @@ class WorkflowBuilder:
         os.makedirs(report_dir, exist_ok=True)
         self.report_creator = Node(
             ReportCreator(
+                runtime_info=RuntimeInfo(
+                    input_args=str(reduce(lambda x,y: f"{x} {y}", sys.argv)),
+                    version=get_versions().get('version')
+                ),
                 output_dir=report_dir
             ),
             name='ReportCreator')
@@ -265,6 +278,7 @@ class WorkflowBuilder:
             (self.group_conf_summary, self.quality_measures, [('group_conf_summary', 'group_conf_summary')]),
             # quality measure join over pipelines
             (self.quality_measures, self.quality_measures_join, [
+                ('excluded_subjects', 'excluded_subjects'),
                 ('warnings', 'warnings'),
                 ('corr_matrix_plot', 'corr_matrix_plot'),
                 ('corr_matrix_no_high_motion_plot', 'corr_matrix_no_high_motion_plot')]),
@@ -292,6 +306,7 @@ class WorkflowBuilder:
                 ('plot_pipelines_tdof_loss', 'plot_pipelines_tdof_loss'),
             ]),
             (self.quality_measures_join, self.pipeline_quality_measures_join_tasks, [
+                ('excluded_subjects', 'excluded_subjects'),
                 ('warnings', 'warnings'),
                 ('corr_matrix_plot', 'corr_matrix_plot'),
                 ('corr_matrix_no_high_motion_plot', 'corr_matrix_no_high_motion_plot')]),
@@ -411,6 +426,7 @@ class WorkflowBuilder:
               ('plot_pipelines_tdof_loss', 'plots_all_pipelines_tdof_loss'),
               ('corr_matrix_plot', 'plots_pipeline_fc_fd_pearson_matrix'),
               ('corr_matrix_no_high_motion_plot', 'plots_pipeline_fc_fd_pearson_matrix_no_high_motion'),
+              ('excluded_subjects', 'excluded_subjects'),
               ('warnings', 'warnings')]))
         wf.connect(self.connections)
         return wf

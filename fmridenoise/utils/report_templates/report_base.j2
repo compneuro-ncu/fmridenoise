@@ -18,17 +18,36 @@
 </head>
 
 <body>
-{# Entity tabs navigation #}
+{# Navigation #}
 <ul class="nav nav-tabs container-fluid pt-2 ml-2 bg-white" role="tablist">
+    {# Runtime info #}
+    <li class="nav-item" role="presentation">
+    <a class="nav-link active" id="fmridenoise-tab" data-toggle="tab" href="#fmridenoise" role="tab"
+            aria-controls="fmridenoise" aria-selected="true">Runtime information</a>
+    </li>
+    {# Entity tabs navigation #}
     {% for entity in report_data %}
         <li class="nav-item" role="presentation">
         <a class="nav-link" id="{{ entity['entity_id'] }}-tab" data-toggle="tab" href="#{{ entity['entity_id'] }}" role="tab"
             aria-controls="{{ entity['entity_id'] }}" aria-selected="false">{{ entity['entity_name'] }}</a>
         </li>
     {% endfor %}
-</ul>
-{# Entity tabs content #}
+</ul>   
+{# Tabs content#}
+{# Runtime info tab content#}
 <div class="tab-content">
+    <div class="tab-pane active" id="fmridenoise" role="tabpanel" aria-labelledby="fmridenoise-tab">
+        <div class="report-content container-fluid">
+            <h3>Runtime information</h3>
+            <h4>Input args</h4>
+            <div class="bg-light p-3">
+                <code>{{ runtime_info.input_args }}</code>
+            </div>
+            <h4>Fmridenoise version</h4>
+            <p>{{ runtime_info.version }}</p>
+        </div>
+    </div>
+    {# Entity tabs content #}
     {% for entity in report_data %}
 
         {# Entity tab  #}
@@ -101,7 +120,7 @@
             
                 {# Excluded subjects section #}
                 <section id="{{ entity['entity_id'] }}-excluded">
-                    <h3>Excluded subjects</h3>
+                    <h4>Excluded subjects</h4>
                     {% if entity['excluded_subjects']|length > 0 %}
                         <div class="alert alert-warning" role="alert">
                             {{ entity['excluded_subjects'] }}
@@ -115,7 +134,7 @@
                 {# Warnings #}
                 {% if entity['warnings']|length > 0 %}
                 <section id="{{ entity['entity_id'] }}-warnings">
-                    <h3>Warnings</h3>
+                    <h4>Warnings</h4>
                     <div class="alert alert-warning" role="alert">
                         {% for warning in entity['warnings'] %}
                             {{ warning }}<br>
@@ -126,7 +145,7 @@
                 {# Errors #}
                 {% if entity['errors']|length > 0 %}
                 <section id="{{ entity['entity_id'] }}-errors">
-                    <h3>Errors</h3>
+                    <h4>Errors</h4>
                     <div class="alert alert-danger" role="alert">
                          {% for error in entity['errors'] %}
                             {{ error }}<br>

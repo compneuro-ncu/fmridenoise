@@ -1,13 +1,18 @@
 import os
 from pathlib import Path
 from shutil import copyfile
+from frozendict import frozendict
+from itertools import chain
+
+from traits.trait_types import Dict, Directory, File, List, Str, Int, Instance
+
+from fmridenoise.utils.dataclasses.excluded_subjects import ExcludedSubjects
 from fmridenoise.utils.entities import parse_file_entities_with_pipelines, build_path, is_entity_subset
 from fmridenoise.utils.error_data import ErrorData
 from fmridenoise.utils.report_creator import create_report
 from nipype.interfaces.base import BaseInterfaceInputSpec, SimpleInterface
-from traits.trait_types import Dict, Directory, File, List, Str, Int, Instance
-from frozendict import frozendict
-from itertools import chain
+from fmridenoise.utils.dataclasses.runtime_info import RuntimeInfo
+from fmridenoise.utils.traits import Optional, remove_undefined
 
 
 class ReportCreatorInputSpec(BaseInterfaceInputSpec):
@@ -15,16 +20,17 @@ class ReportCreatorInputSpec(BaseInterfaceInputSpec):
         Dict("Dictionary pipeline"),
         mandatory=True
     )
-    tasks = List(Str(), mandatory=True)
+    tasks = List(
+        Str(), mandatory=True)
     output_dir = Directory(exists=True)
-    sessions = List(Str(), mandatory=False)
-    runs = List(Int(), mandatory=False)
-
+    sessions = List(
+        Str(),
+        mandatory=False)
+    runs = List(
+        Int(), mandatory=False)
+    runtime_info = Instance(RuntimeInfo, mandatory=True)
     excluded_subjects = List(
-        trait=Dict(
-            desc="Dictionary with all relevant entities key-value pairs and field 'excluded'"
-                 "with value of list of strings for each excluded subject"
-        ),
+        trait=Instance(ExcludedSubjects),
         value=[],
         usedefault=True
     )
@@ -37,55 +43,74 @@ class ReportCreatorInputSpec(BaseInterfaceInputSpec):
     )
 
     # Aggregated over pipelines
-    plots_all_pipelines_edges_density = List(File(
-        exists=True,
-        desc="Density of edge weights (all pipelines) for all subjects"
-    ))
+    plots_all_pipelines_edges_density = List(
+        Optional(
+            File(
+                exists=True,
+                desc="Density of edge weights (all pipelines) for all subjects"
+            )))
 
-    plots_all_pipelines_edges_density_no_high_motion = List(File(
-        exists=True,
-        desc="Density of edge weights (all pipelines) without high motion subjects"
-    ))
+    plots_all_pipelines_edges_density_no_high_motion = List(
+        Optional(
+            File(
+                exists=True,
+                desc="Density of edge weights (all pipelines) without high motion subjects"
+            )))
 
-    plots_all_pipelines_fc_fd_pearson_info = List(File(
-        exists=True,
-        desc="Barplot and violinplot showing percent of significant fc-fd correlations and distribution of Pearson's r values for all subjects"
-    ))
+    plots_all_pipelines_fc_fd_pearson_info = List(
+        Optional(File(
+            exists=True,
+            desc="Barplot and violinplot showing percent of significant fc-fd correlations and distribution of Pearson's r values for all subjects"
+        )))
 
-    plots_all_pipelines_fc_fd_pearson_info_no_high_motion = List(File(
-        exists=True,
-        desc="Barplot and violinplot showing percent of significant fc-fd correlations and distribution of Pearson's r values without high motion subjects"
-    ))
+    plots_all_pipelines_fc_fd_pearson_info_no_high_motion = List(
+        Optional(
+            File(
+                exists=True,
+                desc="Barplot and violinplot showing percent of significant fc-fd correlations and distribution of Pearson's r values without high motion subjects"
+            )))
 
-    plots_all_pipelines_distance_dependence = List(File(
-        exists=True,
-        desc="Barplot showing mean Spearman's rho between fd-fc correlation and Euclidean distance between ROIs for all subject"
-    ))
+    plots_all_pipelines_distance_dependence = List(
+        Optional(
+            File(
+                exists=True,
+                desc="Barplot showing mean Spearman's rho between fd-fc correlation and Euclidean distance between ROIs for all subject"
+            )))
 
-    plots_all_pipelines_distance_dependence_no_high_motion = List(File(
-        exists=True,
-        desc="Barplot showing mean Spearman's rho between fd-fc correlation and Euclidean distance between ROIs without high motion subjects"
-    ))
+    plots_all_pipelines_distance_dependence_no_high_motion = List(
+        Optional(
+            File(
+                exists=True,
+                desc="Barplot showing mean Spearman's rho between fd-fc correlation and Euclidean distance between ROIs without high motion subjects"
+            )))
 
-    plots_all_pipelines_tdof_loss = List(File(
-        exists=True,
-        desc="Barplot showing degree of freedom loss (number of regressors included in each pipeline."
-    ))
+    plots_all_pipelines_tdof_loss = List(
+        Optional(
+            File(
+                exists=True,
+                desc="Barplot showing degree of freedom loss (number of regressors included in each pipeline."
+            )))
 
     # For single pipeline
-    plots_pipeline_fc_fd_pearson_matrix = List(File(
-        exists=True,
-        desc="Matrix showing correlation between connection strength and motion for all subjects"
-    ))
+    plots_pipeline_fc_fd_pearson_matrix = List(
+        Optional(
+            File(
+                exists=True,
+                desc="Matrix showing correlation between connection strength and motion for all subjects"
+            )))
 
-    plots_pipeline_fc_fd_pearson_matrix_no_high_motion = List(File(
-        exists=True,
-        desc="Matrix showing correlation between connection strength and motion without high motion subjects"
-    ))
+    plots_pipeline_fc_fd_pearson_matrix_no_high_motion = List(
+        Optional(
+            File(
+                exists=True,
+                desc="Matrix showing correlation between connection strength and motion without high motion subjects"
+            )))
 
 
 class ReportCreator(SimpleInterface):
     input_spec = ReportCreatorInputSpec
+
+    _always_run = True
 
     def _run_interface(self, runtime):
         # Find all distinct entities
@@ -94,11 +119,11 @@ class ReportCreator(SimpleInterface):
 
             if (plots_type.startswith('plots_all_pipelines')
                     and isinstance(plots_list, list)):
-                plots_all_pipelines[plots_type] = plots_list
+                plots_all_pipelines[plots_type] = list(remove_undefined(plots_list))
 
             if (plots_type.startswith('plots_pipeline')
                     and isinstance(plots_list, list)):
-                plots_pipeline[plots_type] = plots_list
+                plots_pipeline[plots_type] = list(remove_undefined(plots_list))
 
         unique_entities = set(
             map(lambda path: frozendict(filter(
@@ -116,14 +141,16 @@ class ReportCreator(SimpleInterface):
 
             entity_data = {'entity_name': build_path(entity, "[ses-{session}] task-{task} [run-{run}]"),
                            'entity_id': build_path(entity, "[ses-{session}-]task-{task}[-run-{run}]"),
-                           'excluded_subjects': [],
+                           'excluded_subjects': set(),
                            'warnings': [],
                            'errors': [],
                            'pipeline': []}
             # Manage excluded subjects
             for excluded in self.inputs.excluded_subjects:
-                if is_entity_subset(excluded, entity):
-                    entity_data['excluded_subjects'] = excluded['excluded']
+                if is_entity_subset(excluded.entities, entity):
+                    entity_data['excluded_subjects'] |= excluded.excluded
+            entity_data['excluded_subjects'] = str(entity_data['excluded_subjects']).lstrip('{').rstrip(
+                        '}') if len(entity_data['excluded_subjects']) > 1 else []
             # Manage errors and warnings
             for error in self.inputs.warnings:
                 if is_entity_subset(error.entities, entity):
@@ -165,10 +192,12 @@ class ReportCreator(SimpleInterface):
 
             # append new entity data dict
             report_data.append(entity_data)
-
+        # sort report data
+        report_data.sort(key=lambda x: dict.get(x, "entity_name"))
         # Create report
         create_report(
-            report_data,
+            runtime_info=self.inputs.runtime_info,
+            report_data=report_data,
             output_dir=self.inputs.output_dir,
             report_name='fMRIdenoise_report.html'
         )

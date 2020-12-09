@@ -129,7 +129,7 @@ def make_kdeplot(data, output_path, title=None):
     fig, ax = plt.subplots(1, 1)
 
     for col in data:
-        sns.kdeplot(data[col], shade=True, ax=ax)
+        sns.kdeplot(data[col], shade=True, ax=ax, label=col)
 
     ax.axvline(x=0, linestyle='dashed', color='k')
     ax.set_title(title)
