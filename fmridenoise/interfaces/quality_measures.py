@@ -9,8 +9,9 @@ from os.path import join
 import warnings
 
 from traits.trait_base import Undefined, _Undefined
-from traits.trait_types import List, Int, Instance, Dict, Union
+from traits.trait_types import List, Int, Instance, Dict
 
+from fmridenoise.utils.dataclasses.excluded_subjects import ExcludedSubjects
 from fmridenoise.utils.entities import build_path, parse_file_entities_with_pipelines, assert_all_entities_equal
 from fmridenoise.utils.plotting import (make_motion_plot, make_kdeplot,
                                         make_catplot, make_violinplot, make_corr_matrix_plot)
@@ -62,8 +63,8 @@ class QualityMeasuresOutputSpec(TraitedSpec):
              'between FD and FC calculated for each edge'
              'after removing subjects with high motion')
 
-    exclude_list = traits.Dict(
-        exists=True,
+    excluded_subjects = Instance(
+        ExcludedSubjects,
         desc="Dictionary with all relevant entities information and list of subjects to exclude under excluded key")
 
     motion_plot = traits.File(
@@ -245,7 +246,7 @@ class QualityMeasures(SimpleInterface):
             group_conf_summary: pd.DataFrame,
             group_corr_mat: np.ndarray,
             distance_matrix: np.ndarray) -> \
-            t.Tuple[t.List[dict], np.ndarray, np.ndarray, np.ndarray, np.ndarray, t.List[str]]:
+            t.Tuple[t.List[dict], np.ndarray, np.ndarray, np.ndarray, np.ndarray, t.Set[str]]:
         quality_measures = []
         excluded_subjects_names = set()
         group_corr_vec = sym_matrix_to_vec(group_corr_mat)
@@ -266,7 +267,7 @@ class QualityMeasures(SimpleInterface):
             quality_measures.append(summary)
             excluded_subjects_names |= set(excluded_subjects)
         return quality_measures, edges_weight, edges_weight_clean, fc_fd_corr_vector, fc_fd_corr_vector_clean, \
-               list(excluded_subjects_names)
+            excluded_subjects_names
 
     def _run_interface(self, runtime):
         # noinspection PyUnreachableCode
@@ -320,7 +321,13 @@ class QualityMeasures(SimpleInterface):
         self._results['fc_fd_corr_values'] = {pipeline_name: group_corr_vec}
         if group_corr_vec_clean is not Undefined:
             self._results['fc_fd_corr_values_clean'] = {pipeline_name: group_corr_vec_clean}
-        self._results['exclude_list'] = {**base_entities, "excluded": exclude_list}
+        self._results['excluded_subjects'] = ExcludedSubjects(
+            pipeline_name=pipeline_name,
+            task=base_entities.get('task'),
+            session=base_entities.get('session'),
+            run=base_entities.get('run'),
+            excluded=exclude_list
+        )
         self._results['motion_plot'] = motion_plot_path
         self._results['corr_matrix_plot'] = corr_matrix_plot
         self._results['corr_matrix_no_high_motion_plot'] = corr_matrix_plot_no_high_motion

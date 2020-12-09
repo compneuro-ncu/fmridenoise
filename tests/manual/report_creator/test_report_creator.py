@@ -6,8 +6,9 @@ from functools import reduce
 from fmridenoise._version import get_versions
 from fmridenoise.interfaces.report_creator import ReportCreator
 from fmridenoise.pipelines import load_pipeline_from_json, get_pipeline_path
+from fmridenoise.utils.dataclasses.excluded_subjects import ExcludedSubjects
 from fmridenoise.utils.error_data import ErrorData
-from fmridenoise.utils.runtime_info import RuntimeInfo
+from fmridenoise.utils.dataclasses.runtime_info import RuntimeInfo
 
 from .utils import create_dummy_plots
 
@@ -49,8 +50,8 @@ if __name__ == '__main__':
             message="Warning message 1")
     ]
     excluded_subjects = [
-        {'task': 'rest', 'session': '1', 'run': 1, 'excluded': ['sub-1', 'sub-2', 'sub-3']},
-        {'task': 'rest', 'session': '1', 'run': 2, 'excluded': ['sub-1', 'sub-2', 'sub-3']},
+        ExcludedSubjects(pipeline_name='Null', task='rest', session='1', run=1, excluded={'sub-1', 'sub-2', 'sub-3'}),
+        ExcludedSubjects(pipeline_name='Null', task='rest', session='1', run=2, excluded={'sub-1', 'sub-2', 'sub-3'})
     ]
     pipelines = []
     for pipeline_name in pipelines_dict.values():

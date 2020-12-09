@@ -5,6 +5,7 @@ import bids
 from os.path import dirname, join, exists, isfile, abspath
 from nipype import config
 
+from fmridenoise.utils import temps
 from fmridenoise.utils.utils import copy_as_dummy_dataset, create_dataset_description_json_content
 from fmridenoise.workflows.base import init_fmridenoise_wf
 from fmridenoise.utils.profiling import profiler_callback
@@ -71,6 +72,10 @@ def get_parser() -> argparse.ArgumentParser:
                                          type=float,
                                          default=LOW_PASS_DEFAULT,
                                          help=f"Low pass filter value, default {LOW_PASS_DEFAULT}")
+    quality_measures_parser.add_argument("-w", "--workdir",
+                                         type=str,
+                                         default="/tmp/fmridenoise",
+                                         help="Temporary working directory. Default is '/tmp/fmridenoise")
     quality_measures_parser.add_argument("--MultiProc",
                                          help="Run script on multiple processors, default False",
                                          action="store_true",
@@ -167,6 +172,7 @@ def compare(args: argparse.Namespace) -> None:
     derivatives = list(map(lambda x: join(input_dir, 'derivatives', x), derivatives))
     # pipelines
     pipelines = parse_pipelines(args.pipelines)
+    temps.base_dir = args.workdir
     # creating workflow
     workflow = init_fmridenoise_wf(input_dir,
                                    derivatives=derivatives,
@@ -176,7 +182,8 @@ def compare(args: argparse.Namespace) -> None:
                                    runs=list(map(int, args.runs)),
                                    pipelines_paths=pipelines,
                                    high_pass=args.high_pass,
-                                   low_pass=args.low_pass)
+                                   low_pass=args.low_pass,
+                                   base_dir=args.workdir)
     # creating graph from workflow
     if args.graph is not None:
         try:  # TODO: Look for pydot/dot and add to requirements

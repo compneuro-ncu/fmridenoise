@@ -4,13 +4,14 @@ from shutil import copyfile
 from frozendict import frozendict
 from itertools import chain
 
-from traits.trait_base import _Undefined
-from traits.trait_types import Dict, Directory, File, List, Str, Int, Instance, Union
+from traits.trait_types import Dict, Directory, File, List, Str, Int, Instance
+
+from fmridenoise.utils.dataclasses.excluded_subjects import ExcludedSubjects
 from fmridenoise.utils.entities import parse_file_entities_with_pipelines, build_path, is_entity_subset
 from fmridenoise.utils.error_data import ErrorData
 from fmridenoise.utils.report_creator import create_report
 from nipype.interfaces.base import BaseInterfaceInputSpec, SimpleInterface
-from fmridenoise.utils.runtime_info import RuntimeInfo
+from fmridenoise.utils.dataclasses.runtime_info import RuntimeInfo
 from fmridenoise.utils.traits import Optional, remove_undefined
 
 
@@ -29,10 +30,7 @@ class ReportCreatorInputSpec(BaseInterfaceInputSpec):
         Int(), mandatory=False)
     runtime_info = Instance(RuntimeInfo, mandatory=True)
     excluded_subjects = List(
-        trait=Dict(
-            desc="Dictionary with all relevant entities key-value pairs and field 'excluded'"
-                 "with value of list of strings for each excluded subject"
-        ),
+        trait=Instance(ExcludedSubjects),
         value=[],
         usedefault=True
     )
@@ -112,6 +110,8 @@ class ReportCreatorInputSpec(BaseInterfaceInputSpec):
 class ReportCreator(SimpleInterface):
     input_spec = ReportCreatorInputSpec
 
+    _always_run = True
+
     def _run_interface(self, runtime):
         # Find all distinct entities
         plots_all_pipelines, plots_pipeline = {}, {}
@@ -141,14 +141,16 @@ class ReportCreator(SimpleInterface):
 
             entity_data = {'entity_name': build_path(entity, "[ses-{session}] task-{task} [run-{run}]"),
                            'entity_id': build_path(entity, "[ses-{session}-]task-{task}[-run-{run}]"),
-                           'excluded_subjects': [],
+                           'excluded_subjects': set(),
                            'warnings': [],
                            'errors': [],
                            'pipeline': []}
             # Manage excluded subjects
             for excluded in self.inputs.excluded_subjects:
-                if is_entity_subset(excluded, entity):
-                    entity_data['excluded_subjects'] = excluded['excluded']
+                if is_entity_subset(excluded.entities, entity):
+                    entity_data['excluded_subjects'] |= excluded.excluded
+            entity_data['excluded_subjects'] = str(entity_data['excluded_subjects']).lstrip('{').rstrip(
+                        '}') if len(entity_data['excluded_subjects']) > 1 else []
             # Manage errors and warnings
             for error in self.inputs.warnings:
                 if is_entity_subset(error.entities, entity):
