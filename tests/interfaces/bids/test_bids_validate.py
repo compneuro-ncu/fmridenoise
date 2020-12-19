@@ -1,10 +1,13 @@
+import json
+import os
+import shutil
+import tempfile
 from bids import BIDSLayout
 from fmridenoise.interfaces.bids import BIDSValidate, MissingFile, _lists_to_entities
 import fmridenoise.pipelines as pipe
 import unittest as ut
 from os.path import join, dirname
 from typing import List
-
 
 # Data sets
 testDir = dirname(__file__)
@@ -54,7 +57,6 @@ class ListToEntitiesTestCase(ut.TestCase):
 
 
 class BidsValidateBasicPropertiesOnCompleteDataTestCase(ut.TestCase):
-
     derivatives = ["fmriprep"]
     tasks = ["audionback", "dualnback", "rest", "spatialnback"]
     sessions = ["1", "2", "3", "4"]
@@ -125,9 +127,9 @@ class BidsValidateBasicPropertiesOnCompleteDataTestCase(ut.TestCase):
 
     def test_conf_raw_files(self):
         filesCount = len(self.subjects) \
-                         * (len(self.sessions) if self.sessions else 1) \
-                         * len(self.tasks) \
-                         * (len(self.runs) if self.runs else 1)
+                     * (len(self.sessions) if self.sessions else 1) \
+                     * len(self.tasks) \
+                     * (len(self.runs) if self.runs else 1)
         self.assertEqual(filesCount, len(self.bidsValidate._results['conf_raw']))
 
     def test_conf_raw_json(self):
@@ -303,3 +305,64 @@ class BidsValidateOnRunsTestCase(BidsValidateBasicPropertiesOnCompleteDataTestCa
     pipelinesDicts = list(map(pipe.load_pipeline_from_json, pipelines))
     bids_dir = dummyRuns
     maxDiff = None
+
+
+class BidsValidate_validate_derivatives_TestCase(ut.TestCase):
+    bids_validate_1_3_content = {
+        "Name": "definitely not a fmriprep",
+        "BIDSVersion": "1.1.1",
+        "PipelineDescription": {
+            "Name": "NotAFmriprep",
+            "Version": "666",
+            "CodeURL": "https://no_url_there.com"
+        },
+        "CodeURL": "https://no_url_there.com",
+        "HowToAcknowledge": "Do not cite this",
+        "SourceDatasetsURLs": [
+            "https://no_url_there.com"
+        ],
+        "License": "CC0"
+    }
+
+    bids_validate_1_4_content = {
+        "Name": "fMRIDenoise",
+        "BIDSVersion": "1.4.1",
+        "GeneratedBy": [
+            {
+                "Name": "fMRIDenoise",
+                "Version": "some version",
+                "CodeURL": "NO URL, DEVELOPMENT BUILD"
+            },
+            {
+                "Name": "Test",
+                "Version": "test_version",
+                "CodeURL": "NO URL"
+            }
+        ]
+    }
+
+    def setUp(self) -> None:
+        self.bids_dir = tempfile.TemporaryDirectory()
+        self.derivatives_dir = join(self.bids_dir.name, 'derivatives')
+        self.derivative_name = 'test'
+        self.derivative_dir = join(self.derivatives_dir, self.derivative_name)
+        os.makedirs(self.derivative_dir)
+        self.derivatives_json_path = join(self.derivative_dir, 'dataset_description.json')
+
+    def tearDown(self) -> None:
+        self.bids_dir.cleanup()
+
+    def test_valid_old(self) -> None:
+        with open(self.derivatives_json_path, 'w') as f:
+            json.dump(self.bids_validate_1_3_content, f)
+        derivatives_valid, scope = BIDSValidate.validate_derivatives(self.bids_dir.name, self.derivative_name)
+        self.assertEqual([self.derivative_dir], derivatives_valid)
+        self.assertEqual(['NotAFmriprep'], scope)
+
+    def test_valid_new(self) -> None:
+        with open(self.derivatives_json_path, 'w') as f:
+            json.dump(self.bids_validate_1_4_content, f)
+        derivatives_valid, scope = BIDSValidate.validate_derivatives(self.bids_dir.name, self.derivative_name)
+        self.assertEqual([self.derivative_dir], derivatives_valid)
+        self.assertEqual(['fMRIDenoise', "Test"], scope)
+

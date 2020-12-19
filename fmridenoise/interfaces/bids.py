@@ -1,4 +1,6 @@
 # Interface for loading preprocessed fMRI data and confounds table
+from os.path import exists
+
 from bids import BIDSLayout
 from nipype.interfaces.io import IOBase
 from nipype.utils.filemanip import copyfile
@@ -228,16 +230,29 @@ class BIDSValidate(SimpleInterface):
         for derivative_path in derivatives_valid:
             dataset_desc_path = os.path.join(derivative_path,
                                              'dataset_description.json')
-            try:
+            if exists(dataset_desc_path):
                 with open(dataset_desc_path, 'r') as f:
                     dataset_desc = json.load(f)
-                scope.append(dataset_desc['PipelineDescription']['Name'])
-            except FileNotFoundError as e:
+            else:
                 raise MissingFile(f"{derivative_path} should contain" +
-                                " dataset_description.json file") from e
-            except KeyError as e:
-                raise MissingFile(f"Key 'PipelineDescription.Name' is " +
-                                "required in {dataset_desc_path} file") from e
+                                  " dataset_description.json file")
+            try:
+                major, minor, patch = (int(element) for element in str(dataset_desc['BIDSVersion']).split('.'))
+            except Exception:
+                raise Exception(f"Unable to parse bids version ({dataset_desc['BIDSVersion']}) into 3 parts")
+            if major == 1 and minor <= 3:
+                try:
+                    scope.append(dataset_desc['PipelineDescription']['Name'])
+                except KeyError as e:
+                    raise KeyError("Key 'PipelineDescription.Name' is "
+                                      f"required in {dataset_desc_path} file") from e
+            else:
+                pipeline = None
+                try:
+                    for pipeline in dataset_desc['GeneratedBy']:
+                        scope.append(pipeline['Name'])
+                except KeyError as e:
+                    raise KeyError(f"Unable to extract Name from GeneratedBy: {pipeline} in file {dataset_desc_path}")
 
         return derivatives_valid, scope
 
@@ -321,10 +336,10 @@ class BIDSValidate(SimpleInterface):
 
             return False, entity_files
 
+        subjects_to_exclude = []
         # Select interface behavior depending on user behavior
         if not tasks and not sessions and not subjects:
             raise_missing = False
-            subjects_to_exclude = []
         else:
             raise_missing = True
 
@@ -362,7 +377,7 @@ class BIDSValidate(SimpleInterface):
     def _run_interface(self, runtime):
 
         # Validate derivatives argument
-        derivatives, scope = BIDSValidate.validate_derivatives(
+        derivatives, _ = BIDSValidate.validate_derivatives(
             bids_dir=self.inputs.bids_dir,
             derivatives=self.inputs.derivatives
         )
