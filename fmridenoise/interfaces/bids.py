@@ -16,6 +16,8 @@ import os
 from itertools import product
 import typing as t
 from fmridenoise.utils.entities import build_path, parse_file_entities_with_pipelines
+import logging
+logger = logging.getLogger(__name__)
 
 
 def _lists_to_entities(subjects: list, tasks: list, sessions: t.List[str], runs: t.List[str]):
@@ -257,6 +259,60 @@ class BIDSValidate(SimpleInterface):
         return derivatives_valid, scope
 
     @staticmethod
+    def get_entity_files(layout: BIDSLayout, include_no_aroma: bool, include_aroma: bool, entity: dict) -> tuple:
+        """
+        Checks if all required files are present for single entity defined by
+        subject, session and task labels. If include_aroma is True also checks for
+        AROMA file. Note that session argument can be undefined.
+
+        Args:
+
+        Returns:
+            (missing: Union[bool, dict], dict)
+
+        """
+        filter_fmri = {
+            'extension': ['nii', 'nii.gz'],
+            'suffix': 'bold',
+            'desc': 'preproc',
+            'space': 'MNI152NLin2009cAsym'
+        }
+        filter_fmri_aroma = {
+            'extension': ['nii', 'nii.gz'],
+            'suffix': 'bold',
+            'desc': 'smoothAROMAnonaggr',
+            # 'space': 'MNI152NLin2009cAsym'
+        }
+        filter_conf = {
+            'extension': 'tsv',
+            'suffix': ['regressors', 'timeseries'],
+            'desc': 'confounds',
+        }
+        filter_conf_json = {
+            'extension': 'json',
+            'suffix': ['regressors', 'timeseries'],
+            'desc': 'confounds',
+        }
+
+        filters_names = ['conf_raw', 'conf_json']
+        filters = [filter_conf, filter_conf_json]
+        if include_no_aroma:
+            filters.append(filter_fmri)
+            filters_names.append('fmri_prep')
+        if include_aroma:
+            filters.append(filter_fmri_aroma)
+            filters_names.append('fmri_prep_aroma')
+
+        entity_files = {}
+        for filter, filter_name in zip(filters, filters_names):
+            files = layout.get(**entity, **filter)
+            if len(files) != 1:
+                return filter, entity_files
+            entity_files[filter_name] = files[0]
+
+        return False, entity_files
+
+    @staticmethod
     def validate_files(
             layout: BIDSLayout,
             tasks: t.List[str],
@@ -282,60 +338,6 @@ class BIDSValidate(SimpleInterface):
             entity files and tuple with all tasks, subjects, sessions
         """
 
-        def get_entity_files(include_no_aroma: bool, include_aroma: bool, entity: dict) -> tuple:
-            """
-            Checks if all required files are present for single entity defined by
-            subject, session and task labels. If include_aroma is True also checks for
-            AROMA file. Note that session argument can be undefined.
-
-            Args:
-
-            Returns:
-                (missing: Union[bool, dict], Union[None, dict])
-
-            """
-            filter_fmri = {
-                'extension': ['nii', 'nii.gz'],
-                'suffix': 'bold',
-                'desc': 'preproc',
-                'space': 'MNI152NLin2009cAsym'
-            }
-            filter_fmri_aroma = {
-                'extension': ['nii', 'nii.gz'],
-                'suffix': 'bold',
-                'desc': 'smoothAROMAnonaggr',
-                # 'space': 'MNI152NLin2009cAsym'
-            }
-            filter_conf = {
-                'extension': 'tsv',
-                'suffix': 'regressors',
-                'desc': 'confounds',
-            }
-            filter_conf_json = {
-                'extension': 'json',
-                'suffix': 'regressors',
-                'desc': 'confounds',
-            }
-
-            filters_names = ['conf_raw', 'conf_json']
-            filters = [filter_conf, filter_conf_json]
-            if include_no_aroma:
-                filters.append(filter_fmri)
-                filters_names.append('fmri_prep')
-            if include_aroma:
-                filters.append(filter_fmri_aroma)
-                filters_names.append('fmri_prep_aroma')
-
-            entity_files = {}
-
-            for filter, filter_name in zip(filters, filters_names):
-                files = layout.get(**entity, **filter)
-                if len(files) != 1:
-                    return filter, None
-                entity_files[filter_name] = files[0]
-
-            return False, entity_files
-
         subjects_to_exclude = []
         # Select interface behavior depending on user behavior
         if not tasks and not sessions and not subjects:
@@ -351,7 +353,7 @@ class BIDSValidate(SimpleInterface):
             # Raise error if there are missing files
             for entity in entities:
 
-                missing, entity_files = get_entity_files(include_no_aroma, include_aroma, entity)
+                missing, entity_files = BIDSValidate.get_entity_files(layout, include_no_aroma, include_aroma, entity)
                 entities_files.append(entity_files)
 
                 if missing:
@@ -362,12 +364,14 @@ class BIDSValidate(SimpleInterface):
             # Log missing files and exclude subjects for missing files
             for entity in entities:
 
-                missing, entity_files = get_entity_files(include_no_aroma, include_aroma, entity)
+                missing, entity_files = BIDSValidate.get_entity_files(layout, include_no_aroma, include_aroma, entity)
                 entities_files.append(entity_files)
 
                 if missing:
                     subjects_to_exclude.append(entity['subject'])
-                    print(f'missing file(s) for {entity}')  # TODO: proper logging
+                    miss = {**entity, **missing}
+                    import logging
+                    logger.warning(f'missing file(s) for {miss}')
 
             subjects = [subject for subject in subjects if
                         subject not in subjects_to_exclude]
@@ -386,8 +390,7 @@ class BIDSValidate(SimpleInterface):
         layout = BIDSLayout(
             root=self.inputs.bids_dir,
             derivatives=derivatives,
-            validate=True,
-            index_metadata=False
+            validate=False
         )
 
         # Load pipelines
@@ -413,16 +416,19 @@ class BIDSValidate(SimpleInterface):
         )
 
         # Convert entities_files into separate lists of BIDSImageFile Objects
-        conf_raw = list(map(lambda d: d['conf_raw'].path, entities_files))
-        conf_json = list(map(lambda d: d['conf_json'].path, entities_files))
+        def filter_entity(entity_files: t.List[t.Dict[str, t.Any]], key: str) -> t.List[str]:
+            return list(entity[key].path for entity in entity_files if entity.get(key) is not None)
+        
+        conf_raw = filter_entity(entities_files, 'conf_raw')
+        conf_json = filter_entity(entities_files, 'conf_json')
 
         if include_no_aroma:
-            fmri_prep = list(map(lambda d: d['fmri_prep'].path, entities_files))
+            fmri_prep = filter_entity(entities_files, 'fmri_prep')
         else:
             fmri_prep = []
 
         if include_aroma:
-            fmri_prep_aroma = list(map(lambda d: d['fmri_prep_aroma'].path, entities_files))
+            fmri_prep_aroma = filter_entity(entities_files, 'fmri_prep_aroma')
         else:
             fmri_prep_aroma = []
 
