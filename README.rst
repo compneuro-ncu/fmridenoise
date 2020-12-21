@@ -5,6 +5,7 @@ fMRIDenoise - automated denoising and denoising strategies comparison for fMRI d
    :target: https://doi.org/10.5281/zenodo.3383310
 
 .. image:: https://travis-ci.org/compneuro-ncu/fmridenoise.svg?branch=master
+   :target: https://travis-ci.org/github/compneuro-ncu/fmridenoise
 
 *fMRIDenoise* is tool for automatic denoising, denoising strategies comparisons,
 and functional connectivity data quality control.
