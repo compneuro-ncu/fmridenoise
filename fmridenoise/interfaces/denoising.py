@@ -47,10 +47,6 @@ class DenoiseInputSpec(BaseInterfaceInputSpec):
         mandatory=False,
         desc="Low-pass filter"
     )
-    smoothing = traits.Bool(
-        mandatory=False,
-        desc='Low cut-off frequency in Hertz'
-    )
 
 
 class DenoiseOutputSpec(TraitedSpec):
