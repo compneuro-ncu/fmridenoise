@@ -10,8 +10,8 @@ def altered_long_description() -> str:
     """
     Swaps relative paths to images in README.md with github links for pip webpage
     """
-    git_problem_image = '.. image:: https://raw.githubusercontent.com/compneuro-ncu/fmridenoise/dev/docs/fmridenoise_problem.png\n'
-    git_solution_image = '.. image:: https://raw.githubusercontent.com/compneuro-ncu/fmridenoise/dev/docs/fmridenoise_solution.png\n'
+    git_problem_image = '.. image:: https://raw.githubusercontent.com/SiegfriedWagner/fmridenoise/docs/docs/img/fmridenoise_problem.png\n'
+    git_solution_image = '.. image:: https://raw.githubusercontent.com/SiegfriedWagner/fmridenoise/docs/docs/img/fmridenoise_solution_small.png\n'
     with open(join(__dir_path, "README.rst"), "r") as fh:
         long_description = fh.read()
     problem_image = re.search(r'\.\. image:: \.\./docs/img/fmridenoise_problem\.png.*?\n', long_description)
@@ -19,7 +19,7 @@ def altered_long_description() -> str:
         raise Exception("Unable to replace [Problem image]")
     left, right = problem_image.regs[0]
     long_description = long_description.replace(long_description[left:right], git_problem_image)
-    solution_image = re.search(r'\.\. image:: \.\./docs/img/fmridenoise_solution_small\.png.*?\n', long_description)
+    solution_image = re.search(r'\.\. image:: \.\./docs/img/fmridenoise_solution\.png.*?\n', long_description)
     if solution_image is None:
         raise Exception("Unable to replace [Solution image]")
     left, right = solution_image.regs[0]
