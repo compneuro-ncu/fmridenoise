@@ -18,13 +18,14 @@ class DenoiseInputSpec(BaseInterfaceInputSpec):
     fmri_prep_aroma = ImageFile(
         mandatory=False,
         exists=True,
-        desc='ICA-Aroma preprocessed fMRI file',
-        )
+        desc='ICA-Aroma preprocessed fMRI file'
+    )
     conf_prep = File(
         mandatory=True,
         exists=True,
         desc='Confounds file'
         )
+
     pipeline = traits.Dict(
         mandatory=True,
         desc='Denoising pipeline'
@@ -43,6 +44,10 @@ class DenoiseInputSpec(BaseInterfaceInputSpec):
         desc='High cut-off frequency in Hertz'
     )
     low_pass = traits.Float(
+        mandatory=False,
+        desc="Low-pass filter"
+    )
+    smoothing = traits.Bool(
         mandatory=False,
         desc='Low cut-off frequency in Hertz'
     )
