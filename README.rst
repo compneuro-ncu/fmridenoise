@@ -26,7 +26,7 @@ Problem
 
 Solution
 --------
-.. image:: https://raw.githubusercontent.com/SiegfriedWagner/fmridenoise/docs/docs/img/fmridenoise_solution.png
+.. image:: https://raw.githubusercontent.com/SiegfriedWagner/fmridenoise/docs/docs/img/fmridenoise_solution_small.png
    :align: center
    :alt: Alternative text
 
