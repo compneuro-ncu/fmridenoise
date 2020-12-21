@@ -5,31 +5,11 @@ import versioneer
 
 __dir_path = dirname(__file__)
 
-
-def altered_long_description() -> str:
-    """
-    Swaps relative paths to images in README.md with github links for pip webpage
-    """
-    git_problem_image = '.. image:: https://raw.githubusercontent.com/SiegfriedWagner/fmridenoise/docs/docs/img/fmridenoise_problem.png\n'
-    git_solution_image = '.. image:: https://raw.githubusercontent.com/SiegfriedWagner/fmridenoise/docs/docs/img/fmridenoise_solution_small.png\n'
-    with open(join(__dir_path, "README.rst"), "r") as fh:
-        long_description = fh.read()
-    problem_image = re.search(r'\.\. image:: \.\./docs/img/fmridenoise_problem\.png.*?\n', long_description)
-    if problem_image is None:
-        raise Exception("Unable to replace [Problem image]")
-    left, right = problem_image.regs[0]
-    long_description = long_description.replace(long_description[left:right], git_problem_image)
-    solution_image = re.search(r'\.\. image:: \.\./docs/img/fmridenoise_solution\.png.*?\n', long_description)
-    if solution_image is None:
-        raise Exception("Unable to replace [Solution image]")
-    left, right = solution_image.regs[0]
-    long_description = long_description.replace(long_description[left:right], git_solution_image)
-    return long_description
-
-
 if __name__ == '__main__':
     with open(join(__dir_path, "requirements.txt"), 'r') as fh:
         requirements = [line.strip() for line in fh]
+    with open(join(__dir_path, "README.rst")) as fh:
+        long_description = "".join(fh.readlines())
     setuptools.setup(
         name="fmridenoise",
         version=versioneer.get_version(),
@@ -37,7 +17,7 @@ if __name__ == '__main__':
         author_email="karolinafinc@gmail.com, mateus.chojnowski@gmail.com, kongokou@gmail.com",
         description="fMRIDenoise - automated denoising, denoising strategies comparison, and functional "
                     "connectivity data quality control.",
-        long_description=altered_long_description(),
+        long_description=long_description,
         long_description_content_type="text/x-rst",
         url="https://github.com/nbraingroup/fmridenoise",
         classifiers=[
