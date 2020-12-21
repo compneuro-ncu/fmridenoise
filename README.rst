@@ -19,16 +19,14 @@ We believe that the tool can make the selection of the denoising strategy more o
 
 Problem
 --------
-
-.. image:: ../docs/img/fmridenoise_problem.png
+.. image:: /docs/img/fmridenoise_problem.png
    :align: center
    :alt: Alternative text
 
 
 Solution
 --------
-
-.. image:: ../docs/img/fmridenoise_solution.png
+.. image:: /docs/img/fmridenoise_solution.png
    :align: center
    :alt: Alternative text
 
