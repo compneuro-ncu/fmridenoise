@@ -1,5 +1,4 @@
 import setuptools
-import re
 from os.path import join, dirname
 import versioneer
 
