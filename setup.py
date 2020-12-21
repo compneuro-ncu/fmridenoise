@@ -10,8 +10,8 @@ def altered_long_description() -> str:
     """
     Swaps relative paths to images in README.md with github links for pip webpage
     """
-    git_problem_image = r'.. image:: https://github.com/compneuro-ncu/fmridenoise/blob/docs/docs/img/fmridenoise_problem.png'
-    git_solution_image = r'.. image:: https://github.com/compneuro-ncu/fmridenoise/blob/docs/docs/img/fmridenoise_solution.png'
+    git_problem_image = '.. image:: https://raw.githubusercontent.com/compneuro-ncu/fmridenoise/dev/docs/fmridenoise_problem.png\n'
+    git_solution_image = '.. image:: https://raw.githubusercontent.com/compneuro-ncu/fmridenoise/dev/docs/fmridenoise_solution.png\n'
     with open(join(__dir_path, "README.rst"), "r") as fh:
         long_description = fh.read()
     problem_image = re.search(r'\.\. image:: \.\./docs/img/fmridenoise_problem\.png.*?\n', long_description)
@@ -30,7 +30,6 @@ def altered_long_description() -> str:
 if __name__ == '__main__':
     with open(join(__dir_path, "requirements.txt"), 'r') as fh:
         requirements = [line.strip() for line in fh]
-
     setuptools.setup(
         name="fmridenoise",
         version=versioneer.get_version(),
