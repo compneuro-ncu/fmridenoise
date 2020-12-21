@@ -1,6 +1,8 @@
 fMRIDenoise - automated denoising and denoising strategies comparison for fMRI data
-======================================================================================================================
+===================================================================================
 .. image:: https://zenodo.org/badge/181017876.svg
+
+.. image:: https://travis-ci.org/compneuro-ncu/fmridenoise.svg?branch=master
 
 *fMRIDenoise* is tool for automatic denoising, denoising strategies comparisons,
 and functional connectivity data quality control.
@@ -10,12 +12,12 @@ The tool is designed to work directly on `fMRIPrep <https://fmriprep.readthedocs
 data in `BIDS <https://bids.neuroimaging.io/>`_ standard.
 We believe that the tool can make the selection of the denoising strategy more objective and also help researchers to obtain FC quality control metrics with almost no effort.
 
-**The project is in alpha stage and we are looking for feedback and collaborators.**
+**The project is in beta stage and we are looking for feedback and collaborators.**
 
 Problem
 --------
 
-.. image:: ../img/fmridenoise_problem.png
+.. image:: ../docs/img/fmridenoise_problem.png
    :align: center
    :alt: Alternative text
 
@@ -23,7 +25,7 @@ Problem
 Solution
 --------
 
-.. image:: ../img/fmridenoise_solution.png
+.. image:: ../docs/img/fmridenoise_solution.png
    :align: center
    :alt: Alternative text
 
