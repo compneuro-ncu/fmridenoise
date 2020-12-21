@@ -19,7 +19,7 @@ def altered_long_description() -> str:
         raise Exception("Unable to replace [Problem image]")
     left, right = problem_image.regs[0]
     long_description = long_description.replace(long_description[left:right], git_problem_image)
-    solution_image = re.search(r'\.\. image:: \.\./docs/img/fmridenoise_solution.png.*?\n', long_description)
+    solution_image = re.search(r'\.\. image:: \.\./docs/img/fmridenoise_solution\.png.*?\n', long_description)
     if solution_image is None:
         raise Exception("Unable to replace [Solution image]")
     left, right = solution_image.regs[0]
