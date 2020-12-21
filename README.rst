@@ -1,6 +1,8 @@
 fMRIDenoise - automated denoising and denoising strategies comparison for fMRI data
 ===================================================================================
-.. image:: https://zenodo.org/badge/181017876.svg
+
+.. image:: https://zenodo.org/badge/DOI/10.5281/zenodo.3383310.svg
+   :target: https://doi.org/10.5281/zenodo.3383310
 
 .. image:: https://travis-ci.org/compneuro-ncu/fmridenoise.svg?branch=master
 
