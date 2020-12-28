@@ -19,14 +19,14 @@ We believe that the tool can make the selection of the denoising strategy more o
 
 Problem
 --------
-.. image:: https://raw.githubusercontent.com/SiegfriedWagner/fmridenoise/docs/docs/img/fmridenoise_problem.png
+.. image:: https://raw.githubusercontent.com/compneuro-ncu/fmridenoise/master/docs/img/fmridenoise_problem.png
    :align: center
    :alt: Alternative text
 
 
 Solution
 --------
-.. image:: https://raw.githubusercontent.com/SiegfriedWagner/fmridenoise/docs/docs/img/fmridenoise_solution_small.png
+.. image:: https://raw.githubusercontent.com/compneuro-ncu/fmridenoise/master/docs/img/fmridenoise_solution_small.png
    :align: center
    :alt: Alternative text
 
