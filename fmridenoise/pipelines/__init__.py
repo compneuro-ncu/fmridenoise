@@ -1,5 +1,10 @@
 import glob
 import os
+from fmridenoise.utils.utils import cast_bool, swap_booleans
+from os.path import exists
+import json
+import re
+
 
 def get_pipeline_path(name: str) -> str:
     dirname = os.path.dirname(__file__)
@@ -34,3 +39,27 @@ def get_pipelines_names() -> set:
 def is_valid_name(name: str) -> bool:
     return True if name in get_pipelines_names() else False
 
+
+def is_IcaAROMA(pipeline: dict) -> bool:
+    return cast_bool(pipeline["aroma"])
+
+
+def load_pipeline_from_json(json_path: str) -> dict:
+    """
+    Loads json file and prepares it for further use (e.g. assures proper types interpretation)
+    :param json_path: path to json file
+    :return: jsonlike dictionary
+    """
+    if not exists(json_path):
+        raise IOError(f"File '{json_path}' does not exists!")
+    with open(json_path, 'r') as json_file:
+        js = json.load(json_file)
+    js = swap_booleans(js, inplace=True)
+    return js
+
+
+def extract_pipeline_from_path(path: str) -> str:
+    match = re.search(r'(?<=pipeline-)(.*?)(?=_)', path)
+    if match is not None:
+        return match.group()
+    return ""

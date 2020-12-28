@@ -1,0 +1,93 @@
+{% macro cell(bool_value, colspan=1) -%}
+    {% if bool_value %}
+        <td colspan="{{colspan}}" class="bg-true">
+            <svg>
+                <use xlink:href="#symbol-true" /></svg>
+        </td>
+    {% else %}
+        <td colspan="{{colspan}}" class="bg-false">
+            <svg>
+                <use xlink:href="#symbol-false" /></svg>
+        </td>
+    {% endif %}
+{%- endmacro %}
+
+{% macro cell_spikes(spikes, colspan) -%}
+    {% if not spikes %}
+        <td colspan="{{ colspan }}" class="bg-false">
+            <svg>
+                <use xlink:href="#symbol-false" /></svg>
+        </td>
+    {% else %}
+        <td colspan="{{ colspan }}" class="bg-true">
+            fd threshold: {{ spikes['fd_th'] }} / DVARS threshold: {{ spikes['dvars_th'] }}
+        </td>
+    {% endif %}
+{%- endmacro %}
+
+
+<table class="table table-bordered text-center align-middle">
+    <thead>
+        <tr>
+            <th colspan="5">Pipeline summary</th>
+        </tr>
+    </thead>
+    <tbody>
+        <tr class="bg-light">
+            <td colspan="5">Confounds<br></td>
+        </tr>
+        <tr>
+            <td class="text-left" style="width: 40%">Name<br></td>
+            <td style="width: 15%">raw<br></td>
+            <td style="width: 15%">derivative</td>
+            <td style="width: 15%">square</td>
+            <td style="width: 15%">square derivative</td>
+        </tr>
+        <tr>
+            <td class="text-left">white matter<br></td>
+            {{ cell(pipeline['confounds']['white_matter']['raw']) }}
+            {{ cell(pipeline['confounds']['white_matter']['derivative1']) }}
+            {{ cell(pipeline['confounds']['white_matter']['power2']) }}
+            {{ cell(pipeline['confounds']['white_matter']['derivative1_power2']) }}
+        </tr>
+        <tr>
+            <td class="text-left">csf<br></td>
+            {{ cell(pipeline['confounds']['csf']['raw']) }}
+            {{ cell(pipeline['confounds']['csf']['derivative1']) }}
+            {{ cell(pipeline['confounds']['csf']['power2']) }}
+            {{ cell(pipeline['confounds']['csf']['derivative1_power2']) }}
+        </tr>
+        <tr>
+            <td class="text-left">global signal</td>
+            {{ cell(pipeline['confounds']['global_signal']['raw']) }}
+            {{ cell(pipeline['confounds']['global_signal']['derivative1']) }}
+            {{ cell(pipeline['confounds']['global_signal']['power2']) }}
+            {{ cell(pipeline['confounds']['global_signal']['derivative1_power2']) }}
+        </tr>
+        <tr>
+            <td class="text-left">24 head motion params</td>
+            {{ cell(pipeline['confounds']['motion']['raw']) }}
+            {{ cell(pipeline['confounds']['motion']['derivative1']) }}
+            {{ cell(pipeline['confounds']['motion']['power2']) }}
+            {{ cell(pipeline['confounds']['motion']['derivative1_power2']) }}
+        </tr>
+        <tr>
+            <td class="text-left">aCompCor<br></td>
+            {{ cell(pipeline['confounds']['acompcor']) }}
+            <td class="bg-light">n/a</td>
+            <td class="bg-light">n/a</td>
+            <td class="bg-light">n/a</td>
+        </tr>
+        <tr class="bg-light text-center">
+            <td colspan="5">Other</td>
+        </tr>
+        <tr>
+            <td class="text-left">ICA Aroma<br></td>
+            {{ cell(pipeline['aroma'], 4) }}
+        </tr>
+        <tr>
+            <td class="text-left">Volume censoring</td>
+            {{ cell_spikes(pipeline['spikes'], 4) }}
+        </tr>
+    </tbody>
+</table>

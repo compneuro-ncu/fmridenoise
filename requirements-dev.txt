@@ -1,0 +1,7 @@
+-r ./requirements.txt
+setuptools
+wheel
+twine
+versioneer
+sphinx_rtd_theme
+sphinxcontrib-programoutput

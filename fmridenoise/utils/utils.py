@@ -1,22 +1,23 @@
-import json
-import jsonschema
 import copy
-from os.path import exists
-_pipeline_valid_keys = ["name", "descrtiption", "confounds"]
-type_checker = jsonschema.Draft4Validator.VALIDATORS
+from os.path import join
+from nipype import Node, JoinNode, IdentityInterface
+import typing as t
+import os
+import shutil
+from fmridenoise.interfaces.utility import FlattenIdentityInterface
+from fmridenoise._version import get_versions
 
-def load_pipeline_from_json(json_path: str) -> dict:
-    """
-    Loads json file and prepares it for further use (e.g. assures proper types interpretation)
-    :param json_path: path to json file
-    :return: jsonlike dictionary
-    """
-    if not exists(json_path):
-        raise IOError(f"File '{json_path}' does not exists!")
-    with open(json_path, 'r') as json_file:
-        js = json.load(json_file)
-    js = swap_booleans(js, inplace=True)
-    return js
+
+def create_dataset_description_json_content() -> str:
+    directory_name = os.path.dirname(__file__)
+    with open(join(directory_name, "dataset_description_template.json"), "r") as template_f:
+        template = str(template_f.read())
+    get_versions_result = get_versions()
+    version = get_versions_result['version']
+    main_url_template = "https://github.com/compneuro-ncu/fmridenoise/releases/tag/{ver}"
+    code_url = "NO URL, DEVELOPMENT BUILD" if any(
+        map(version.__contains__, ["+", "dirty"])) else main_url_template.format(ver=version)
+    return template.replace("{fmridenoise_version}", version).replace("{fmridenoise_codeurl}", code_url)
 
 
 def is_booleanlike(value) -> bool:
@@ -55,7 +56,7 @@ def cast_bool(value) -> bool:
                         .format(type(value), value))
 
 
-def swap_booleans(dictionary: dict, inplace: bool=True) -> dict:  # TODO: Extend functionality to lists too
+def swap_booleans(dictionary: dict, inplace: bool = True) -> dict:  # TODO: Extend functionality to lists too
     """
     Recursively iterates on dictionary and swaps booleanlike values with proper booleans.
     :param dictionary: input dictionary
@@ -71,8 +72,50 @@ def swap_booleans(dictionary: dict, inplace: bool=True) -> dict:  # TODO: Extend
             dictionary[key] = cast_bool(dictionary[key])
     return dictionary
 
-if __name__ == '__main__':
-    #  rudimentary test/proof of work
-    dicto = load_pipeline_from_json("../pipelines/36_parameters_spikes.json")
-    print(dicto)
-    print(swap_booleans(dicto, False))
+
+def create_identity_join_node(name: str, fields: t.List[str], joinsource: t.Union[Node, str]) -> JoinNode:
+    return JoinNode(IdentityInterface(fields=fields), name=name, joinsource=joinsource, joinfield=fields)
+
+
+def create_flatten_identity_join_node(name: str, fields: t.List[str],
+                                      joinsource: t.Union[Node, str], flatten_fields: t.List[str]) -> JoinNode:
+    return JoinNode(FlattenIdentityInterface(fields=fields, flatten_fields=flatten_fields),
+                    name=name, joinsource=joinsource, joinfield=fields)
+
+
+def copy_as_dummy_dataset(source_bids_dir: str, new_path: str, ext_to_copy=tuple()) -> None:
+    """
+    Walks trough BIDS dataset and recreates it's structure but with
+    empty files.
+
+    Arguments:
+        source_bids_dir {str} -- source of BIDS dataset
+        new_path {str} -- destination of new dummy_complete dataset
+
+    Keyword Arguments:
+        ext_to_copy {tuple or str} -- files with given extensions
+        will be copied instead of empty (default: {tuple()})
+
+    Returns:
+        None
+    """
+
+    if type(ext_to_copy) is str:
+        ext_to_copy = (ext_to_copy,)
+    source_bids_dir = os.path.abspath(source_bids_dir)
+    if not os.path.isdir(new_path):
+        os.makedirs(new_path)
+    for root, dirs, files in os.walk(source_bids_dir, topdown=True):
+        rel_root = os.path.relpath(root, source_bids_dir)
+        rel_root = rel_root.strip(".")
+        rel_root = rel_root.strip("/")
+        new_root = os.path.join(new_path, rel_root)
+        for name in dirs:
+            os.makedirs(os.path.join(new_root, name))
+        for name in files:
+            for ext in ext_to_copy:
+                if str(name).endswith(ext):
+                    shutil.copy2(os.path.join(root, name), os.path.join(new_root, name))
+                    break
+            else:
+                open(os.path.join(new_root, name), 'w').close()

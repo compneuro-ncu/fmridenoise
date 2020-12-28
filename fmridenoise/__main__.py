@@ -1,21 +1,24 @@
 import argparse
 import logging
 import os
-from os.path import dirname, abspath, join, exists, isfile, abspath
-import sys
-# asure that fmridenoise is in path
-# if dirname(dirname(abspath(__file__))) not in sys.path:
-#         sys.path.append(dirname(dirname(abspath(__file__))))
-from fmridenoise.workflows.base import init_fmridenoise_wf, config
-from fmridenoise.utils import profiler_callback
+import bids
+from os.path import dirname, join, exists, isfile, abspath
+from nipype import config
+
+from fmridenoise.utils import temps
+from fmridenoise.utils.utils import copy_as_dummy_dataset, create_dataset_description_json_content
+from fmridenoise.workflows.base import init_fmridenoise_wf
+from fmridenoise.utils.profiling import profiler_callback
 from fmridenoise.utils.json_validator import is_valid
-import fmridenoise.utils.utils as ut
 from fmridenoise.pipelines import (get_pipelines_paths,
                                    get_pipelines_names,
-                                   get_pipeline_path)
-
+                                   get_pipeline_path,
+                                   load_pipeline_from_json)
+from fmridenoise._version import get_versions
 HIGH_PASS_DEFAULT = 0.008
 LOW_PASS_DEFAULT = 0.08
+
+bids.config.set_option('extension_initial_dot', True)
 
 
 def get_parser() -> argparse.ArgumentParser:
@@ -23,67 +26,92 @@ def get_parser() -> argparse.ArgumentParser:
     Creates parser for main script.
     :return: argparse.ArgumentParser
     """
-    parser = argparse.ArgumentParser()
-    parser.add_argument("bids_dir",
-                        help="Path do preprocessed BIDS dataset.")
-    parser.add_argument('-sub', "--subjects",
-                        nargs='+',
-                        default=[],
-                        help="List of subjects")
-    parser.add_argument('-ses', "--sessions",
-                        nargs='+',
-                        default=[],
-                        help="List of session numbers, separated with spaces.")
-    parser.add_argument('-t', "--tasks",
-                        nargs="+",
-                        default=[],
-                        help="List of tasks names, separated with spaces.")
-    parser.add_argument("-p", "--pipelines",
-                        nargs='+',
-                        help='Name of pipelines used for denoising, can be both paths to json files with pipeline or name of pipelines from package.',
-                        default="all")
-    parser.add_argument("-d", "--derivatives",
-                        nargs="+",
-                        default=['fmriprep'],
-                        help="Name (or list) of derivatives for which fmridenoise should be run.\
-                        By default workflow looks for fmriprep dataset.")
-    parser.add_argument("--high-pass",
-                        type=float,
-                        default=HIGH_PASS_DEFAULT,
-                        help=f"High pass filter value, deafult {HIGH_PASS_DEFAULT}.")
-    parser.add_argument("--low-pass",
-                        type=float,
-                        default=LOW_PASS_DEFAULT,
-                        help=f"Low pass filter value, default {LOW_PASS_DEFAULT}")
-    parser.add_argument("--use-aroma",
-                        help="Skip ICA-AROMA pipelines, default False",
-                        action="store_true",
-                        default=False)
-    parser.add_argument("--MultiProc",
-                        help="Run script on multiple processors, default False",
-                        action="store_true",
-                        default=False)
-    parser.add_argument("--profiler",
-                        type=str,
-                        help="Run profiler along workflow execution to estimate resources usage \
-                        PROFILER is path to output log file.")
-    parser.add_argument("-g", "--debug",
-                        help="Run fmridenoise in debug mode - richer output, stops on first unchandled exception.",
-                        action="store_true")
-    parser.add_argument("--graph",
-                        type=str,
-                        help="Create workflow graph at GRAPH path")
-    parser.add_argument("--dry",
-                        help="Perform everything except actually running workflow",
-                        action="store_true",
-                        default=False)
-    parser.add_argument("-w", "--work_dir",
-                        help="Path where intermediate results should be stored, default /tmp/fmridenoise/",
-                        default="/tmp/fmridenoise/")
+
+    parser = argparse.ArgumentParser(prog='fmridenoise')
+    # basic commands
+    parser.add_argument('--version', action="store_true")
+    subparsers = parser.add_subparsers(help='commands')
+    # quality measures parser
+    quality_measures_parser = subparsers.add_parser(name='compare',
+                                                    help='compare image files denoising using selected strategies' \
+                                                         ' (pipelines) and denoising quality comparision')
+    quality_measures_parser.set_defaults(which='compare')
+    quality_measures_parser.add_argument("bids_dir",
+                                         help="Path do preprocessed BIDS dataset.")
+    quality_measures_parser.add_argument('-sub', "--subjects",
+                                         nargs='+',
+                                         default=[],
+                                         help="List of subjects")
+    quality_measures_parser.add_argument('-ses', "--sessions",
+                                         nargs='+',
+                                         default=[],
+                                         help="List of session numbers, separated with spaces.")
+    quality_measures_parser.add_argument('-t', "--tasks",
+                                         nargs="+",
+                                         default=[],
+                                         help="List of tasks names, separated with spaces.")
+    quality_measures_parser.add_argument('-r', '--runs',
+                                         nargs='+',
+                                         default=[],
+                                         help="List of runs names, separated with spaces.")
+    quality_measures_parser.add_argument("-p", "--pipelines",
+                                         nargs='+',
+                                         help='Name of pipelines used for denoising, can be both paths to json files '
+                                              'with pipeline or name of pipelines from package.',
+                                         default="all")
+    quality_measures_parser.add_argument("-d", "--derivatives",
+                                         type=str,
+                                         default='fmriprep',
+                                         help="Name (or list) of derivatives for which fmridenoise should be run.\
+                                               By default workflow looks for fmriprep dataset.")
+    quality_measures_parser.add_argument("--high-pass",
+                                         type=float,
+                                         default=HIGH_PASS_DEFAULT,
+                                         help=f"High pass filter value, deafult {HIGH_PASS_DEFAULT}.")
+    quality_measures_parser.add_argument("--low-pass",
+                                         type=float,
+                                         default=LOW_PASS_DEFAULT,
+                                         help=f"Low pass filter value, default {LOW_PASS_DEFAULT}")
+    quality_measures_parser.add_argument("-w", "--workdir",
+                                         type=str,
+                                         default="/tmp/fmridenoise",
+                                         help="Temporary working directory. Default is '/tmp/fmridenoise")
+    quality_measures_parser.add_argument("--MultiProc",
+                                         help="Run script on multiple processors, default False",
+                                         action="store_true",
+                                         default=False)
+    quality_measures_parser.add_argument("--profiler",
+                                         type=str,
+                                         help="Run profiler along workflow execution to estimate resources usage \
+                                               PROFILER is path to output log file.")
+    quality_measures_parser.add_argument("-g", "--debug",
+                                         help="Run fmridenoise in debug mode - richer output, stops on first unchandled exception.",
+                                         action="store_true")
+    quality_measures_parser.add_argument("--graph",
+                                         type=str,
+                                         help="Create workflow graph at GRAPH path")
+    quality_measures_parser.add_argument("--dry",
+                                         help="Perform everything except actually running workflow",
+                                         action="store_true",
+                                         default=False)
+    # tools parser
+    dummy_dataset_parser = subparsers.add_parser(name='dummy',
+                                                 help='creates dummy copy of existing dataset. Dummy dataset '
+                                                      'mimics folders and files structure of origin dataset'
+                                                      'but only selected files are copied. Debugging tool.')
+    dummy_dataset_parser.set_defaults(which='dummy')
+    dummy_dataset_parser.add_argument("bids_dir",
+                                      help="Data source bids directory.")
+    dummy_dataset_parser.add_argument("output_directory",
+                                      help="Directory in which dummy_complete dataset will be saved")
+    dummy_dataset_parser.add_argument("-c", "--copy",
+                                      nargs="+",
+                                      default=['.json'],
+                                      help="Extensions of files that should be copied instead of creating dummy_complete")
     return parser
 
 
-def parse_pipelines(pipelines_args: str or set = "all", use_aroma=False) -> set:
+def parse_pipelines(pipelines_args: str or set = "all") -> set:
     """
     Parses all possible pipeline options:
     :param pipelines_args: set or str, only valid string argument is 'all'.
@@ -95,8 +123,6 @@ def parse_pipelines(pipelines_args: str or set = "all", use_aroma=False) -> set:
     if type(pipelines_args) is str:
         if pipelines_args != "all":
             raise ValueError("Only valid string argument is 'all'")
-        elif pipelines_args == 'all' and use_aroma == False:
-            return set([p for p in get_pipelines_paths() if 'ICA-AROMA' not in p])
         else:
             return get_pipelines_paths()
     known_pipelines = get_pipelines_names()
@@ -107,15 +133,14 @@ def parse_pipelines(pipelines_args: str or set = "all", use_aroma=False) -> set:
     for p in pipelines_args:
         if p in known_pipelines:
             ret.add(get_pipeline_path(p))
-        elif p not in known_pipelines and is_valid(ut.load_pipeline_from_json(p)):
+        elif p not in known_pipelines and is_valid(load_pipeline_from_json(p)):
             ret.add(p)
         else:
             raise ValueError(f"File: '{p} is not a valid pipeline")
     return ret
 
 
-def main() -> None:
-    args = get_parser().parse_args()
+def compare(args: argparse.Namespace) -> None:
     workflow_args = dict()
     # bids dir
     if str(args.bids_dir).startswith("./"):
@@ -148,22 +173,26 @@ def main() -> None:
     derivatives = list(
         map(lambda x: join(input_dir, 'derivatives', x), derivatives))
     # pipelines
-    pipelines = parse_pipelines(args.pipelines, args.use_aroma)
+    pipelines = parse_pipelines(args.pipelines)
+    temps.base_dir = args.workdir
     # creating workflow
     workflow = init_fmridenoise_wf(input_dir,
                                    derivatives=derivatives,
-                                   subject=args.subjects,
-                                   session=args.sessions,
-                                   task=args.tasks,
+                                   subject=list(map(str, args.subjects)),
+                                   session=list(map(str, args.sessions)),
+                                   task=list(map(str, args.tasks)),
+                                   runs=list(map(int, args.runs)),
                                    pipelines_paths=pipelines,
                                    high_pass=args.high_pass,
                                    low_pass=args.low_pass,
-                                   ica_aroma=args.use_aroma,
-                                   base_dir=args.work_dir)
+                                   base_dir=args.workdir)
     # creating graph from workflow
     if args.graph is not None:
         try:  # TODO: Look for pydot/dot and add to requirements
-            workflow.write_graph(args.graph)
+            if not os.path.isabs(args.graph):
+                workflow.write_graph(join(os.getcwd(), args.graph), graph2use='flat')
+            else:
+                workflow.write_graph(args.graph, graph2use='flat')
         except OSError as err:
             print('OSError: ' + err.args[0])
             print("         Graph file was not generated.")
@@ -176,7 +205,33 @@ def main() -> None:
             workflow.run(plugin="MultiProc", plugin_args=workflow_args)
         else:
             workflow.run()
+        # write dataset_description.json after successful workflow execution
+        with open(join(input_dir, "derivatives", "fmridenoise", "dataset_description.json"), 'w') as f:
+            f.write(create_dataset_description_json_content())
     return 0
+
+
+def dummy(args):
+    copy_as_dummy_dataset(source_bids_dir=args.bids_dir,
+                          new_path=args.output_directory,
+                          ext_to_copy=args.copy)
+
+
+def main() -> int:
+    parser = get_parser()
+    args = parser.parse_args()
+    if args.version:
+        print(get_versions().get('version'))
+        return 0
+    if not hasattr(args, 'which'):
+        parser.print_help()
+        return 1
+    if args.which == 'compare':
+        compare(args)
+    elif args.which == 'dummy':
+        dummy(args)
+    else:
+        raise NotImplementedError(f"Not implemented parser with name: {args.which}")
 
 
 if __name__ == "__main__":

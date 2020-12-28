@@ -1,0 +1,9 @@
+include docs/fmridenoise_problem.png docs/fmridenoise_solution.png
+include fmridenoise/parcellation/*.npy
+include fmridenoise/parcellation/*.nii.gz
+include fmridenoise/pipelines/*.json
+include fmridenoise/utils/report_templates/*.j2
+include fmridenoise/utils/report_templates/*.css
+include fmridenoise/utils/dataset_description_template.json
+include versioneer.py
+include fmridenoise/_version.py
