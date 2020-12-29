@@ -183,5 +183,8 @@ epub_exclude_files = ['search.html']
 # Custom code
 import os
 import os.path as p
-os.makedirs(p.join(p.join(p.join(p.dirname(p.dirname(__file__)), 'build'), 'docs'), 'build'))
 import shutil
+build_path = p.join(p.join(p.join(p.dirname(p.dirname(__file__)), 'build'), 'docs'), 'build')
+if os.path.exists(build_path):
+    shutil.rmtree(build_path)
+os.makedirs(build_path, exist_ok=True)
