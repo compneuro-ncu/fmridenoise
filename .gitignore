@@ -7,3 +7,4 @@ build/*
 .idea/*
 .vscode/*
 venv/*
+docs/build*
