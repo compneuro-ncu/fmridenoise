@@ -23,7 +23,7 @@ Default denoising pipelines
 =============================================
 
 By default, *fMRIDenoise* performs denoising using 6 common denoising pipelines (+ one `Null` pipeline with only
-filtering applied that can be use as a refernce). Earch pipeline is defined as a single `.json` file
+filtering applied that can be use as a reference). Earch pipeline is defined as a single `.json` file
 in `pipelines <https://github.com/compneuro-ncu/fmridenoise/tree/master/fmridenoise/pipelines>`_ folder.
 All default pipelines are described below.
 
